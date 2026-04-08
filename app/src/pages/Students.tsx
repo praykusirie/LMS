@@ -57,7 +57,7 @@ export function Students({ onNavigate }: StudentsProps) {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const loadStudents = async () => {

@@ -12,10 +12,10 @@ import type {
 // Current User
 export const currentUser: User = {
   id: '1',
-  name: 'Sarah Anderson',
-  email: 'sarah.anderson@school.edu',
+  name: 'Pray Jonas',
+  email: 'pray.jonas@school.edu',
   role: 'librarian',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah&gender=female'
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Pray&gender=male'
 };
 
 // Dashboard Stats

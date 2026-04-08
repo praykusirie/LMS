@@ -60,7 +60,7 @@ export function Books({ onNavigate }: BooksProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const loadBooks = async () => {
