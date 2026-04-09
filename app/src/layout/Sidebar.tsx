@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -16,80 +17,156 @@ import {
   GraduationCap,
   FolderTree,
   BookMarked,
-  MapPin
+  MapPin,
+  UserCog,
+  UserPlus,
+  Shield,
+  Key,
+  Warehouse,
+  ClipboardList,
+  PackagePlus,
+  Package,
+  School
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { signOut } from '@/lib/auth-client';
+import { usePermissions } from '@/lib/permissions';
 
 interface SidebarProps {
-  activePage: string;
-  onNavigate: (page: string) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
 }
 
 interface SubMenuItem {
   id: string;
+  path: string;
   label: string;
   icon: LucideIcon;
+  permission?: string;
 }
 
 interface NavItem {
   id: string;
+  path: string;
   label: string;
   icon: LucideIcon;
   subItems?: SubMenuItem[];
+  permission?: string;
 }
 
 const navItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard:view' },
   { 
     id: 'master', 
+    path: '/master',
     label: 'Master Management', 
     icon: Database,
     subItems: [
-      { id: 'students', label: 'Students', icon: Users },
-      { id: 'books', label: 'Books', icon: BookOpen },
-      { id: 'classes', label: 'Classes', icon: GraduationCap },
-      { id: 'categories', label: 'Book Categories', icon: FolderTree },
-      { id: 'subjects', label: 'Subjects', icon: BookMarked },
-      { id: 'shelf-locations', label: 'Shelf Locations', icon: MapPin },
+      { id: 'students', path: '/students', label: 'Students', icon: Users, permission: 'students:view' },
+      { id: 'books', path: '/books', label: 'Books', icon: BookOpen, permission: 'books:view' },
+      { id: 'teachers', path: '/teachers', label: 'Teachers', icon: School, permission: 'teachers:view' },
+      { id: 'classes', path: '/classes', label: 'Classes', icon: GraduationCap, permission: 'master:view' },
+      { id: 'categories', path: '/categories', label: 'Book Categories', icon: FolderTree, permission: 'master:view' },
+      { id: 'subjects', path: '/subjects', label: 'Subjects', icon: BookMarked, permission: 'master:view' },
+      { id: 'shelf-locations', path: '/shelf-locations', label: 'Shelf Locations', icon: MapPin, permission: 'master:view' },
+      { id: 'items', path: '/items', label: 'Items Master', icon: Package, permission: 'items:view' },
     ]
   },
-  { id: 'borrow-return', label: 'Borrow/Return', icon: ArrowLeftRight },
-  { id: 'overdue', label: 'Overdue', icon: AlertCircle },
-  { id: 'reports', label: 'Reports', icon: FileText },
-  { id: 'settings', label: 'Settings', icon: Settings }
+  {
+    id: 'library-inventory',
+    path: '/library-inventory',
+    label: 'Library Inventory',
+    icon: Warehouse,
+    subItems: [
+      { id: 'stock-details', path: '/library-inventory/stock-details', label: 'Stock Details', icon: ClipboardList, permission: 'stock:view' },
+      { id: 'add-stock', path: '/library-inventory/add-stock', label: 'Add Stock', icon: PackagePlus, permission: 'stock:view' },
+    ]
+  },
+  {
+    id: 'user-management',
+    path: '/user-management',
+    label: 'User Management',
+    icon: UserCog,
+    subItems: [
+      { id: 'user-master', path: '/user-management/user-master', label: 'User Master', icon: UserPlus, permission: 'users:view' },
+      { id: 'role-master', path: '/user-management/role-master', label: 'Role Master', icon: Shield, permission: 'roles:view' },
+      { id: 'permissions', path: '/user-management/permissions', label: 'Permissions', icon: Key, permission: 'permissions:manage' },
+    ]
+  },
+  { id: 'borrow-return', path: '/borrow-return', label: 'Borrow/Return', icon: ArrowLeftRight, permission: 'borrow:view' },
+  { id: 'overdue', path: '/overdue', label: 'Overdue', icon: AlertCircle, permission: 'overdue:view' },
+  { id: 'reports', path: '/reports', label: 'Reports', icon: FileText, permission: 'reports:view' },
+  { id: 'settings', path: '/settings', label: 'Settings', icon: Settings, permission: 'settings:view' }
 ];
 
-const masterSubPages = ['students', 'books', 'classes', 'categories', 'subjects', 'shelf-locations', 'add-student', 'add-book'];
+const parentPaths: Record<string, string[]> = {
+  'master': ['/students', '/books', '/teachers', '/classes', '/categories', '/subjects', '/shelf-locations', '/items', '/add-student', '/add-book', '/add-teacher'],
+  'library-inventory': ['/library-inventory'],
+  'user-management': ['/user-management'],
+};
 
-export function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse }: SidebarProps) {
-  const [expandedMenu, setExpandedMenu] = useState<string | null>(
-    masterSubPages.includes(activePage) ? 'master' : null
-  );
+export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { hasPermission, isLoading } = usePermissions();
+  const pathname = location.pathname;
 
-  const handleNavigate = (page: string, hasSubItems?: boolean) => {
-    if (hasSubItems) {
-      setExpandedMenu(expandedMenu === page ? null : page);
+  const getInitialExpanded = () => {
+    for (const [parentId, paths] of Object.entries(parentPaths)) {
+      if (paths.some(p => pathname.startsWith(p))) {
+        return parentId;
+      }
+    }
+    return null;
+  };
+
+  const [expandedMenu, setExpandedMenu] = useState<string | null>(getInitialExpanded());
+
+  const handleNavigate = (item: NavItem) => {
+    if (item.subItems) {
+      setExpandedMenu(expandedMenu === item.id ? null : item.id);
     } else {
-      onNavigate(page);
+      navigate(item.path);
     }
   };
 
-  const handleSubNavigate = (page: string) => {
-    onNavigate(page);
+  const handleSubNavigate = (path: string) => {
+    navigate(path);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
   };
 
   const isParentActive = (item: NavItem) => {
     if (item.subItems) {
-      return item.subItems.some(sub => activePage === sub.id) || 
-             (activePage === 'add-student') || 
-             (activePage === 'add-book');
+      return item.subItems.some(sub => pathname.startsWith(sub.path));
     }
-    return activePage === item.id;
+    return pathname === item.path;
   };
+
+  const isSubActive = (subItem: SubMenuItem) => {
+    return pathname.startsWith(subItem.path);
+  };
+
+  const visibleNavItems = navItems
+    .map((item) => ({
+      ...item,
+      subItems: item.subItems?.filter((subItem) => hasPermission(subItem.permission ?? null)),
+    }))
+    .filter((item) => {
+      if (item.subItems) {
+        return item.subItems.length > 0;
+      }
+      return hasPermission(item.permission ?? null);
+    });
+
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <aside
@@ -125,7 +202,7 @@ export function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse 
 
       {/* Navigation */}
       <nav className={cn("flex flex-col gap-1 overflow-y-auto", isCollapsed ? "p-2" : "p-4")} style={{ maxHeight: 'calc(100vh - 140px)' }}>
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = isParentActive(item);
           const isExpanded = expandedMenu === item.id;
@@ -134,7 +211,7 @@ export function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse 
           return (
             <div key={item.id}>
               <button
-                onClick={() => handleNavigate(item.id, hasSubItems)}
+                onClick={() => handleNavigate(item)}
                 title={isCollapsed ? item.label : undefined}
                 className={cn(
                   'flex w-full items-center rounded-xl text-sm font-medium transition-colors duration-150',
@@ -163,15 +240,15 @@ export function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse 
                 <div className="ml-4 mt-1 space-y-1 border-l-2 border-border/60 pl-3">
                   {item.subItems?.map((subItem) => {
                     const SubIcon = subItem.icon;
-                    const isSubActive = activePage === subItem.id;
+                    const subActive = isSubActive(subItem);
                     
                     return (
                       <button
                         key={subItem.id}
-                        onClick={() => handleSubNavigate(subItem.id)}
+                        onClick={() => handleSubNavigate(subItem.path)}
                         className={cn(
                           'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150',
-                          isSubActive
+                          subActive
                             ? 'bg-navy text-white'
                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                         )}
@@ -191,7 +268,7 @@ export function Sidebar({ activePage, onNavigate, isCollapsed, onToggleCollapse 
       {/* Logout */}
       <div className={cn("absolute bottom-0 left-0 right-0", isCollapsed ? "p-2" : "p-4")}>
         <button
-          onClick={() => onNavigate('login')}
+          onClick={handleLogout}
           title={isCollapsed ? 'Logout' : undefined}
           className={cn(
             "flex w-full items-center rounded-xl text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-red-50 hover:text-red-600",

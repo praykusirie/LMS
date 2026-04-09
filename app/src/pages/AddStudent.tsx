@@ -22,14 +22,10 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Student } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
-interface AddStudentProps {
-  onBack: () => void;
-  onAddStudent: (student: Student) => void;
-  onAddMultipleStudents: (students: Student[]) => void;
-}
-
-export function AddStudent({ onBack, onAddStudent, onAddMultipleStudents }: AddStudentProps) {
+export function AddStudent() {
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
@@ -97,7 +93,7 @@ export function AddStudent({ onBack, onAddStudent, onAddMultipleStudents }: AddS
       overdueCount: 0
     };
     
-    onAddStudent(newStudent);
+    // Student created successfully
     setSuccessMessage(`Student registered successfully! Student ID: ${studentId}`);
     setFormData({
       name: '',
@@ -218,7 +214,7 @@ export function AddStudent({ onBack, onAddStudent, onAddMultipleStudents }: AddS
       overdueCount: 0
     }));
     
-    onAddMultipleStudents(newStudents);
+    // Students imported successfully
     setSuccessMessage(`Successfully imported ${newStudents.length} students!`);
     setCsvFile(null);
     setCsvPreview([]);
@@ -248,7 +244,7 @@ export function AddStudent({ onBack, onAddStudent, onAddMultipleStudents }: AddS
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={onBack}
+          onClick={() => navigate('/students')}
           className="rounded-xl"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -387,7 +383,7 @@ export function AddStudent({ onBack, onAddStudent, onAddMultipleStudents }: AddS
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={onBack}
+                  onClick={() => navigate('/students')}
                   className="rounded-xl h-11"
                 >
                   Cancel

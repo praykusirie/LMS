@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Bell, ChevronDown, Check } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { currentUser, notifications as mockNotifications } from '@/data/mockData';
+import { notifications as mockNotifications } from '@/data/mockData';
 import type { Notification } from '@/types';
+import { useSession } from '@/lib/auth-client';
+import { IdentityAvatar } from '@/components/shared/IdentityAvatar';
 
 interface TopBarProps {
   searchQuery: string;
@@ -18,6 +19,11 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const { data: session } = useSession();
+
+  const displayName = session?.user?.name || 'User';
+  const displayEmail = session?.user?.email || 'No email';
+  const displayRole = session?.user?.role || 'user';
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -159,15 +165,10 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps
               onClick={() => setShowProfile(!showProfile)}
               className="flex items-center gap-3 rounded-xl p-2 hover:bg-secondary transition-colors"
             >
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-                <AvatarFallback className="bg-navy text-white text-xs">
-                  {currentUser.name.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
+              <IdentityAvatar name={displayName} className="h-8 w-8" fallbackClassName="bg-navy text-white text-xs" />
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-foreground">{currentUser.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
+                <p className="text-sm font-medium text-foreground">{displayName}</p>
+                <p className="text-xs text-muted-foreground capitalize">{displayRole}</p>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </button>
@@ -182,8 +183,8 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps
                   className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-white shadow-lg border border-border/60 overflow-hidden"
                 >
                   <div className="p-4 border-b border-border/60">
-                    <p className="font-medium text-sm">{currentUser.name}</p>
-                    <p className="text-xs text-muted-foreground">{currentUser.email}</p>
+                    <p className="font-medium text-sm">{displayName}</p>
+                    <p className="text-xs text-muted-foreground">{displayEmail}</p>
                   </div>
                   <div className="p-2">
                     <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">

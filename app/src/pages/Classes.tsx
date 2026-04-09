@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -33,22 +33,16 @@ interface ClassItem {
   id: string;
   name: string;
   description: string;
-  studentCount: number;
-  isActive: boolean;
-  createdAt: string;
+  student_count: number;
+  is_active: boolean;
+  created_at: string;
 }
 
-// Mock data
-const initialClasses: ClassItem[] = [
-  { id: 'c1', name: 'Grade 9', description: 'Freshman year', studentCount: 120, isActive: true, createdAt: '2024-01-01' },
-  { id: 'c2', name: 'Grade 10', description: 'Sophomore year', studentCount: 115, isActive: true, createdAt: '2024-01-01' },
-  { id: 'c3', name: 'Grade 11', description: 'Junior year', studentCount: 108, isActive: true, createdAt: '2024-01-01' },
-  { id: 'c4', name: 'Grade 12', description: 'Senior year', studentCount: 95, isActive: true, createdAt: '2024-01-01' },
-];
+const API_BASE = 'http://localhost:8080/api';
 
 export function Classes() {
-  const [classes, setClasses] = useState<ClassItem[]>(initialClasses);
-  const [isLoading] = useState(false);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -61,10 +55,30 @@ export function Classes() {
     description: ''
   });
 
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  const fetchClasses = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE}/classes`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setClasses(data);
+      }
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+      showNotification('error', 'Failed to fetch classes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredClasses = useMemo(() => {
     return classes.filter(c => 
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (c.description || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [classes, searchQuery]);
 
@@ -73,53 +87,90 @@ export function Classes() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const generateId = () => `c${Date.now()}`;
-
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name.trim()) {
       showNotification('error', 'Class name is required');
       return;
     }
 
-    const newClass: ClassItem = {
-      id: generateId(),
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      studentCount: 0,
-      isActive: true,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const response = await fetch(`${API_BASE}/classes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          description: formData.description.trim() || null,
+        }),
+      });
 
-    setClasses([...classes, newClass]);
-    setShowAddDialog(false);
-    setFormData({ name: '', description: '' });
-    showNotification('success', 'Class added successfully');
+      if (response.ok) {
+        await fetchClasses();
+        setShowAddDialog(false);
+        setFormData({ name: '', description: '' });
+        showNotification('success', 'Class added successfully');
+      } else {
+        showNotification('error', 'Failed to add class');
+      }
+    } catch (error) {
+      console.error('Error adding class:', error);
+      showNotification('error', 'Failed to add class');
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedClass || !formData.name.trim()) {
       showNotification('error', 'Class name is required');
       return;
     }
 
-    setClasses(classes.map(c => 
-      c.id === selectedClass.id 
-        ? { ...c, name: formData.name.trim(), description: formData.description.trim() }
-        : c
-    ));
-    setShowEditDialog(false);
-    setSelectedClass(null);
-    setFormData({ name: '', description: '' });
-    showNotification('success', 'Class updated successfully');
+    try {
+      const response = await fetch(`${API_BASE}/classes/${selectedClass.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          description: formData.description.trim() || null,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchClasses();
+        setShowEditDialog(false);
+        setSelectedClass(null);
+        setFormData({ name: '', description: '' });
+        showNotification('success', 'Class updated successfully');
+      } else {
+        showNotification('error', 'Failed to update class');
+      }
+    } catch (error) {
+      console.error('Error updating class:', error);
+      showNotification('error', 'Failed to update class');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedClass) return;
 
-    setClasses(classes.filter(c => c.id !== selectedClass.id));
-    setShowDeleteDialog(false);
-    setSelectedClass(null);
-    showNotification('success', 'Class deleted successfully');
+    try {
+      const response = await fetch(`${API_BASE}/classes/${selectedClass.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchClasses();
+        setShowDeleteDialog(false);
+        setSelectedClass(null);
+        showNotification('success', 'Class deleted successfully');
+      } else {
+        showNotification('error', 'Failed to delete class');
+      }
+    } catch (error) {
+      console.error('Error deleting class:', error);
+      showNotification('error', 'Failed to delete class');
+    }
   };
 
   const openEditDialog = (classItem: ClassItem) => {
@@ -221,7 +272,7 @@ export function Classes() {
               <CheckCircle2 className="h-5 w-5 text-green" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{classes.filter(c => c.isActive).length}</p>
+              <p className="text-2xl font-bold">{classes.filter(c => c.is_active).length}</p>
               <p className="text-sm text-muted-foreground">Active Classes</p>
             </div>
           </div>
@@ -232,7 +283,7 @@ export function Classes() {
               <GraduationCap className="h-5 w-5 text-amber" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{classes.reduce((sum, c) => sum + c.studentCount, 0)}</p>
+              <p className="text-2xl font-bold">{classes.reduce((sum, c) => sum + (c.student_count || 0), 0)}</p>
               <p className="text-sm text-muted-foreground">Total Students</p>
             </div>
           </div>
@@ -308,15 +359,15 @@ export function Classes() {
                       {classItem.description || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium">
-                      {classItem.studentCount}
+                      {classItem.student_count || 0}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        classItem.isActive 
+                        classItem.is_active 
                           ? 'bg-green-100 text-green-700' 
                           : 'bg-gray-100 text-gray-700'
                       }`}>
-                        {classItem.isActive ? 'Active' : 'Inactive'}
+                        {classItem.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -434,11 +485,11 @@ export function Classes() {
               Are you sure you want to delete <span className="font-medium text-foreground">{selectedClass?.name}</span>? 
               This action cannot be undone.
             </p>
-            {selectedClass && selectedClass.studentCount > 0 && (
+            {selectedClass && (selectedClass.student_count || 0) > 0 && (
               <div className="mt-3 p-3 bg-amber-50 rounded-xl">
                 <p className="text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
-                  This class has {selectedClass.studentCount} students assigned.
+                  This class has {selectedClass.student_count} students assigned.
                 </p>
               </div>
             )}

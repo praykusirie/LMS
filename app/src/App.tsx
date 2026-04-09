@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { MainLayout } from '@/layout/MainLayout';
 import { 
   Login, 
@@ -15,127 +14,107 @@ import {
   BorrowReturn, 
   Overdue, 
   Reports, 
-  Settings 
+  Settings,
+  UserMaster,
+  RoleMaster,
+  PermissionsPage,
+  ItemsMaster,
+  StockList,
+  StockDetails,
+  StockView,
+  Teachers,
+  AddTeacher
 } from '@/pages';
 import './App.css';
-import type { Student, Book } from '@/types';
-import { students as mockStudents, books as mockBooks } from '@/data/mockData';
+import { useSession } from '@/lib/auth-client';
 
-type Page = 
-  | 'login' 
-  | 'dashboard' 
-  | 'books' 
-  | 'students' 
-  | 'add-student'
-  | 'add-book'
-  | 'classes'
-  | 'categories'
-  | 'subjects'
-  | 'shelf-locations'
-  | 'borrow-return' 
-  | 'overdue' 
-  | 'reports' 
-  | 'settings';
+function ProtectedRoute() {
+  const { data: session, isPending } = useSession();
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
-  const [students, setStudents] = useState<Student[]>(mockStudents);
-  const [books, setBooks] = useState<Book[]>(mockBooks);
+  if (isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div>
+      </div>
+    );
+  }
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleNavigate = (page: string) => {
-    if (page === 'login') {
-      setIsAuthenticated(false);
-    } else {
-      setCurrentPage(page as Page);
-    }
-  };
-
-  const handleAddStudent = (student: Student) => {
-    setStudents([student, ...students]);
-  };
-
-  const handleAddMultipleStudents = (newStudents: Student[]) => {
-    setStudents([...newStudents, ...students]);
-  };
-
-  const handleAddBook = (book: Book) => {
-    setBooks([book, ...books]);
-  };
-
-  const handleAddMultipleBooks = (newBooks: Book[]) => {
-    setBooks([...newBooks, ...books]);
-  };
-
-  // Render the current page content
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <Dashboard onNavigate={handleNavigate} />;
-      case 'books':
-        return <Books onNavigate={handleNavigate} />;
-      case 'students':
-        return <Students onNavigate={handleNavigate} />;
-      case 'add-student':
-        return (
-          <AddStudent 
-            onBack={() => handleNavigate('students')} 
-            onAddStudent={handleAddStudent}
-            onAddMultipleStudents={handleAddMultipleStudents}
-          />
-        );
-      case 'add-book':
-        return (
-          <AddBook 
-            onBack={() => handleNavigate('books')} 
-            onAddBook={handleAddBook}
-            onAddMultipleBooks={handleAddMultipleBooks}
-          />
-        );
-      case 'classes':
-        return <Classes />;
-      case 'categories':
-        return <Categories />;
-      case 'subjects':
-        return <Subjects />;
-      case 'shelf-locations':
-        return <ShelfLocations />;
-      case 'borrow-return':
-        return <BorrowReturn />;
-      case 'overdue':
-        return <Overdue />;
-      case 'reports':
-        return <Reports />;
-      case 'settings':
-        return <Settings />;
-      default:
-        return <Dashboard onNavigate={handleNavigate} />;
-    }
-  };
-
-  // Show login page if not authenticated
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+  if (!session) {
+    return <Navigate to="/login" replace />;
   }
 
   return (
-    <MainLayout activePage={currentPage} onNavigate={handleNavigate}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentPage}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-        >
-          {renderPage()}
-        </motion.div>
-      </AnimatePresence>
+    <MainLayout>
+      <Outlet />
     </MainLayout>
+  );
+}
+
+function PublicRoute() {
+  const { data: session, isPending } = useSession();
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div>
+      </div>
+    );
+  }
+
+  if (session) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Outlet />;
+}
+
+function App() {
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<Login />} />
+      </Route>
+
+      {/* Protected routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        
+        {/* Master Management */}
+        <Route path="/students" element={<Students />} />
+        <Route path="/add-student" element={<AddStudent />} />
+        <Route path="/books" element={<Books />} />
+        <Route path="/add-book" element={<AddBook />} />
+        <Route path="/classes" element={<Classes />} />
+        <Route path="/categories" element={<Categories />} />
+        <Route path="/subjects" element={<Subjects />} />
+        <Route path="/shelf-locations" element={<ShelfLocations />} />
+        <Route path="/items" element={<ItemsMaster />} />
+        <Route path="/teachers" element={<Teachers />} />
+        <Route path="/add-teacher" element={<AddTeacher />} />
+        <Route path="/teachers/:teacherId" element={<AddTeacher />} />
+
+        {/* User Management */}
+        <Route path="/user-management/user-master" element={<UserMaster />} />
+        <Route path="/user-management/role-master" element={<RoleMaster />} />
+        <Route path="/user-management/permissions" element={<PermissionsPage />} />
+
+        {/* Library Inventory */}
+        <Route path="/library-inventory/add-stock" element={<StockList />} />
+        <Route path="/library-inventory/add-stock/new" element={<StockView />} />
+        <Route path="/library-inventory/add-stock/:stockId" element={<StockView />} />
+        <Route path="/library-inventory/stock-details" element={<StockDetails />} />
+
+        {/* Other */}
+        <Route path="/borrow-return" element={<BorrowReturn />} />
+        <Route path="/overdue" element={<Overdue />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/settings" element={<Settings />} />
+      </Route>
+
+      {/* Default redirect */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -36,23 +36,16 @@ interface ShelfLocation {
   name: string;
   section: string;
   capacity: number;
-  bookCount: number;
-  isActive: boolean;
-  createdAt: string;
+  book_count: number;
+  is_active: boolean;
+  created_at: string;
 }
 
-const initialLocations: ShelfLocation[] = [
-  { id: 'loc1', code: 'A-01', name: 'Fiction Section A', section: 'A', capacity: 200, bookCount: 180, isActive: true, createdAt: '2024-01-01' },
-  { id: 'loc2', code: 'A-02', name: 'Fiction Section B', section: 'A', capacity: 200, bookCount: 165, isActive: true, createdAt: '2024-01-01' },
-  { id: 'loc3', code: 'B-01', name: 'Science Section', section: 'B', capacity: 250, bookCount: 220, isActive: true, createdAt: '2024-01-01' },
-  { id: 'loc4', code: 'B-02', name: 'Mathematics Section', section: 'B', capacity: 200, bookCount: 175, isActive: true, createdAt: '2024-01-01' },
-  { id: 'loc5', code: 'C-01', name: 'Reference Section', section: 'C', capacity: 150, bookCount: 140, isActive: true, createdAt: '2024-01-01' },
-  { id: 'loc6', code: 'D-01', name: 'Textbooks Section', section: 'D', capacity: 300, bookCount: 280, isActive: true, createdAt: '2024-01-01' },
-];
+const API_BASE = 'http://localhost:8080/api';
 
 export function ShelfLocations() {
-  const [locations, setLocations] = useState<ShelfLocation[]>(initialLocations);
-  const [isLoading] = useState(false);
+  const [locations, setLocations] = useState<ShelfLocation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -67,11 +60,31 @@ export function ShelfLocations() {
     capacity: 100
   });
 
+  useEffect(() => {
+    fetchLocations();
+  }, []);
+
+  const fetchLocations = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE}/shelf-locations`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setLocations(data);
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      showNotification('error', 'Failed to fetch locations');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredLocations = useMemo(() => {
     return locations.filter(l => 
-      l.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.section.toLowerCase().includes(searchQuery.toLowerCase())
+      (l.code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (l.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (l.section || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [locations, searchQuery]);
 
@@ -80,61 +93,94 @@ export function ShelfLocations() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const generateId = () => `loc${Date.now()}`;
-
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.code.trim() || !formData.name.trim()) {
       showNotification('error', 'Code and name are required');
       return;
     }
 
-    const newLocation: ShelfLocation = {
-      id: generateId(),
-      code: formData.code.trim().toUpperCase(),
-      name: formData.name.trim(),
-      section: formData.section.trim().toUpperCase(),
-      capacity: formData.capacity,
-      bookCount: 0,
-      isActive: true,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const response = await fetch(`${API_BASE}/shelf-locations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          code: formData.code.trim().toUpperCase(),
+          name: formData.name.trim(),
+          section: formData.section.trim().toUpperCase() || null,
+          capacity: formData.capacity,
+        }),
+      });
 
-    setLocations([...locations, newLocation]);
-    setShowAddDialog(false);
-    setFormData({ code: '', name: '', section: '', capacity: 100 });
-    showNotification('success', 'Shelf location added successfully');
+      if (response.ok) {
+        await fetchLocations();
+        setShowAddDialog(false);
+        setFormData({ code: '', name: '', section: '', capacity: 100 });
+        showNotification('success', 'Shelf location added successfully');
+      } else {
+        showNotification('error', 'Failed to add location');
+      }
+    } catch (error) {
+      console.error('Error adding location:', error);
+      showNotification('error', 'Failed to add location');
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedLocation || !formData.code.trim() || !formData.name.trim()) {
       showNotification('error', 'Code and name are required');
       return;
     }
 
-    setLocations(locations.map(l => 
-      l.id === selectedLocation.id 
-        ? { 
-            ...l, 
-            code: formData.code.trim().toUpperCase(), 
-            name: formData.name.trim(),
-            section: formData.section.trim().toUpperCase(),
-            capacity: formData.capacity
-          }
-        : l
-    ));
-    setShowEditDialog(false);
-    setSelectedLocation(null);
-    setFormData({ code: '', name: '', section: '', capacity: 100 });
-    showNotification('success', 'Shelf location updated successfully');
+    try {
+      const response = await fetch(`${API_BASE}/shelf-locations/${selectedLocation.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          code: formData.code.trim().toUpperCase(),
+          name: formData.name.trim(),
+          section: formData.section.trim().toUpperCase() || null,
+          capacity: formData.capacity,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchLocations();
+        setShowEditDialog(false);
+        setSelectedLocation(null);
+        setFormData({ code: '', name: '', section: '', capacity: 100 });
+        showNotification('success', 'Shelf location updated successfully');
+      } else {
+        showNotification('error', 'Failed to update location');
+      }
+    } catch (error) {
+      console.error('Error updating location:', error);
+      showNotification('error', 'Failed to update location');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedLocation) return;
 
-    setLocations(locations.filter(l => l.id !== selectedLocation.id));
-    setShowDeleteDialog(false);
-    setSelectedLocation(null);
-    showNotification('success', 'Shelf location deleted successfully');
+    try {
+      const response = await fetch(`${API_BASE}/shelf-locations/${selectedLocation.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchLocations();
+        setShowDeleteDialog(false);
+        setSelectedLocation(null);
+        showNotification('success', 'Shelf location deleted successfully');
+      } else {
+        showNotification('error', 'Failed to delete location');
+      }
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      showNotification('error', 'Failed to delete location');
+    }
   };
 
   const openEditDialog = (location: ShelfLocation) => {
@@ -153,8 +199,8 @@ export function ShelfLocations() {
     setShowDeleteDialog(true);
   };
 
-  const getCapacityColor = (bookCount: number, capacity: number) => {
-    const percentage = (bookCount / capacity) * 100;
+  const getCapacityColor = (book_count: number, capacity: number) => {
+    const percentage = ((book_count || 0) / (capacity || 1)) * 100;
     if (percentage >= 90) return 'bg-red-500';
     if (percentage >= 70) return 'bg-amber-500';
     return 'bg-green-500';
@@ -259,7 +305,7 @@ export function ShelfLocations() {
               <BookOpen className="h-5 w-5 text-amber" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{locations.reduce((sum, l) => sum + l.bookCount, 0)}</p>
+              <p className="text-2xl font-bold">{locations.reduce((sum, l) => sum + (l.book_count || 0), 0)}</p>
               <p className="text-sm text-muted-foreground">Books Stored</p>
             </div>
           </div>
@@ -357,22 +403,22 @@ export function ShelfLocations() {
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-2 bg-secondary rounded-full max-w-[100px]">
                           <div 
-                            className={`h-2 rounded-full ${getCapacityColor(location.bookCount, location.capacity)}`}
-                            style={{ width: `${Math.min((location.bookCount / location.capacity) * 100, 100)}%` }}
+                            className={`h-2 rounded-full ${getCapacityColor(location.book_count, location.capacity)}`}
+                            style={{ width: `${Math.min(((location.book_count || 0) / (location.capacity || 1)) * 100, 100)}%` }}
                           />
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {location.bookCount}/{location.capacity}
+                          {location.book_count || 0}/{location.capacity}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        location.isActive 
+                        location.is_active 
                           ? 'bg-green-100 text-green-700' 
                           : 'bg-gray-100 text-gray-700'
                       }`}>
-                        {location.isActive ? 'Active' : 'Inactive'}
+                        {location.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -532,11 +578,11 @@ export function ShelfLocations() {
               Are you sure you want to delete <span className="font-medium text-foreground">{selectedLocation?.name}</span>? 
               This action cannot be undone.
             </p>
-            {selectedLocation && selectedLocation.bookCount > 0 && (
+            {selectedLocation && (selectedLocation.book_count || 0) > 0 && (
               <div className="mt-3 p-3 bg-amber-50 rounded-xl">
                 <p className="text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
-                  This location has {selectedLocation.bookCount} books stored.
+                  This location has {selectedLocation.book_count} books stored.
                 </p>
               </div>
             )}

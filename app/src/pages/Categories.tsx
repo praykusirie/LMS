@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -34,22 +34,16 @@ interface Category {
   id: string;
   name: string;
   description: string;
-  bookCount: number;
-  isActive: boolean;
-  createdAt: string;
+  book_count: number;
+  is_active: boolean;
+  created_at: string;
 }
 
-const initialCategories: Category[] = [
-  { id: 'cat1', name: 'Fiction', description: 'Novels and fictional stories', bookCount: 450, isActive: true, createdAt: '2024-01-01' },
-  { id: 'cat2', name: 'Non-Fiction', description: 'Factual and informational books', bookCount: 320, isActive: true, createdAt: '2024-01-01' },
-  { id: 'cat3', name: 'Textbook', description: 'Educational textbooks', bookCount: 280, isActive: true, createdAt: '2024-01-01' },
-  { id: 'cat4', name: 'Reference', description: 'Dictionaries, encyclopedias, etc.', bookCount: 150, isActive: true, createdAt: '2024-01-01' },
-  { id: 'cat5', name: 'Biography', description: 'Life stories and memoirs', bookCount: 85, isActive: true, createdAt: '2024-01-01' },
-];
+const API_BASE = 'http://localhost:8080/api';
 
 export function Categories() {
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [isLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -62,10 +56,30 @@ export function Categories() {
     description: ''
   });
 
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE}/categories`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      showNotification('error', 'Failed to fetch categories');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredCategories = useMemo(() => {
     return categories.filter(c => 
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (c.description || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [categories, searchQuery]);
 
@@ -74,53 +88,90 @@ export function Categories() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const generateId = () => `cat${Date.now()}`;
-
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name.trim()) {
       showNotification('error', 'Category name is required');
       return;
     }
 
-    const newCategory: Category = {
-      id: generateId(),
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      bookCount: 0,
-      isActive: true,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const response = await fetch(`${API_BASE}/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          description: formData.description.trim() || null,
+        }),
+      });
 
-    setCategories([...categories, newCategory]);
-    setShowAddDialog(false);
-    setFormData({ name: '', description: '' });
-    showNotification('success', 'Category added successfully');
+      if (response.ok) {
+        await fetchCategories();
+        setShowAddDialog(false);
+        setFormData({ name: '', description: '' });
+        showNotification('success', 'Category added successfully');
+      } else {
+        showNotification('error', 'Failed to add category');
+      }
+    } catch (error) {
+      console.error('Error adding category:', error);
+      showNotification('error', 'Failed to add category');
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedCategory || !formData.name.trim()) {
       showNotification('error', 'Category name is required');
       return;
     }
 
-    setCategories(categories.map(c => 
-      c.id === selectedCategory.id 
-        ? { ...c, name: formData.name.trim(), description: formData.description.trim() }
-        : c
-    ));
-    setShowEditDialog(false);
-    setSelectedCategory(null);
-    setFormData({ name: '', description: '' });
-    showNotification('success', 'Category updated successfully');
+    try {
+      const response = await fetch(`${API_BASE}/categories/${selectedCategory.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          description: formData.description.trim() || null,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchCategories();
+        setShowEditDialog(false);
+        setSelectedCategory(null);
+        setFormData({ name: '', description: '' });
+        showNotification('success', 'Category updated successfully');
+      } else {
+        showNotification('error', 'Failed to update category');
+      }
+    } catch (error) {
+      console.error('Error updating category:', error);
+      showNotification('error', 'Failed to update category');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedCategory) return;
 
-    setCategories(categories.filter(c => c.id !== selectedCategory.id));
-    setShowDeleteDialog(false);
-    setSelectedCategory(null);
-    showNotification('success', 'Category deleted successfully');
+    try {
+      const response = await fetch(`${API_BASE}/categories/${selectedCategory.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchCategories();
+        setShowDeleteDialog(false);
+        setSelectedCategory(null);
+        showNotification('success', 'Category deleted successfully');
+      } else {
+        showNotification('error', 'Failed to delete category');
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      showNotification('error', 'Failed to delete category');
+    }
   };
 
   const openEditDialog = (category: Category) => {
@@ -222,7 +273,7 @@ export function Categories() {
               <CheckCircle2 className="h-5 w-5 text-green" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{categories.filter(c => c.isActive).length}</p>
+              <p className="text-2xl font-bold">{categories.filter(c => c.is_active).length}</p>
               <p className="text-sm text-muted-foreground">Active Categories</p>
             </div>
           </div>
@@ -233,7 +284,7 @@ export function Categories() {
               <BookOpen className="h-5 w-5 text-amber" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{categories.reduce((sum, c) => sum + c.bookCount, 0)}</p>
+              <p className="text-2xl font-bold">{categories.reduce((sum, c) => sum + (c.book_count || 0), 0)}</p>
               <p className="text-sm text-muted-foreground">Total Books</p>
             </div>
           </div>
@@ -309,15 +360,15 @@ export function Categories() {
                       {category.description || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium">
-                      {category.bookCount}
+                      {category.book_count || 0}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        category.isActive 
+                        category.is_active 
                           ? 'bg-green-100 text-green-700' 
                           : 'bg-gray-100 text-gray-700'
                       }`}>
-                        {category.isActive ? 'Active' : 'Inactive'}
+                        {category.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -435,11 +486,11 @@ export function Categories() {
               Are you sure you want to delete <span className="font-medium text-foreground">{selectedCategory?.name}</span>? 
               This action cannot be undone.
             </p>
-            {selectedCategory && selectedCategory.bookCount > 0 && (
+            {selectedCategory && (selectedCategory.book_count || 0) > 0 && (
               <div className="mt-3 p-3 bg-amber-50 rounded-xl">
                 <p className="text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
-                  This category has {selectedCategory.bookCount} books assigned.
+                  This category has {selectedCategory.book_count} books assigned.
                 </p>
               </div>
             )}

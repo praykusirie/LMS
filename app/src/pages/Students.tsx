@@ -40,12 +40,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge, EmptyState } from '@/components/ui-custom';
 import { students as mockStudents, borrowRecords } from '@/data/mockData';
 import type { Student } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
-interface StudentsProps {
-  onNavigate?: (page: string) => void;
-}
-
-export function Students({ onNavigate }: StudentsProps) {
+export function Students() {
+  const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,7 +184,7 @@ export function Students({ onNavigate }: StudentsProps) {
           </p>
         </div>
         <Button 
-          onClick={() => onNavigate?.('add-student')}
+          onClick={() => navigate('/add-student')}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <Plus className="h-4 w-4 mr-2" />

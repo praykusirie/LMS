@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -35,25 +35,16 @@ interface Subject {
   name: string;
   code: string;
   description: string;
-  bookCount: number;
-  isActive: boolean;
-  createdAt: string;
+  book_count: number;
+  is_active: boolean;
+  created_at: string;
 }
 
-const initialSubjects: Subject[] = [
-  { id: 'sub1', name: 'Mathematics', code: 'MATH', description: 'Mathematical studies', bookCount: 180, isActive: true, createdAt: '2024-01-01' },
-  { id: 'sub2', name: 'English', code: 'ENG', description: 'English language and literature', bookCount: 220, isActive: true, createdAt: '2024-01-01' },
-  { id: 'sub3', name: 'Science', code: 'SCI', description: 'General science studies', bookCount: 150, isActive: true, createdAt: '2024-01-01' },
-  { id: 'sub4', name: 'History', code: 'HIST', description: 'Historical studies', bookCount: 95, isActive: true, createdAt: '2024-01-01' },
-  { id: 'sub5', name: 'Geography', code: 'GEO', description: 'Geographical studies', bookCount: 75, isActive: true, createdAt: '2024-01-01' },
-  { id: 'sub6', name: 'Physics', code: 'PHY', description: 'Physics studies', bookCount: 120, isActive: true, createdAt: '2024-01-01' },
-  { id: 'sub7', name: 'Chemistry', code: 'CHEM', description: 'Chemistry studies', bookCount: 110, isActive: true, createdAt: '2024-01-01' },
-  { id: 'sub8', name: 'Biology', code: 'BIO', description: 'Biology studies', bookCount: 130, isActive: true, createdAt: '2024-01-01' },
-];
+const API_BASE = 'http://localhost:8080/api';
 
 export function Subjects() {
-  const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
-  const [isLoading] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -67,11 +58,31 @@ export function Subjects() {
     description: ''
   });
 
+  useEffect(() => {
+    fetchSubjects();
+  }, []);
+
+  const fetchSubjects = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE}/subjects`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setSubjects(data);
+      }
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      showNotification('error', 'Failed to fetch subjects');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredSubjects = useMemo(() => {
     return subjects.filter(s => 
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (s.code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.description || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [subjects, searchQuery]);
 
@@ -80,54 +91,92 @@ export function Subjects() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const generateId = () => `sub${Date.now()}`;
-
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name.trim()) {
       showNotification('error', 'Subject name is required');
       return;
     }
 
-    const newSubject: Subject = {
-      id: generateId(),
-      name: formData.name.trim(),
-      code: formData.code.trim().toUpperCase(),
-      description: formData.description.trim(),
-      bookCount: 0,
-      isActive: true,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const response = await fetch(`${API_BASE}/subjects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          code: formData.code.trim().toUpperCase(),
+          description: formData.description.trim() || null,
+        }),
+      });
 
-    setSubjects([...subjects, newSubject]);
-    setShowAddDialog(false);
-    setFormData({ name: '', code: '', description: '' });
-    showNotification('success', 'Subject added successfully');
+      if (response.ok) {
+        await fetchSubjects();
+        setShowAddDialog(false);
+        setFormData({ name: '', code: '', description: '' });
+        showNotification('success', 'Subject added successfully');
+      } else {
+        showNotification('error', 'Failed to add subject');
+      }
+    } catch (error) {
+      console.error('Error adding subject:', error);
+      showNotification('error', 'Failed to add subject');
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedSubject || !formData.name.trim()) {
       showNotification('error', 'Subject name is required');
       return;
     }
 
-    setSubjects(subjects.map(s => 
-      s.id === selectedSubject.id 
-        ? { ...s, name: formData.name.trim(), code: formData.code.trim().toUpperCase(), description: formData.description.trim() }
-        : s
-    ));
-    setShowEditDialog(false);
-    setSelectedSubject(null);
-    setFormData({ name: '', code: '', description: '' });
-    showNotification('success', 'Subject updated successfully');
+    try {
+      const response = await fetch(`${API_BASE}/subjects/${selectedSubject.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          code: formData.code.trim().toUpperCase(),
+          description: formData.description.trim() || null,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchSubjects();
+        setShowEditDialog(false);
+        setSelectedSubject(null);
+        setFormData({ name: '', code: '', description: '' });
+        showNotification('success', 'Subject updated successfully');
+      } else {
+        showNotification('error', 'Failed to update subject');
+      }
+    } catch (error) {
+      console.error('Error updating subject:', error);
+      showNotification('error', 'Failed to update subject');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedSubject) return;
 
-    setSubjects(subjects.filter(s => s.id !== selectedSubject.id));
-    setShowDeleteDialog(false);
-    setSelectedSubject(null);
-    showNotification('success', 'Subject deleted successfully');
+    try {
+      const response = await fetch(`${API_BASE}/subjects/${selectedSubject.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchSubjects();
+        setShowDeleteDialog(false);
+        setSelectedSubject(null);
+        showNotification('success', 'Subject deleted successfully');
+      } else {
+        showNotification('error', 'Failed to delete subject');
+      }
+    } catch (error) {
+      console.error('Error deleting subject:', error);
+      showNotification('error', 'Failed to delete subject');
+    }
   };
 
   const openEditDialog = (subject: Subject) => {
@@ -229,7 +278,7 @@ export function Subjects() {
               <CheckCircle2 className="h-5 w-5 text-green" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{subjects.filter(s => s.isActive).length}</p>
+              <p className="text-2xl font-bold">{subjects.filter(s => s.is_active).length}</p>
               <p className="text-sm text-muted-foreground">Active Subjects</p>
             </div>
           </div>
@@ -240,7 +289,7 @@ export function Subjects() {
               <BookOpen className="h-5 w-5 text-amber" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{subjects.reduce((sum, s) => sum + s.bookCount, 0)}</p>
+              <p className="text-2xl font-bold">{subjects.reduce((sum, s) => sum + (s.book_count || 0), 0)}</p>
               <p className="text-sm text-muted-foreground">Total Books</p>
             </div>
           </div>
@@ -324,15 +373,15 @@ export function Subjects() {
                       {subject.description || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium">
-                      {subject.bookCount}
+                      {subject.book_count || 0}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        subject.isActive 
+                        subject.is_active 
                           ? 'bg-green-100 text-green-700' 
                           : 'bg-gray-100 text-gray-700'
                       }`}>
-                        {subject.isActive ? 'Active' : 'Inactive'}
+                        {subject.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -468,11 +517,11 @@ export function Subjects() {
               Are you sure you want to delete <span className="font-medium text-foreground">{selectedSubject?.name}</span>? 
               This action cannot be undone.
             </p>
-            {selectedSubject && selectedSubject.bookCount > 0 && (
+            {selectedSubject && (selectedSubject.book_count || 0) > 0 && (
               <div className="mt-3 p-3 bg-amber-50 rounded-xl">
                 <p className="text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
-                  This subject has {selectedSubject.bookCount} books assigned.
+                  This subject has {selectedSubject.book_count} books assigned.
                 </p>
               </div>
             )}

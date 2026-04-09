@@ -37,10 +37,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge, EmptyState } from '@/components/ui-custom';
 import { books as mockBooks } from '@/data/mockData';
 import type { Book } from '@/types';
-
-interface BooksProps {
-  onNavigate?: (page: string) => void;
-}
+import { useNavigate } from 'react-router-dom';
 
 const generateBookCover = (title: string, category: string) => {
   const seed = encodeURIComponent(title);
@@ -49,7 +46,8 @@ const generateBookCover = (title: string, category: string) => {
   return `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}&backgroundColor=${colors[colorIndex]}`;
 };
 
-export function Books({ onNavigate }: BooksProps) {
+export function Books() {
+  const navigate = useNavigate();
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,7 +184,7 @@ export function Books({ onNavigate }: BooksProps) {
             Import CSV
           </Button>
           <Button 
-            onClick={() => onNavigate?.('add-book')}
+            onClick={() => navigate('/add-book')}
             className="bg-navy hover:bg-navy/90 rounded-xl h-11"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -264,7 +262,7 @@ export function Books({ onNavigate }: BooksProps) {
             title="No books found"
             description="Try adjusting your search or filters, or add a new book."
             actionLabel="Add Book"
-            onAction={() => onNavigate?.('add-book')}
+            onAction={() => navigate('/add-book')}
           />
         ) : (
           <>

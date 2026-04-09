@@ -1,4 +1,5 @@
 // Dashboard component
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BookOpen, 
@@ -7,7 +8,9 @@ import {
   Plus, 
   UserPlus, 
   ArrowLeftRight,
-  TrendingUp
+  TrendingUp,
+  School,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatsCard, QuickActionCard, ActivityItem } from '@/components/ui-custom';
@@ -20,40 +23,89 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { dashboardStats, borrowingTrends, activities } from '@/data/mockData';
+import { useNavigate } from 'react-router-dom';
+import type { Activity, ChartDataPoint } from '@/types';
 
-interface DashboardProps {
-  onNavigate: (page: string) => void;
+const API_BASE = 'http://localhost:8080/api';
+
+interface DashboardStatsData {
+  total_books: number;
+  total_copies: number;
+  borrowed_books: number;
+  overdue_books: number;
+  registered_students: number;
+  total_teachers: number;
 }
 
-export function Dashboard({ onNavigate }: DashboardProps) {
-  const stats = [
+export function Dashboard() {
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStatsData | null>(null);
+  const [trends, setTrends] = useState<ChartDataPoint[]>([]);
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        const [statsRes, trendsRes, activityRes] = await Promise.all([
+          fetch(`${API_BASE}/dashboard/stats`, { credentials: 'include' }),
+          fetch(`${API_BASE}/dashboard/borrowing-trends`, { credentials: 'include' }),
+          fetch(`${API_BASE}/dashboard/recent-activity`, { credentials: 'include' }),
+        ]);
+
+        if (statsRes.ok) {
+          const data = await statsRes.json();
+          setStats(data);
+        }
+        if (trendsRes.ok) {
+          const data = await trendsRes.json();
+          setTrends(data);
+        }
+        if (activityRes.ok) {
+          const data = await activityRes.json();
+          setRecentActivity(data.map((item: { id: string; type: string; description: string; user_name: string; user_gender: string; timestamp: string }) => ({
+            id: item.id,
+            type: item.type as Activity['type'],
+            description: item.description,
+            userName: item.user_name,
+            timestamp: item.timestamp,
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const statCards = [
     { 
       title: 'Total Books', 
-      value: dashboardStats.totalBooks.toLocaleString(), 
+      value: stats ? Number(stats.total_copies).toLocaleString() : '—', 
       icon: BookOpen, 
-      color: 'navy' as const,
-      trend: { value: 5.2, isPositive: true }
+      color: 'navy' as const
     },
     { 
       title: 'Borrowed', 
-      value: dashboardStats.borrowedBooks.toLocaleString(), 
+      value: stats ? Number(stats.borrowed_books).toLocaleString() : '—', 
       icon: Clock, 
-      color: 'amber' as const,
-      trend: { value: 3.1, isPositive: false }
+      color: 'amber' as const
     },
     { 
       title: 'Overdue', 
-      value: dashboardStats.overdueBooks.toLocaleString(), 
+      value: stats ? Number(stats.overdue_books).toLocaleString() : '—', 
       icon: TrendingUp, 
       color: 'red' as const 
     },
     { 
       title: 'Registered Students', 
-      value: dashboardStats.registeredStudents.toLocaleString(), 
+      value: stats ? Number(stats.registered_students).toLocaleString() : '—', 
       icon: GraduationCap, 
-      color: 'green' as const,
-      trend: { value: 8.4, isPositive: true }
+      color: 'green' as const
     }
   ];
 
@@ -62,19 +114,25 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       title: 'Add Book', 
       icon: Plus, 
       color: 'navy' as const,
-      onClick: () => onNavigate('books')
+      onClick: () => navigate('/books')
     },
     { 
       title: 'Register Student', 
       icon: UserPlus, 
       color: 'green' as const,
-      onClick: () => onNavigate('students')
+      onClick: () => navigate('/students')
     },
     { 
-      title: 'Return Book', 
+      title: 'Borrow / Return', 
       icon: ArrowLeftRight, 
       color: 'amber' as const,
-      onClick: () => onNavigate('borrow-return')
+      onClick: () => navigate('/borrow-return')
+    },
+    { 
+      title: 'Add Teacher', 
+      icon: School, 
+      color: 'navy' as const,
+      onClick: () => navigate('/add-teacher')
     }
   ];
 
@@ -94,7 +152,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </p>
         </div>
         <Button 
-          onClick={() => onNavigate('borrow-return')}
+          onClick={() => navigate('/borrow-return')}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11 px-5"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -103,19 +161,24 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       </motion.div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {stats.map((stat, index) => (
-          <StatsCard
-            key={stat.title}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
-            trend={stat.trend}
-            delay={0.1 + index * 0.08}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {statCards.map((stat, index) => (
+            <StatsCard
+              key={stat.title}
+              title={stat.title}
+              value={stat.value}
+              icon={stat.icon}
+              color={stat.color}
+              delay={0.1 + index * 0.08}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Quick Actions */}
       <motion.div
@@ -124,7 +187,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         transition={{ duration: 0.5, delay: 0.4 }}
       >
         <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
           {quickActions.map((action, index) => (
             <QuickActionCard
               key={action.title}
@@ -152,43 +215,63 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <p className="text-sm text-muted-foreground">Last 6 months</p>
           </div>
           <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={borrowingTrends}>
-                <defs>
-                  <linearGradient id="colorBorrows" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1E3A8A" stopOpacity={0.12}/>
-                    <stop offset="95%" stopColor="#1E3A8A" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis 
-                  dataKey="month" 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#6B7280', fontSize: 12 }}
-                />
-                <YAxis 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#6B7280', fontSize: 12 }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    borderRadius: 12, 
-                    border: 'none', 
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.1)' 
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="borrows" 
-                  stroke="#1E3A8A" 
-                  strokeWidth={2}
-                  fillOpacity={1} 
-                  fill="url(#colorBorrows)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {trends.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trends}>
+                  <defs>
+                    <linearGradient id="colorBorrows" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1E3A8A" stopOpacity={0.12}/>
+                      <stop offset="95%" stopColor="#1E3A8A" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorReturns" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#16A34A" stopOpacity={0.12}/>
+                      <stop offset="95%" stopColor="#16A34A" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis 
+                    dataKey="month" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                  />
+                  <YAxis 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: 12, 
+                      border: 'none', 
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.1)' 
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="borrows" 
+                    stroke="#1E3A8A" 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#colorBorrows)" 
+                    name="Borrows"
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="returns" 
+                    stroke="#16A34A" 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#colorReturns)" 
+                    name="Returns"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                No borrowing data available yet
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -203,13 +286,19 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
           </div>
           <div className="space-y-1">
-            {activities.slice(0, 5).map((activity, index) => (
-              <ActivityItem 
-                key={activity.id} 
-                activity={activity} 
-                index={index}
-              />
-            ))}
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity, index) => (
+                <ActivityItem 
+                  key={activity.id} 
+                  activity={activity} 
+                  index={index}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No recent activity
+              </p>
+            )}
           </div>
         </motion.div>
       </div>

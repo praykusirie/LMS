@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -6,27 +7,12 @@ import { cn } from '@/lib/utils';
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  activePage: string;
-  onNavigate: (page: string) => void;
 }
 
-export function MainLayout({ children, activePage, onNavigate }: MainLayoutProps) {
+export function MainLayout({ children }: MainLayoutProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      // Dropdowns are handled internally
-    };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-
-  const handleNavigate = (page: string) => {
-    setIsSidebarCollapsed(true);
-    onNavigate(page);
-  };
+  const location = useLocation();
 
   const handleToggleCollapse = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
@@ -36,8 +22,6 @@ export function MainLayout({ children, activePage, onNavigate }: MainLayoutProps
     <div className="min-h-screen bg-background grain-overlay">
       {/* Sidebar */}
       <Sidebar 
-        activePage={activePage} 
-        onNavigate={handleNavigate}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleCollapse}
       />
@@ -52,7 +36,7 @@ export function MainLayout({ children, activePage, onNavigate }: MainLayoutProps
       )}>
         <AnimatePresence mode="wait">
           <motion.div
-            key={activePage}
+            key={location.pathname}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}

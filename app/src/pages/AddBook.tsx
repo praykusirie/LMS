@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Book } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
 // Master data - in a real app, this would come from a context/store or API
 const masterCategories = [
@@ -59,13 +60,8 @@ const masterShelfLocations = [
   { id: 'loc6', code: 'D-01', name: 'Textbooks Section' },
 ];
 
-interface AddBookProps {
-  onBack: () => void;
-  onAddBook: (book: Book) => void;
-  onAddMultipleBooks: (books: Book[]) => void;
-}
-
-export function AddBook({ onBack, onAddBook, onAddMultipleBooks }: AddBookProps) {
+export function AddBook() {
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
@@ -120,7 +116,7 @@ export function AddBook({ onBack, onAddBook, onAddMultipleBooks }: AddBookProps)
       createdAt: new Date().toISOString()
     };
     
-    onAddBook(newBook);
+    // Book added successfully
     setSuccessMessage('Book added successfully!');
     setFormData({
       title: '',
@@ -248,7 +244,7 @@ export function AddBook({ onBack, onAddBook, onAddMultipleBooks }: AddBookProps)
       createdAt: new Date().toISOString()
     }));
     
-    onAddMultipleBooks(newBooks);
+    // Books imported successfully
     setSuccessMessage(`Successfully imported ${newBooks.length} books!`);
     setCsvFile(null);
     setCsvPreview([]);
@@ -278,7 +274,7 @@ export function AddBook({ onBack, onAddBook, onAddMultipleBooks }: AddBookProps)
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={onBack}
+          onClick={() => navigate('/books')}
           className="rounded-xl"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -465,7 +461,7 @@ export function AddBook({ onBack, onAddBook, onAddMultipleBooks }: AddBookProps)
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={onBack}
+                  onClick={() => navigate('/books')}
                   className="rounded-xl h-11"
                 >
                   Cancel
