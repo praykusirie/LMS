@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -8,8 +8,10 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
-  Download
+  Download,
+  Loader2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,246 +23,225 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Book } from '@/types';
+import api from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 import { useNavigate } from 'react-router-dom';
 
-// Master data - in a real app, this would come from a context/store or API
-const masterCategories = [
-  { id: 'cat1', name: 'Fiction' },
-  { id: 'cat2', name: 'Non-Fiction' },
-  { id: 'cat3', name: 'Textbook' },
-  { id: 'cat4', name: 'Reference' },
-  { id: 'cat5', name: 'Biography' },
-];
-
-const masterSubjects = [
-  { id: 'sub1', name: 'Mathematics', code: 'MATH' },
-  { id: 'sub2', name: 'English', code: 'ENG' },
-  { id: 'sub3', name: 'Science', code: 'SCI' },
-  { id: 'sub4', name: 'History', code: 'HIST' },
-  { id: 'sub5', name: 'Geography', code: 'GEO' },
-  { id: 'sub6', name: 'Physics', code: 'PHY' },
-  { id: 'sub7', name: 'Chemistry', code: 'CHEM' },
-  { id: 'sub8', name: 'Biology', code: 'BIO' },
-];
-
-const masterClasses = [
-  { id: 'c1', name: 'Grade 9' },
-  { id: 'c2', name: 'Grade 10' },
-  { id: 'c3', name: 'Grade 11' },
-  { id: 'c4', name: 'Grade 12' },
-];
-
-const masterShelfLocations = [
-  { id: 'loc1', code: 'A-01', name: 'Fiction Section A' },
-  { id: 'loc2', code: 'A-02', name: 'Fiction Section B' },
-  { id: 'loc3', code: 'B-01', name: 'Science Section' },
-  { id: 'loc4', code: 'B-02', name: 'Mathematics Section' },
-  { id: 'loc5', code: 'C-01', name: 'Reference Section' },
-  { id: 'loc6', code: 'D-01', name: 'Textbooks Section' },
-];
+interface MasterItem {
+  id: string;
+  name: string;
+  code?: string;
+}
 
 export function AddBook() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const { data: session } = useSession();
+  const userRole = session?.user?.role ?? null;
+  const userLevel = (session?.user as any)?.level ?? null;
+  const isAdmin = userRole === 'admin';
+
+  // Master data
+  const [categories, setCategories] = useState<MasterItem[]>([]);
+  const [subjects, setSubjects] = useState<MasterItem[]>([]);
+  const [classes, setClasses] = useState<MasterItem[]>([]);
+  const [shelfLocations, setShelfLocations] = useState<MasterItem[]>([]);
+
   // Form state
-  const [formData, setFormData] = useState<Partial<Book>>({
+  const [formData, setFormData] = useState({
     title: '',
     author: '',
     isbn: '',
-    category: '',
-    subject: '',
-    class: '',
+    category_id: '',
+    subject_id: '',
+    class_id: '',
+    shelf_location_id: '',
     quantity: 1,
-    shelfLocation: ''
+    publisher: '',
+    published_year: '',
+    description: '',
+    level: '',
   });
   
-  // CSV state
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvPreview, setCsvPreview] = useState<Partial<Book>[]>([]);
-  const [csvError, setCsvError] = useState('');
+  // Bulk import state
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkLevel, setBulkLevel] = useState('');
+  const [bulkCategoryId, setBulkCategoryId] = useState('');
   
   // Status
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [importResult, setImportResult] = useState<{ imported: number; updatedExisting: number; skipped: number; total: number; duplicatesMerged: number; errors: string[] } | null>(null);
+
+  useEffect(() => {
+    fetchMasterData();
+    if (!isAdmin && userLevel) {
+      setFormData(prev => ({ ...prev, level: userLevel }));
+      setBulkLevel(userLevel);
+    }
+  }, [isAdmin, userLevel]);
+
+  const fetchMasterData = async () => {
+    try {
+      const [catRes, subRes, clsRes, slRes] = await Promise.all([
+        api.get('/categories'),
+        api.get('/subjects'),
+        api.get('/classes'),
+        api.get('/shelf-locations'),
+      ]);
+      setCategories(catRes.data);
+      setSubjects(subRes.data);
+      setClasses(clsRes.data);
+      setShelfLocations(slRes.data);
+    } catch (error) {
+      console.error('Error fetching master data:', error);
+    }
+  };
+
+  const getEffectiveLevel = () => {
+    if (isAdmin) return formData.level || null;
+    return userLevel;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
     
-    if (!formData.title || !formData.author || !formData.isbn) {
-      setErrorMessage('Please fill in all required fields');
+    if (!formData.title.trim()) {
+      setErrorMessage('Title is required');
+      return;
+    }
+    if (isAdmin && !formData.level) {
+      setErrorMessage('Level is required');
       return;
     }
 
     setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const newBook: Book = {
-      id: `b${Date.now()}`,
-      title: formData.title || '',
-      author: formData.author || '',
-      isbn: formData.isbn || '',
-      category: formData.category || '',
-      subject: formData.subject || '',
-      class: formData.class || '',
-      quantity: formData.quantity || 1,
-      available: formData.quantity || 1,
-      shelfLocation: formData.shelfLocation || '',
-      isActive: true,
-      createdAt: new Date().toISOString()
-    };
-    
-    // Book added successfully
-    setSuccessMessage('Book added successfully!');
-    setFormData({
-      title: '',
-      author: '',
-      isbn: '',
-      category: '',
-      subject: '',
-      class: '',
-      quantity: 1,
-      shelfLocation: ''
-    });
-    setIsSubmitting(false);
+    try {
+      await api.post('/books', {
+        title: formData.title.trim(),
+        author: formData.author.trim() || null,
+        isbn: formData.isbn.trim() || null,
+        category_id: formData.category_id || null,
+        subject_id: formData.subject_id || null,
+        class_id: formData.class_id || null,
+        shelf_location_id: formData.shelf_location_id || null,
+        quantity: formData.quantity || 1,
+        publisher: formData.publisher.trim() || null,
+        published_year: formData.published_year ? parseInt(formData.published_year) : null,
+        description: formData.description.trim() || null,
+        level: getEffectiveLevel(),
+      });
+      setSuccessMessage('Book added successfully!');
+      toast.success('Book added successfully');
+      setFormData({
+        title: '',
+        author: '',
+        isbn: '',
+        category_id: '',
+        subject_id: '',
+        class_id: '',
+        shelf_location_id: '',
+        quantity: 1,
+        publisher: '',
+        published_year: '',
+        description: '',
+        level: isAdmin ? '' : (userLevel || ''),
+      });
+    } catch (error: any) {
+      setErrorMessage(error?.message || 'Failed to add book');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    setCsvError('');
-    setCsvPreview([]);
-    
-    if (!file.name.endsWith('.csv')) {
-      setCsvError('Please upload a CSV file');
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(ext || '')) {
+      setErrorMessage('Please upload a CSV or Excel (.xlsx/.xls) file');
       return;
     }
     
-    setCsvFile(file);
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      parseCSV(text);
-    };
-    reader.readAsText(file);
-  };
-
-  const parseCSV = (text: string) => {
-    const lines = text.split('\n').filter(line => line.trim());
-    if (lines.length < 2) {
-      setCsvError('CSV file must have a header row and at least one data row');
-      return;
-    }
-    
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const requiredHeaders = ['title', 'author', 'isbn'];
-    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
-    
-    if (missingHeaders.length > 0) {
-      setCsvError(`Missing required columns: ${missingHeaders.join(', ')}`);
-      return;
-    }
-    
-    const books: Partial<Book>[] = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      if (values.length !== headers.length) continue;
-      
-      const book: Partial<Book> = {};
-      headers.forEach((header, index) => {
-        const value = values[index];
-        switch (header) {
-          case 'title':
-            book.title = value;
-            break;
-          case 'author':
-            book.author = value;
-            break;
-          case 'isbn':
-            book.isbn = value;
-            break;
-          case 'category':
-            book.category = value;
-            break;
-          case 'subject':
-            book.subject = value;
-            break;
-          case 'class':
-            book.class = value;
-            break;
-          case 'quantity':
-            book.quantity = parseInt(value) || 1;
-            break;
-          case 'shelflocation':
-            book.shelfLocation = value;
-            break;
-        }
-      });
-      
-      if (book.title && book.author && book.isbn) {
-        books.push(book);
-      }
-    }
-    
-    if (books.length === 0) {
-      setCsvError('No valid book records found in CSV');
-      return;
-    }
-    
-    setCsvPreview(books);
+    setBulkFile(file);
+    setImportResult(null);
+    setErrorMessage('');
   };
 
   const handleBulkUpload = async () => {
-    if (csvPreview.length === 0) return;
+    if (!bulkFile) return;
     
     setIsSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
+    setImportResult(null);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newBooks: Book[] = csvPreview.map((data, index) => ({
-      id: `b${Date.now()}_${index}`,
-      title: data.title || '',
-      author: data.author || '',
-      isbn: data.isbn || '',
-      category: data.category || '',
-      subject: data.subject || '',
-      class: data.class || '',
-      quantity: data.quantity || 1,
-      available: data.quantity || 1,
-      shelfLocation: data.shelfLocation || '',
-      isActive: true,
-      createdAt: new Date().toISOString()
-    }));
-    
-    // Books imported successfully
-    setSuccessMessage(`Successfully imported ${newBooks.length} books!`);
-    setCsvFile(null);
-    setCsvPreview([]);
-    setIsSubmitting(false);
+    try {
+      const effectiveLevel = isAdmin ? bulkLevel : (userLevel || '');
+      if (isAdmin && !effectiveLevel) {
+        setErrorMessage('Level is required for bulk import');
+        setIsSubmitting(false);
+        return;
+      }
+      const fd = new FormData();
+      fd.append('file', bulkFile);
+      if (effectiveLevel) fd.append('level', effectiveLevel);
+      if (bulkCategoryId) fd.append('category_id', bulkCategoryId);
+
+      const { data } = await api.post('/books/bulk', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      
+      setImportResult(data);
+      if (data.imported > 0) {
+        setSuccessMessage(`Successfully imported ${data.imported} of ${data.total} books!`);
+        toast.success(`Imported ${data.imported} books`);
+      }
+      if (data.skipped > 0 && data.imported === 0) {
+        setErrorMessage(`All ${data.skipped} rows were skipped. Check the file format.`);
+      }
+      setBulkFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error: any) {
+      setErrorMessage(error?.message || 'Failed to import books');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const downloadTemplate = () => {
-    const template = 'title,author,isbn,category,subject,class,quantity,shelfLocation\nThe Great Gatsby,F. Scott Fitzgerald,978-0743273565,Fiction,English,Grade 10,15,A-12-3';
+    const template = 'Title,Author,ISBN,Publisher,Published Date,Pages,Series,Language,Volume,Format,Category,Subject,Class,Quantity,Location,Summary\nThe Great Gatsby,F. Scott Fitzgerald,978-0743273565,Scribner,1925,180,,English,,,Fiction,English,Grade 10,15,A-01,A classic novel';
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'books_template.csv';
+    a.download = 'books_import_template.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const renderLevelSelect = () => (
+    <div className="space-y-2">
+      <Label>Level <span className="text-red-500">*</span></Label>
+      <Select
+        value={isAdmin ? formData.level : (userLevel || '')}
+        onValueChange={(value) => setFormData({ ...formData, level: value })}
+        disabled={!isAdmin}
+      >
+        <SelectTrigger className="rounded-xl h-11">
+          <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="primary">Primary Level</SelectItem>
+          <SelectItem value="secondary">Secondary Level</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -280,9 +261,9 @@ export function AddBook() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Add Book</h1>
+          <h1 className="text-2xl font-bold text-foreground">Add Books</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Add individual book or bulk import via CSV
+            Add individual book or bulk import via Excel/CSV
           </p>
         </div>
       </motion.div>
@@ -325,7 +306,7 @@ export function AddBook() {
             </TabsTrigger>
             <TabsTrigger value="bulk" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
               <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Bulk Import (CSV)
+              Bulk Import (Excel/CSV)
             </TabsTrigger>
           </TabsList>
 
@@ -344,40 +325,38 @@ export function AddBook() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Author <span className="text-red-500">*</span></Label>
+                  <Label>Author</Label>
                   <Input
                     value={formData.author}
                     onChange={(e) => setFormData({ ...formData, author: e.target.value })}
                     placeholder="Enter author name"
                     className="rounded-xl h-11"
-                    required
                   />
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>ISBN <span className="text-red-500">*</span></Label>
+                  <Label>ISBN</Label>
                   <Input
                     value={formData.isbn}
                     onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
                     placeholder="Enter ISBN"
                     className="rounded-xl h-11"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Category</Label>
                   <Select 
-                    value={formData.category} 
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    value={formData.category_id} 
+                    onValueChange={(value) => setFormData({ ...formData, category_id: value })}
                   >
                     <SelectTrigger className="rounded-xl h-11">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {masterCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.name}>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
                           {cat.name}
                         </SelectItem>
                       ))}
@@ -390,16 +369,16 @@ export function AddBook() {
                 <div className="space-y-2">
                   <Label>Subject</Label>
                   <Select 
-                    value={formData.subject} 
-                    onValueChange={(value) => setFormData({ ...formData, subject: value })}
+                    value={formData.subject_id} 
+                    onValueChange={(value) => setFormData({ ...formData, subject_id: value })}
                   >
                     <SelectTrigger className="rounded-xl h-11">
                       <SelectValue placeholder="Select subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      {masterSubjects.map((sub) => (
-                        <SelectItem key={sub.id} value={sub.name}>
-                          {sub.name} ({sub.code})
+                      {subjects.map((sub) => (
+                        <SelectItem key={sub.id} value={sub.id}>
+                          {sub.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -408,14 +387,14 @@ export function AddBook() {
                 <div className="space-y-2">
                   <Label>Class</Label>
                   <Select 
-                    value={formData.class} 
-                    onValueChange={(value) => setFormData({ ...formData, class: value })}
+                    value={formData.class_id} 
+                    onValueChange={(value) => setFormData({ ...formData, class_id: value })}
                   >
                     <SelectTrigger className="rounded-xl h-11">
                       <SelectValue placeholder="Select class" />
                     </SelectTrigger>
                     <SelectContent>
-                      {masterClasses.map((cls) => (
+                      {classes.map((cls) => (
                         <SelectItem key={cls.id} value={cls.name}>
                           {cls.name}
                         </SelectItem>
@@ -440,22 +419,45 @@ export function AddBook() {
                 <div className="space-y-2">
                   <Label>Shelf Location</Label>
                   <Select 
-                    value={formData.shelfLocation} 
-                    onValueChange={(value) => setFormData({ ...formData, shelfLocation: value })}
+                    value={formData.shelf_location_id} 
+                    onValueChange={(value) => setFormData({ ...formData, shelf_location_id: value })}
                   >
                     <SelectTrigger className="rounded-xl h-11">
                       <SelectValue placeholder="Select shelf location" />
                     </SelectTrigger>
                     <SelectContent>
-                      {masterShelfLocations.map((loc) => (
-                        <SelectItem key={loc.id} value={loc.code}>
-                          {loc.code} - {loc.name}
+                      {shelfLocations.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          {loc.code ? `${loc.code} - ${loc.name}` : loc.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Publisher</Label>
+                  <Input
+                    value={formData.publisher}
+                    onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+                    placeholder="Enter publisher"
+                    className="rounded-xl h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Published Year</Label>
+                  <Input
+                    value={formData.published_year}
+                    onChange={(e) => setFormData({ ...formData, published_year: e.target.value })}
+                    placeholder="e.g., 2023"
+                    className="rounded-xl h-11"
+                  />
+                </div>
+              </div>
+
+              {renderLevelSelect()}
               
               <div className="flex gap-3 pt-4">
                 <Button 
@@ -471,7 +473,7 @@ export function AddBook() {
                   className="bg-navy hover:bg-navy/90 rounded-xl h-11"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Adding...' : 'Add Book'}
+                  {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Adding...</> : 'Add Book'}
                 </Button>
               </div>
             </form>
@@ -480,21 +482,27 @@ export function AddBook() {
           {/* Bulk Import Tab */}
           <TabsContent value="bulk" className="mt-0">
             <div className="space-y-6">
-              {/* CSV Structure Info */}
+              {/* File Format Info */}
               <div className="p-4 bg-secondary/50 rounded-xl">
-                <h3 className="font-medium text-sm mb-2">Required CSV Structure</h3>
+                <h3 className="font-medium text-sm mb-2">Supported File Formats</h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Your CSV file must include the following columns (headers are case-insensitive):
+                  Upload an Excel (.xlsx/.xls) or CSV file. The following columns are recognized (headers are case-insensitive):
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">title *</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">author *</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">isbn *</span>
-                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">category</span>
-                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">subject</span>
-                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">class</span>
-                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">quantity</span>
-                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">shelfLocation</span>
+                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">Title *</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Author</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">ISBN</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Publisher</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Published Date</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Pages</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Series</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Language</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Volume</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Format</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Genres / Category</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Quantity / Copy</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Summary</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Image URL</span>
                 </div>
                 <Button 
                   variant="outline" 
@@ -503,8 +511,46 @@ export function AddBook() {
                   className="rounded-lg"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download Template
+                  Download CSV Template
                 </Button>
+              </div>
+
+              {/* Level & Category for bulk */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Level <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={isAdmin ? bulkLevel : (userLevel || '')}
+                    onValueChange={(value) => setBulkLevel(value)}
+                    disabled={!isAdmin}
+                  >
+                    <SelectTrigger className="rounded-xl h-11">
+                      <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="primary">Primary Level</SelectItem>
+                      <SelectItem value="secondary">Secondary Level</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select
+                    value={bulkCategoryId}
+                    onValueChange={(value) => setBulkCategoryId(value)}
+                  >
+                    <SelectTrigger className="rounded-xl h-11">
+                      <SelectValue placeholder="Select category (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* File Upload */}
@@ -515,96 +561,65 @@ export function AddBook() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={handleFileChange}
                   className="hidden"
                 />
                 <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm font-medium text-foreground">
-                  {csvFile ? csvFile.name : 'Click to upload CSV file'}
+                  {bulkFile ? bulkFile.name : 'Click to upload Excel or CSV file'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  or drag and drop
+                  Supports .xlsx, .xls, and .csv formats
                 </p>
               </div>
 
-              {/* CSV Error */}
-              {csvError && (
-                <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  {csvError}
+              {/* Import Result */}
+              {importResult && (
+                <div className="p-4 bg-secondary/50 rounded-xl space-y-2">
+                  <h3 className="font-medium text-sm">Import Results</h3>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <span className="text-green-600">New: {importResult.imported}</span>
+                    {importResult.updatedExisting > 0 && (
+                      <span className="text-purple-600">Updated existing: {importResult.updatedExisting}</span>
+                    )}
+                    {importResult.duplicatesMerged > 0 && (
+                      <span className="text-blue-600">File duplicates merged: {importResult.duplicatesMerged}</span>
+                    )}
+                    <span className="text-amber-600">Skipped: {importResult.skipped}</span>
+                    <span className="text-muted-foreground">Total rows: {importResult.total}</span>
+                  </div>
+                  {importResult.errors.length > 0 && (
+                    <div className="mt-2 max-h-[150px] overflow-y-auto">
+                      {importResult.errors.map((err, i) => (
+                        <p key={i} className="text-xs text-red-500">{err}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* CSV Preview */}
-              {csvPreview.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-sm">
-                      Preview ({csvPreview.length} books)
-                    </h3>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setCsvFile(null);
-                        setCsvPreview([]);
-                      }}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Clear
-                    </Button>
-                  </div>
-                  
-                  <div className="max-h-[300px] overflow-y-auto rounded-xl border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-secondary/50 sticky top-0">
-                        <tr>
-                          <th className="text-left px-4 py-2 font-medium">Title</th>
-                          <th className="text-left px-4 py-2 font-medium">Author</th>
-                          <th className="text-left px-4 py-2 font-medium">ISBN</th>
-                          <th className="text-left px-4 py-2 font-medium">Category</th>
-                          <th className="text-left px-4 py-2 font-medium">Qty</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {csvPreview.slice(0, 10).map((book, index) => (
-                          <tr key={index} className="border-t">
-                            <td className="px-4 py-2">{book.title}</td>
-                            <td className="px-4 py-2">{book.author}</td>
-                            <td className="px-4 py-2">{book.isbn}</td>
-                            <td className="px-4 py-2 text-muted-foreground">{book.category || '-'}</td>
-                            <td className="px-4 py-2">{book.quantity || 1}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {csvPreview.length > 10 && (
-                      <p className="text-xs text-muted-foreground text-center py-2">
-                        ... and {csvPreview.length - 10} more books
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setCsvFile(null);
-                        setCsvPreview([]);
-                      }}
-                      className="rounded-xl h-11"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleBulkUpload}
-                      className="bg-navy hover:bg-navy/90 rounded-xl h-11"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Importing...' : `Import ${csvPreview.length} Books`}
-                    </Button>
-                  </div>
+              {bulkFile && (
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setBulkFile(null);
+                      setImportResult(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="rounded-xl h-11"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                  <Button 
+                    onClick={handleBulkUpload}
+                    className="bg-navy hover:bg-navy/90 rounded-xl h-11"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importing...</> : 'Import Books'}
+                  </Button>
                 </div>
               )}
             </div>

@@ -25,8 +25,7 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import type { Activity, ChartDataPoint } from '@/types';
-
-const API_BASE = 'http://localhost:8080/api';
+import api from '@/lib/api';
 
 interface DashboardStatsData {
   total_books: number;
@@ -49,29 +48,20 @@ export function Dashboard() {
       try {
         setIsLoading(true);
         const [statsRes, trendsRes, activityRes] = await Promise.all([
-          fetch(`${API_BASE}/dashboard/stats`, { credentials: 'include' }),
-          fetch(`${API_BASE}/dashboard/borrowing-trends`, { credentials: 'include' }),
-          fetch(`${API_BASE}/dashboard/recent-activity`, { credentials: 'include' }),
+          api.get('/dashboard/stats'),
+          api.get('/dashboard/borrowing-trends'),
+          api.get('/dashboard/recent-activity'),
         ]);
 
-        if (statsRes.ok) {
-          const data = await statsRes.json();
-          setStats(data);
-        }
-        if (trendsRes.ok) {
-          const data = await trendsRes.json();
-          setTrends(data);
-        }
-        if (activityRes.ok) {
-          const data = await activityRes.json();
-          setRecentActivity(data.map((item: { id: string; type: string; description: string; user_name: string; user_gender: string; timestamp: string }) => ({
-            id: item.id,
-            type: item.type as Activity['type'],
-            description: item.description,
-            userName: item.user_name,
-            timestamp: item.timestamp,
-          })));
-        }
+        setStats(statsRes.data);
+        setTrends(trendsRes.data);
+        setRecentActivity(activityRes.data.map((item: { id: string; type: string; description: string; user_name: string; user_gender: string; timestamp: string }) => ({
+          id: item.id,
+          type: item.type as Activity['type'],
+          description: item.description,
+          userName: item.user_name,
+          timestamp: item.timestamp,
+        })));
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {

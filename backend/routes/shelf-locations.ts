@@ -1,16 +1,21 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
+import { getSessionUser, getLevelFilter } from '../lib/session.js';
 
 const router = Router();
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
     try {
+        const user = await getSessionUser(req);
+        const { clause, params } = getLevelFilter(user, 'sl');
         const result = await pool.query(
             `SELECT sl.*, 
                     (SELECT COUNT(*) FROM books b WHERE b.shelf_location_id = sl.id)::INTEGER AS book_count
              FROM shelf_locations sl 
-             ORDER BY sl.code ASC`
+             WHERE 1=1 ${clause}
+             ORDER BY sl.code ASC`,
+            params
         );
         res.json(result.rows);
     } catch (error) {
@@ -42,10 +47,22 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 router.post('/', async (req: Request, res: Response) => {
     try {
-        const { code, name, section, capacity } = req.body;
+        const { code, name, section, capacity, level } = req.body;
+        const user = await getSessionUser(req);
+        const recordLevel = level ?? user?.level ?? null;
+
+        const existing = await pool.query(
+            'SELECT id FROM shelf_locations WHERE LOWER(code) = LOWER($1)',
+            [code.trim()]
+        );
+        if (existing.rows.length > 0) {
+            res.status(409).json({ message: `Shelf location with code "${code.trim()}" already exists` });
+            return;
+        }
+
         const result = await pool.query(
-            'INSERT INTO shelf_locations (code, name, section, capacity) VALUES ($1, $2, $3, $4) RETURNING *',
-            [code, name, section || null, capacity || 100]
+            'INSERT INTO shelf_locations (code, name, section, capacity, level) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [code, name, section || null, capacity || 100, recordLevel]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {

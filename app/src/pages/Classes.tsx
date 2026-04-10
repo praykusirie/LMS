@@ -3,13 +3,13 @@ import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
-  MoreHorizontal, 
   Edit2, 
   Trash2, 
   GraduationCap,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,13 +21,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui-custom';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DataTable } from '@/components/ui/data-table';
+import type { DataTableColumn } from '@/components/ui/data-table';
+import api from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 
 interface ClassItem {
   id: string;
@@ -38,9 +41,12 @@ interface ClassItem {
   created_at: string;
 }
 
-const API_BASE = 'http://localhost:8080/api';
-
 export function Classes() {
+  const { data: session } = useSession();
+  const userRole = session?.user?.role ?? null;
+  const userLevel = (session?.user as any)?.level ?? null;
+  const isAdmin = userRole === 'admin';
+
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,11 +54,11 @@ export function Classes() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    level: '',
   });
 
   useEffect(() => {
@@ -62,14 +68,11 @@ export function Classes() {
   const fetchClasses = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/classes`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setClasses(data);
-      }
+      const { data } = await api.get('/classes');
+      setClasses(data);
     } catch (error) {
       console.error('Error fetching classes:', error);
-      showNotification('error', 'Failed to fetch classes');
+      toast.error('Failed to fetch classes');
     } finally {
       setIsLoading(false);
     }
@@ -82,71 +85,48 @@ export function Classes() {
     );
   }, [classes, searchQuery]);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 3000);
-  };
-
   const handleAdd = async () => {
     if (!formData.name.trim()) {
-      showNotification('error', 'Class name is required');
+      toast.error('Class name is required');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/classes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          description: formData.description.trim() || null,
-        }),
+      await api.post('/classes', {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        level: isAdmin ? (formData.level || null) : userLevel,
       });
-
-      if (response.ok) {
-        await fetchClasses();
-        setShowAddDialog(false);
-        setFormData({ name: '', description: '' });
-        showNotification('success', 'Class added successfully');
-      } else {
-        showNotification('error', 'Failed to add class');
-      }
-    } catch (error) {
+      await fetchClasses();
+      setShowAddDialog(false);
+      setFormData({ name: '', description: '', level: '' });
+      toast.success('Class added successfully');
+    } catch (error: any) {
       console.error('Error adding class:', error);
-      showNotification('error', 'Failed to add class');
+      toast.error(error?.message || 'Failed to add class');
     }
   };
 
   const handleEdit = async () => {
     if (!selectedClass || !formData.name.trim()) {
-      showNotification('error', 'Class name is required');
+      toast.error('Class name is required');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/classes/${selectedClass.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          description: formData.description.trim() || null,
-        }),
+      await api.put(`/classes/${selectedClass.id}`, {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        level: isAdmin ? (formData.level || null) : userLevel,
       });
-
-      if (response.ok) {
-        await fetchClasses();
-        setShowEditDialog(false);
-        setSelectedClass(null);
-        setFormData({ name: '', description: '' });
-        showNotification('success', 'Class updated successfully');
-      } else {
-        showNotification('error', 'Failed to update class');
-      }
+      await fetchClasses();
+      setShowEditDialog(false);
+      setSelectedClass(null);
+      setFormData({ name: '', description: '', level: '' });
+      toast.success('Class updated successfully');
     } catch (error) {
       console.error('Error updating class:', error);
-      showNotification('error', 'Failed to update class');
+      toast.error('Failed to update class');
     }
   };
 
@@ -154,28 +134,20 @@ export function Classes() {
     if (!selectedClass) return;
 
     try {
-      const response = await fetch(`${API_BASE}/classes/${selectedClass.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        await fetchClasses();
-        setShowDeleteDialog(false);
-        setSelectedClass(null);
-        showNotification('success', 'Class deleted successfully');
-      } else {
-        showNotification('error', 'Failed to delete class');
-      }
+      await api.delete(`/classes/${selectedClass.id}`);
+      await fetchClasses();
+      setShowDeleteDialog(false);
+      setSelectedClass(null);
+      toast.success('Class deleted successfully');
     } catch (error) {
       console.error('Error deleting class:', error);
-      showNotification('error', 'Failed to delete class');
+      toast.error('Failed to delete class');
     }
   };
 
   const openEditDialog = (classItem: ClassItem) => {
     setSelectedClass(classItem);
-    setFormData({ name: classItem.name, description: classItem.description });
+    setFormData({ name: classItem.name, description: classItem.description, level: (classItem as any).level || '' });
     setShowEditDialog(true);
   };
 
@@ -184,27 +156,84 @@ export function Classes() {
     setShowDeleteDialog(true);
   };
 
+  const columns: DataTableColumn<ClassItem>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Class Name',
+      sortable: true,
+      getValue: (row) => row.name,
+      render: (classItem) => (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
+            <GraduationCap className="h-5 w-5 text-navy" />
+          </div>
+          <span className="font-medium text-foreground">{classItem.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      sortable: true,
+      getValue: (row) => row.description,
+      render: (classItem) => (
+        <span className="text-muted-foreground">{classItem.description || '-'}</span>
+      ),
+    },
+    {
+      key: 'student_count',
+      header: 'Students',
+      sortable: true,
+      getValue: (row) => row.student_count || 0,
+      render: (classItem) => (
+        <span className="font-medium">{classItem.student_count || 0}</span>
+      ),
+    },
+    {
+      key: 'is_active',
+      header: 'Status',
+      sortable: true,
+      getValue: (row) => row.is_active ? 'Active' : 'Inactive',
+      render: (classItem) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          classItem.is_active 
+            ? 'bg-green-100 text-green-700' 
+            : 'bg-gray-100 text-gray-700'
+        }`}>
+          {classItem.is_active ? 'Active' : 'Inactive'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (classItem) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => openEditDialog(classItem)}
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-red-600"
+            onClick={() => openDeleteDialog(classItem)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
+
   return (
     <div className="space-y-6">
-      {/* Notification */}
-      {notification && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg ${
-            notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-          }`}
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle2 className="h-5 w-5" />
-          ) : (
-            <AlertCircle className="h-5 w-5" />
-          )}
-          {notification.message}
-        </motion.div>
-      )}
-
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 18 }}
@@ -220,7 +249,7 @@ export function Classes() {
         </div>
         <Button 
           onClick={() => {
-            setFormData({ name: '', description: '' });
+            setFormData({ name: '', description: '', level: !isAdmin && userLevel ? userLevel : '' });
             setShowAddDialog(true);
           }}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
@@ -295,109 +324,16 @@ export function Classes() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden"
       >
-        {isLoading ? (
-          <div className="p-6 space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-[150px]" />
-                  <Skeleton className="h-3 w-[200px]" />
-                </div>
-                <Skeleton className="h-6 w-[80px] rounded-full" />
-                <Skeleton className="h-8 w-8 rounded-lg" />
-              </div>
-            ))}
-          </div>
-        ) : filteredClasses.length === 0 ? (
-          <EmptyState
-            icon={GraduationCap}
-            title="No classes found"
-            description="Add your first class to get started."
-            actionLabel="Add Class"
-            onAction={() => setShowAddDialog(true)}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border/60">
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Class Name
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Students
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="text-right px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredClasses.map((classItem) => (
-                  <tr 
-                    key={classItem.id} 
-                    className="border-b border-border/40 last:border-0 hover:bg-secondary/50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-                          <GraduationCap className="h-5 w-5 text-navy" />
-                        </div>
-                        <span className="font-medium text-foreground">{classItem.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {classItem.description || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">
-                      {classItem.student_count || 0}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        classItem.is_active 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {classItem.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(classItem)}>
-                            <Edit2 className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => openDeleteDialog(classItem)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          data={filteredClasses}
+          columns={columns}
+          isLoading={isLoading}
+          getRowId={(row) => row.id}
+          emptyIcon={GraduationCap}
+          emptyTitle="No classes found"
+          emptyDescription="Add your first class to get started."
+        />
       </motion.div>
 
       {/* Add Dialog */}
@@ -424,6 +360,22 @@ export function Classes() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Level</Label>
+              <Select
+                value={isAdmin ? formData.level : (userLevel || '')}
+                onValueChange={(value) => setFormData({ ...formData, level: value })}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="primary">Primary Level</SelectItem>
+                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -461,6 +413,22 @@ export function Classes() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Level</Label>
+              <Select
+                value={isAdmin ? formData.level : (userLevel || '')}
+                onValueChange={(value) => setFormData({ ...formData, level: value })}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="primary">Primary Level</SelectItem>
+                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

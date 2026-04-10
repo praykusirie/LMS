@@ -1,16 +1,21 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
+import { getSessionUser, getLevelFilter } from '../lib/session.js';
 
 const router = Router();
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
     try {
+        const user = await getSessionUser(req);
+        const { clause, params } = getLevelFilter(user, 's');
         const result = await pool.query(
             `SELECT s.*, 
                     (SELECT COUNT(*) FROM books b WHERE b.subject_id = s.id)::INTEGER AS book_count
              FROM subjects s 
-             ORDER BY s.name ASC`
+             WHERE 1=1 ${clause}
+             ORDER BY s.name ASC`,
+            params
         );
         res.json(result.rows);
     } catch (error) {
@@ -42,10 +47,22 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 router.post('/', async (req: Request, res: Response) => {
     try {
-        const { name, code, description } = req.body;
+        const { name, code, description, level } = req.body;
+        const user = await getSessionUser(req);
+        const recordLevel = level ?? user?.level ?? null;
+
+        const existing = await pool.query(
+            'SELECT id FROM subjects WHERE LOWER(name) = LOWER($1) OR (code IS NOT NULL AND LOWER(code) = LOWER($2))',
+            [name.trim(), code?.trim() || '']
+        );
+        if (existing.rows.length > 0) {
+            res.status(409).json({ message: `Subject with name "${name.trim()}" or code "${code?.trim()}" already exists` });
+            return;
+        }
+
         const result = await pool.query(
-            'INSERT INTO subjects (name, code, description) VALUES ($1, $2, $3) RETURNING *',
-            [name, code, description || null]
+            'INSERT INTO subjects (name, code, description, level) VALUES ($1, $2, $3, $4) RETURNING *',
+            [name, code, description || null, recordLevel]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {

@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
-  MoreHorizontal, 
   Edit2, 
   Trash2, 
   BookMarked,
@@ -11,6 +10,7 @@ import {
   AlertCircle,
   BookOpen
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,13 +22,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui-custom';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DataTable } from '@/components/ui/data-table';
+import type { DataTableColumn } from '@/components/ui/data-table';
+import api from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 
 interface Subject {
   id: string;
@@ -40,9 +43,12 @@ interface Subject {
   created_at: string;
 }
 
-const API_BASE = 'http://localhost:8080/api';
-
 export function Subjects() {
+  const { data: session } = useSession();
+  const userRole = session?.user?.role ?? null;
+  const userLevel = (session?.user as any)?.level ?? null;
+  const isAdmin = userRole === 'admin';
+
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,12 +56,12 @@ export function Subjects() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    description: ''
+    description: '',
+    level: '',
   });
 
   useEffect(() => {
@@ -65,14 +71,11 @@ export function Subjects() {
   const fetchSubjects = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/subjects`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setSubjects(data);
-      }
+      const { data } = await api.get('/subjects');
+      setSubjects(data);
     } catch (error) {
       console.error('Error fetching subjects:', error);
-      showNotification('error', 'Failed to fetch subjects');
+      toast.error('Failed to fetch subjects');
     } finally {
       setIsLoading(false);
     }
@@ -86,73 +89,49 @@ export function Subjects() {
     );
   }, [subjects, searchQuery]);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 3000);
-  };
-
   const handleAdd = async () => {
     if (!formData.name.trim()) {
-      showNotification('error', 'Subject name is required');
+      toast.error('Subject name is required');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/subjects`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          code: formData.code.trim().toUpperCase(),
-          description: formData.description.trim() || null,
-        }),
+      await api.post('/subjects', {
+        name: formData.name.trim(),
+        code: formData.code.trim().toUpperCase(),
+        description: formData.description.trim() || null,
+        level: isAdmin ? (formData.level || null) : userLevel,
       });
-
-      if (response.ok) {
-        await fetchSubjects();
-        setShowAddDialog(false);
-        setFormData({ name: '', code: '', description: '' });
-        showNotification('success', 'Subject added successfully');
-      } else {
-        showNotification('error', 'Failed to add subject');
-      }
-    } catch (error) {
+      await fetchSubjects();
+      setShowAddDialog(false);
+      setFormData({ name: '', code: '', description: '', level: '' });
+      toast.success('Subject added successfully');
+    } catch (error: any) {
       console.error('Error adding subject:', error);
-      showNotification('error', 'Failed to add subject');
+      toast.error(error?.message || 'Failed to add subject');
     }
   };
 
   const handleEdit = async () => {
     if (!selectedSubject || !formData.name.trim()) {
-      showNotification('error', 'Subject name is required');
+      toast.error('Subject name is required');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/subjects/${selectedSubject.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          code: formData.code.trim().toUpperCase(),
-          description: formData.description.trim() || null,
-        }),
+      await api.put(`/subjects/${selectedSubject.id}`, {
+        name: formData.name.trim(),
+        code: formData.code.trim().toUpperCase(),
+        description: formData.description.trim() || null,
       });
-
-      if (response.ok) {
-        await fetchSubjects();
-        setShowEditDialog(false);
-        setSelectedSubject(null);
-        setFormData({ name: '', code: '', description: '' });
-        showNotification('success', 'Subject updated successfully');
-      } else {
-        showNotification('error', 'Failed to update subject');
-      }
+      await fetchSubjects();
+      setShowEditDialog(false);
+      setSelectedSubject(null);
+      setFormData({ name: '', code: '', description: '', level: '' });
+      toast.success('Subject updated successfully');
     } catch (error) {
       console.error('Error updating subject:', error);
-      showNotification('error', 'Failed to update subject');
+      toast.error('Failed to update subject');
     }
   };
 
@@ -160,28 +139,20 @@ export function Subjects() {
     if (!selectedSubject) return;
 
     try {
-      const response = await fetch(`${API_BASE}/subjects/${selectedSubject.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        await fetchSubjects();
-        setShowDeleteDialog(false);
-        setSelectedSubject(null);
-        showNotification('success', 'Subject deleted successfully');
-      } else {
-        showNotification('error', 'Failed to delete subject');
-      }
+      await api.delete(`/subjects/${selectedSubject.id}`);
+      await fetchSubjects();
+      setShowDeleteDialog(false);
+      setSelectedSubject(null);
+      toast.success('Subject deleted successfully');
     } catch (error) {
       console.error('Error deleting subject:', error);
-      showNotification('error', 'Failed to delete subject');
+      toast.error('Failed to delete subject');
     }
   };
 
   const openEditDialog = (subject: Subject) => {
     setSelectedSubject(subject);
-    setFormData({ name: subject.name, code: subject.code, description: subject.description });
+    setFormData({ name: subject.name, code: subject.code, description: subject.description, level: (subject as any).level || '' });
     setShowEditDialog(true);
   };
 
@@ -190,27 +161,94 @@ export function Subjects() {
     setShowDeleteDialog(true);
   };
 
+  const columns: DataTableColumn<Subject>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Subject',
+      sortable: true,
+      getValue: (row) => row.name,
+      render: (subject) => (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
+            <BookMarked className="h-5 w-5 text-navy" />
+          </div>
+          <span className="font-medium text-foreground">{subject.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'code',
+      header: 'Code',
+      sortable: true,
+      render: (subject) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
+          {subject.code}
+        </span>
+      ),
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      sortable: true,
+      getValue: (row) => row.description,
+      render: (subject) => (
+        <span className="text-muted-foreground">{subject.description || '-'}</span>
+      ),
+    },
+    {
+      key: 'book_count',
+      header: 'Books',
+      sortable: true,
+      getValue: (row) => row.book_count || 0,
+      render: (subject) => (
+        <span className="font-medium">{subject.book_count || 0}</span>
+      ),
+    },
+    {
+      key: 'is_active',
+      header: 'Status',
+      sortable: true,
+      getValue: (row) => row.is_active ? 'Active' : 'Inactive',
+      render: (subject) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          subject.is_active 
+            ? 'bg-green-100 text-green-700' 
+            : 'bg-gray-100 text-gray-700'
+        }`}>
+          {subject.is_active ? 'Active' : 'Inactive'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (subject) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => openEditDialog(subject)}
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-red-600"
+            onClick={() => openDeleteDialog(subject)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
+
   return (
     <div className="space-y-6">
-      {/* Notification */}
-      {notification && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg ${
-            notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-          }`}
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle2 className="h-5 w-5" />
-          ) : (
-            <AlertCircle className="h-5 w-5" />
-          )}
-          {notification.message}
-        </motion.div>
-      )}
-
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 18 }}
@@ -226,7 +264,7 @@ export function Subjects() {
         </div>
         <Button 
           onClick={() => {
-            setFormData({ name: '', code: '', description: '' });
+            setFormData({ name: '', code: '', description: '', level: !isAdmin && userLevel ? userLevel : '' });
             setShowAddDialog(true);
           }}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
@@ -301,117 +339,16 @@ export function Subjects() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden"
       >
-        {isLoading ? (
-          <div className="p-6 space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-[150px]" />
-                  <Skeleton className="h-3 w-[200px]" />
-                </div>
-                <Skeleton className="h-6 w-[80px] rounded-full" />
-                <Skeleton className="h-8 w-8 rounded-lg" />
-              </div>
-            ))}
-          </div>
-        ) : filteredSubjects.length === 0 ? (
-          <EmptyState
-            icon={BookMarked}
-            title="No subjects found"
-            description="Add your first subject to get started."
-            actionLabel="Add Subject"
-            onAction={() => setShowAddDialog(true)}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border/60">
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Subject
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Code
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Books
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="text-right px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSubjects.map((subject) => (
-                  <tr 
-                    key={subject.id} 
-                    className="border-b border-border/40 last:border-0 hover:bg-secondary/50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-                          <BookMarked className="h-5 w-5 text-navy" />
-                        </div>
-                        <span className="font-medium text-foreground">{subject.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
-                        {subject.code}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {subject.description || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">
-                      {subject.book_count || 0}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        subject.is_active 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {subject.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(subject)}>
-                            <Edit2 className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => openDeleteDialog(subject)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          data={filteredSubjects}
+          columns={columns}
+          isLoading={isLoading}
+          getRowId={(row) => row.id}
+          emptyIcon={BookMarked}
+          emptyTitle="No subjects found"
+          emptyDescription="Add your first subject to get started."
+        />
       </motion.div>
 
       {/* Add Dialog */}
@@ -447,6 +384,22 @@ export function Subjects() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Level</Label>
+              <Select
+                value={isAdmin ? formData.level : (userLevel || '')}
+                onValueChange={(value) => setFormData({ ...formData, level: value })}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="primary">Primary Level</SelectItem>
+                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -493,6 +446,22 @@ export function Subjects() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Level</Label>
+              <Select
+                value={isAdmin ? formData.level : (userLevel || '')}
+                onValueChange={(value) => setFormData({ ...formData, level: value })}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="primary">Primary Level</SelectItem>
+                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

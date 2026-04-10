@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import api from '@/lib/api';
 
 interface Stock {
   id: string;
@@ -35,8 +36,6 @@ interface Stock {
   available_count: string;
 }
 
-const API_BASE = 'http://localhost:8080/api';
-
 export function StockList() {
   const navigate = useNavigate();
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -50,11 +49,8 @@ export function StockList() {
   const fetchStocks = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/stocks`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setStocks(data);
-      }
+      const { data } = await api.get('/stocks');
+      setStocks(data);
     } catch (error) {
       console.error('Error fetching stocks:', error);
     } finally {

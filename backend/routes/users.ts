@@ -8,7 +8,7 @@ const router = Router();
 router.get('/', async (_req: Request, res: Response) => {
     try {
         const result = await pool.query(
-            `SELECT id, name, email, role, banned, gender, "createdAt"
+            `SELECT id, name, email, role, banned, gender, level, "createdAt"
              FROM "user"
              ORDER BY "createdAt" DESC`
         );
@@ -23,7 +23,7 @@ router.get('/', async (_req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, gender, role } = req.body;
+        const { name, gender, role, level } = req.body;
 
         const fields: string[] = [];
         const values: unknown[] = [];
@@ -41,6 +41,10 @@ router.put('/:id', async (req: Request, res: Response) => {
             fields.push(`role = $${idx++}`);
             values.push(role);
         }
+        if (level !== undefined) {
+            fields.push(`level = $${idx++}`);
+            values.push(level);
+        }
 
         if (fields.length === 0) {
             res.status(400).json({ error: 'No fields to update' });
@@ -49,7 +53,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
         values.push(id);
         const result = await pool.query(
-            `UPDATE "user" SET ${fields.join(', ')} WHERE id = $${idx} RETURNING id, name, email, role, banned, gender, "createdAt"`,
+            `UPDATE "user" SET ${fields.join(', ')} WHERE id = $${idx} RETURNING id, name, email, role, banned, gender, level, "createdAt"`,
             values
         );
 

@@ -1,23 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { 
   ClipboardList, 
   Search, 
-  Loader2,
   Package,
   AlertTriangle,
   CheckCircle2,
   XCircle
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/ui/data-table';
+import type { DataTableColumn } from '@/components/ui/data-table';
+import api from '@/lib/api';
 
 interface StockReportItem {
   item_id: string;
@@ -28,8 +23,6 @@ interface StockReportItem {
   overall_status: string;
   stock_count: string;
 }
-
-const API_BASE = 'http://localhost:8080/api';
 
 export function StockDetails() {
   const [reportItems, setReportItems] = useState<StockReportItem[]>([]);
@@ -43,11 +36,8 @@ export function StockDetails() {
   const fetchReport = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/stocks/report`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setReportItems(data);
-      }
+      const { data } = await api.get('/stocks/report');
+      setReportItems(data);
     } catch (error) {
       console.error('Error fetching report:', error);
     } finally {
@@ -55,9 +45,11 @@ export function StockDetails() {
     }
   };
 
-  const filteredItems = reportItems.filter(
-    (item) => item.item_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = useMemo(() => {
+    return reportItems.filter(
+      (item) => item.item_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [reportItems, searchQuery]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -93,18 +85,95 @@ export function StockDetails() {
   const lowItems = filteredItems.filter(i => i.overall_status === 'low').length;
   const outItems = filteredItems.filter(i => i.overall_status === 'out_of_stock').length;
 
+  const columns: DataTableColumn<StockReportItem>[] = useMemo(() => [
+    {
+      key: 'item_name',
+      header: 'Item Name',
+      sortable: true,
+      getValue: (row) => row.item_name,
+      render: (item) => (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center">
+            <Package className="h-5 w-5 text-blue-600" />
+          </div>
+          <span className="font-medium text-foreground">{item.item_name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'unit',
+      header: 'Unit',
+      sortable: true,
+      render: (item) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
+          {item.unit}
+        </span>
+      ),
+    },
+    {
+      key: 'total_quantity',
+      header: 'Total Added',
+      sortable: true,
+      headerClassName: 'text-right',
+      className: 'text-right',
+      getValue: (row) => Number(row.total_quantity) || 0,
+      render: (item) => (
+        <span className="font-medium">{item.total_quantity}</span>
+      ),
+    },
+    {
+      key: 'total_current_stock',
+      header: 'Current Stock',
+      sortable: true,
+      headerClassName: 'text-right',
+      className: 'text-right',
+      getValue: (row) => Number(row.total_current_stock) || 0,
+      render: (item) => (
+        <span className="font-medium">{item.total_current_stock}</span>
+      ),
+    },
+    {
+      key: 'overall_status',
+      header: 'Status',
+      sortable: true,
+      getValue: (row) => row.overall_status,
+      render: (item) => getStatusBadge(item.overall_status),
+    },
+    {
+      key: 'stock_count',
+      header: 'Stock Entries',
+      sortable: true,
+      headerClassName: 'text-right',
+      className: 'text-right',
+      getValue: (row) => Number(row.stock_count) || 0,
+      render: (item) => (
+        <span className="text-muted-foreground">{item.stock_count}</span>
+      ),
+    },
+  ], []);
+
   return (
     <div className="space-y-6">
-      <div>
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <h1 className="text-2xl font-bold text-foreground">Stock Details</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Aggregate report of library stock levels
         </p>
-      </div>
+      </motion.div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="rounded-[16px] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="grid grid-cols-1 sm:grid-cols-4 gap-4"
+      >
+        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
               <Package className="h-5 w-5 text-blue-600" />
@@ -115,7 +184,7 @@ export function StockDetails() {
             </div>
           </div>
         </div>
-        <div className="rounded-[16px] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -126,7 +195,7 @@ export function StockDetails() {
             </div>
           </div>
         </div>
-        <div className="rounded-[16px] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
@@ -137,7 +206,7 @@ export function StockDetails() {
             </div>
           </div>
         </div>
-        <div className="rounded-[16px] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
               <XCircle className="h-5 w-5 text-red-600" />
@@ -148,63 +217,42 @@ export function StockDetails() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search items..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 rounded-xl"
-            />
-          </div>
+      {/* Search */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+        className="flex gap-3"
+      >
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search items..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 rounded-xl h-11"
+          />
         </div>
+      </motion.div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <ClipboardList className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">No stock data available</p>
-            <p className="text-sm mt-1">Add items and create stocks to see reports here.</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item Name</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead className="text-right">Total Added</TableHead>
-                <TableHead className="text-right">Current Stock</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Stock Entries</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.item_id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{item.item_name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.unit}</TableCell>
-                  <TableCell className="text-right font-medium">{item.total_quantity}</TableCell>
-                  <TableCell className="text-right font-medium">{item.total_current_stock}</TableCell>
-                  <TableCell>{getStatusBadge(item.overall_status)}</TableCell>
-                  <TableCell className="text-right">{item.stock_count}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {/* Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <DataTable
+          data={filteredItems}
+          columns={columns}
+          isLoading={isLoading}
+          getRowId={(row) => row.item_id}
+          emptyIcon={ClipboardList}
+          emptyTitle="No stock data available"
+          emptyDescription="Add items and create stocks to see reports here."
+        />
+      </motion.div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ export { Login } from './Login';
 export { Dashboard } from './Dashboard';
 export { Books } from './Books';
 export { AddBook } from './AddBook';
+export { BookDetail } from './BookDetail';
 export { Students } from './Students';
 export { AddStudent } from './AddStudent';
 export { Classes } from './Classes';

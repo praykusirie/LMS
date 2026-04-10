@@ -10,6 +10,9 @@ export const authClient = createAuthClient({
                 gender: {
                     type: "string",
                 },
+                level: {
+                    type: "string",
+                },
             },
         }),
     ]

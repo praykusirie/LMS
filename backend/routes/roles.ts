@@ -40,6 +40,16 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
     try {
         const { name, description } = req.body;
+
+        const existing = await pool.query(
+            'SELECT id FROM roles WHERE LOWER(name) = LOWER($1)',
+            [name.trim()]
+        );
+        if (existing.rows.length > 0) {
+            res.status(409).json({ message: `Role "${name.trim()}" already exists` });
+            return;
+        }
+
         const result = await pool.query(
             'INSERT INTO roles (name, description) VALUES ($1, $2) RETURNING *',
             [name, description]

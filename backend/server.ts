@@ -15,6 +15,7 @@ import booksRouter from './routes/books.js';
 import studentsRouter from './routes/students.js';
 import dashboardRouter from './routes/dashboard.js';
 import usersRouter from './routes/users.js';
+import morgan from "morgan"
 
 const app = express()
 const PORT = process.env.PORT;
@@ -25,6 +26,7 @@ app.use(cors({
     credentials: true,
 }));
 
+app.use(morgan('dev'))
 // Better Auth routes (must be before express.json() to handle its own body parsing)
 app.all("/api/auth/*splat", toNodeHandler(auth));
 

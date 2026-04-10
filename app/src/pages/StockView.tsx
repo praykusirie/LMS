@@ -35,6 +35,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useSession } from '@/lib/auth-client';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface AvailableItem {
   id: string;
@@ -62,18 +64,20 @@ interface StockData {
   items: StockItemEntry[];
 }
 
-const API_BASE = 'http://localhost:8080/api';
-
 export function StockView() {
   const { stockId } = useParams();
   const navigate = useNavigate();
   const { data: session } = useSession();
+  const userRole = session?.user?.role ?? null;
+  const userLevel = (session?.user as any)?.level ?? null;
+  const isAdmin = userRole === 'admin';
   const isNew = stockId === 'new' || !stockId;
 
   const [stock, setStock] = useState<StockData | null>(null);
   const [availableItems, setAvailableItems] = useState<AvailableItem[]>([]);
   const [nextStockId, setNextStockId] = useState('');
   const [notes, setNotes] = useState('');
+  const [stockLevel, setStockLevel] = useState('');
   const [items, setItems] = useState<StockItemEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,11 +94,8 @@ export function StockView() {
 
   const fetchAvailableItems = async () => {
     try {
-      const response = await fetch(`${API_BASE}/items`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableItems(data);
-      }
+      const { data } = await api.get('/items');
+      setAvailableItems(data);
     } catch (error) {
       console.error('Error fetching items:', error);
     }
@@ -102,11 +103,8 @@ export function StockView() {
 
   const fetchNextStockId = async () => {
     try {
-      const response = await fetch(`${API_BASE}/stocks/next-id`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setNextStockId(data.nextId);
-      }
+      const { data } = await api.get('/stocks/next-id');
+      setNextStockId(data.nextId);
     } catch (error) {
       console.error('Error fetching next stock ID:', error);
     }
@@ -115,20 +113,17 @@ export function StockView() {
   const fetchStock = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/stocks/${stockId}`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setStock(data);
-        setNotes(data.notes || '');
-        setItems(data.items.map((item: StockItemEntry & { item_id: string; item_name: string; item_unit: string }) => ({
-          item_id: item.item_id,
-          item_name: item.item_name,
-          item_unit: item.item_unit,
-          quantity: item.quantity,
-          current_stock: item.current_stock,
-          status: item.status,
-        })));
-      }
+      const { data } = await api.get(`/stocks/${stockId}`);
+      setStock(data);
+      setNotes(data.notes || '');
+      setItems(data.items.map((item: StockItemEntry & { item_id: string; item_name: string; item_unit: string }) => ({
+        item_id: item.item_id,
+        item_name: item.item_name,
+        item_unit: item.item_unit,
+        quantity: item.quantity,
+        current_stock: item.current_stock,
+        status: item.status,
+      })));
     } catch (error) {
       console.error('Error fetching stock:', error);
     } finally {
@@ -193,43 +188,33 @@ export function StockView() {
     setIsSaving(true);
     try {
       if (isNew) {
-        const response = await fetch(`${API_BASE}/stocks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            created_by: session?.user?.email || '',
-            created_by_name: session?.user?.name || '',
-            notes,
-            items: validItems.map(item => ({
-              item_id: item.item_id,
-              quantity: item.quantity,
-            })),
-          }),
+        await api.post('/stocks', {
+          created_by: session?.user?.email || '',
+          created_by_name: session?.user?.name || '',
+          notes,
+          level: isAdmin ? (stockLevel || null) : userLevel,
+          items: validItems.map(item => ({
+            item_id: item.item_id,
+            quantity: item.quantity,
+          })),
         });
-        if (response.ok) {
-          navigate('/library-inventory/add-stock');
-        }
+        toast.success('Stock created successfully');
+        navigate('/library-inventory/add-stock');
       } else {
-        const response = await fetch(`${API_BASE}/stocks/${stockId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            notes,
-            items: validItems.map(item => ({
-              item_id: item.item_id,
-              quantity: item.quantity,
-              current_stock: item.current_stock,
-            })),
-          }),
+        await api.put(`/stocks/${stockId}`, {
+          notes,
+          items: validItems.map(item => ({
+            item_id: item.item_id,
+            quantity: item.quantity,
+            current_stock: item.current_stock,
+          })),
         });
-        if (response.ok) {
-          await fetchStock();
-        }
+        toast.success('Stock updated successfully');
+        await fetchStock();
       }
     } catch (error) {
       console.error('Error saving stock:', error);
+      toast.error('Failed to save stock');
     } finally {
       setIsSaving(false);
     }
@@ -353,6 +338,24 @@ export function StockView() {
             rows={2}
           />
         </div>
+        {isNew && (
+          <div className="space-y-2 mt-4">
+            <Label>Level</Label>
+            <Select
+              value={isAdmin ? stockLevel : (userLevel || '')}
+              onValueChange={(value) => setStockLevel(value)}
+              disabled={!isAdmin}
+            >
+              <SelectTrigger className="rounded-xl max-w-xs">
+                <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="primary">Primary Level</SelectItem>
+                <SelectItem value="secondary">Secondary Level</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Stock Items */}

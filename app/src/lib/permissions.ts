@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/lib/auth-client';
-
-const API_BASE = 'http://localhost:8080/api';
+import api from '@/lib/api';
 
 export interface UserPermission {
   id: string;
@@ -63,13 +62,7 @@ export function usePermissions() {
     const fetchPermissions = async () => {
       try {
         setIsLoading(true);
-        const rolesResponse = await fetch(`${API_BASE}/roles`, { credentials: 'include' });
-        if (!rolesResponse.ok) {
-          setPermissions([]);
-          return;
-        }
-
-        const roles = await rolesResponse.json();
+        const { data: roles } = await api.get('/roles');
         const currentRole = roles.find((role: { id: string; name: string }) => role.name === session.user.role);
 
         if (!currentRole) {
@@ -77,16 +70,7 @@ export function usePermissions() {
           return;
         }
 
-        const permissionResponse = await fetch(`${API_BASE}/permissions/role/${currentRole.id}`, {
-          credentials: 'include',
-        });
-
-        if (!permissionResponse.ok) {
-          setPermissions([]);
-          return;
-        }
-
-        const data = await permissionResponse.json();
+        const { data } = await api.get(`/permissions/role/${currentRole.id}`);
         setPermissions(data.filter((permission: UserPermission) => permission.assigned));
       } catch (error) {
         console.error('Error fetching current user permissions:', error);

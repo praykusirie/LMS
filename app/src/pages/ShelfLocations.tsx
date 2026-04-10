@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
-  MoreHorizontal, 
   Edit2, 
   Trash2, 
   MapPin,
@@ -11,6 +10,7 @@ import {
   AlertCircle,
   BookOpen
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,13 +22,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui-custom';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DataTable } from '@/components/ui/data-table';
+import type { DataTableColumn } from '@/components/ui/data-table';
+import api from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 
 interface ShelfLocation {
   id: string;
@@ -41,9 +44,12 @@ interface ShelfLocation {
   created_at: string;
 }
 
-const API_BASE = 'http://localhost:8080/api';
-
 export function ShelfLocations() {
+  const { data: session } = useSession();
+  const userRole = session?.user?.role ?? null;
+  const userLevel = (session?.user as any)?.level ?? null;
+  const isAdmin = userRole === 'admin';
+
   const [locations, setLocations] = useState<ShelfLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,13 +57,13 @@ export function ShelfLocations() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<ShelfLocation | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [formData, setFormData] = useState({
     code: '',
     name: '',
     section: '',
-    capacity: 100
+    capacity: 100,
+    level: '',
   });
 
   useEffect(() => {
@@ -67,14 +73,11 @@ export function ShelfLocations() {
   const fetchLocations = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/shelf-locations`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setLocations(data);
-      }
+      const { data } = await api.get('/shelf-locations');
+      setLocations(data);
     } catch (error) {
       console.error('Error fetching locations:', error);
-      showNotification('error', 'Failed to fetch locations');
+      toast.error('Failed to fetch locations');
     } finally {
       setIsLoading(false);
     }
@@ -88,75 +91,51 @@ export function ShelfLocations() {
     );
   }, [locations, searchQuery]);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 3000);
-  };
-
   const handleAdd = async () => {
     if (!formData.code.trim() || !formData.name.trim()) {
-      showNotification('error', 'Code and name are required');
+      toast.error('Code and name are required');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/shelf-locations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          code: formData.code.trim().toUpperCase(),
-          name: formData.name.trim(),
-          section: formData.section.trim().toUpperCase() || null,
-          capacity: formData.capacity,
-        }),
+      await api.post('/shelf-locations', {
+        code: formData.code.trim().toUpperCase(),
+        name: formData.name.trim(),
+        section: formData.section.trim().toUpperCase() || null,
+        capacity: formData.capacity,
+        level: isAdmin ? (formData.level || null) : userLevel,
       });
-
-      if (response.ok) {
-        await fetchLocations();
-        setShowAddDialog(false);
-        setFormData({ code: '', name: '', section: '', capacity: 100 });
-        showNotification('success', 'Shelf location added successfully');
-      } else {
-        showNotification('error', 'Failed to add location');
-      }
-    } catch (error) {
+      await fetchLocations();
+      setShowAddDialog(false);
+      setFormData({ code: '', name: '', section: '', capacity: 100, level: '' });
+      toast.success('Shelf location added successfully');
+    } catch (error: any) {
       console.error('Error adding location:', error);
-      showNotification('error', 'Failed to add location');
+      toast.error(error?.message || 'Failed to add location');
     }
   };
 
   const handleEdit = async () => {
     if (!selectedLocation || !formData.code.trim() || !formData.name.trim()) {
-      showNotification('error', 'Code and name are required');
+      toast.error('Code and name are required');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/shelf-locations/${selectedLocation.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          code: formData.code.trim().toUpperCase(),
-          name: formData.name.trim(),
-          section: formData.section.trim().toUpperCase() || null,
-          capacity: formData.capacity,
-        }),
+      await api.put(`/shelf-locations/${selectedLocation.id}`, {
+        code: formData.code.trim().toUpperCase(),
+        name: formData.name.trim(),
+        section: formData.section.trim().toUpperCase() || null,
+        capacity: formData.capacity,
       });
-
-      if (response.ok) {
-        await fetchLocations();
-        setShowEditDialog(false);
-        setSelectedLocation(null);
-        setFormData({ code: '', name: '', section: '', capacity: 100 });
-        showNotification('success', 'Shelf location updated successfully');
-      } else {
-        showNotification('error', 'Failed to update location');
-      }
+      await fetchLocations();
+      setShowEditDialog(false);
+      setSelectedLocation(null);
+      setFormData({ code: '', name: '', section: '', capacity: 100, level: '' });
+      toast.success('Shelf location updated successfully');
     } catch (error) {
       console.error('Error updating location:', error);
-      showNotification('error', 'Failed to update location');
+      toast.error('Failed to update location');
     }
   };
 
@@ -164,22 +143,14 @@ export function ShelfLocations() {
     if (!selectedLocation) return;
 
     try {
-      const response = await fetch(`${API_BASE}/shelf-locations/${selectedLocation.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        await fetchLocations();
-        setShowDeleteDialog(false);
-        setSelectedLocation(null);
-        showNotification('success', 'Shelf location deleted successfully');
-      } else {
-        showNotification('error', 'Failed to delete location');
-      }
+      await api.delete(`/shelf-locations/${selectedLocation.id}`);
+      await fetchLocations();
+      setShowDeleteDialog(false);
+      setSelectedLocation(null);
+      toast.success('Shelf location deleted successfully');
     } catch (error) {
       console.error('Error deleting location:', error);
-      showNotification('error', 'Failed to delete location');
+      toast.error('Failed to delete location');
     }
   };
 
@@ -189,7 +160,8 @@ export function ShelfLocations() {
       code: location.code, 
       name: location.name, 
       section: location.section,
-      capacity: location.capacity 
+      capacity: location.capacity,
+      level: (location as any).level || '',
     });
     setShowEditDialog(true);
   };
@@ -206,27 +178,103 @@ export function ShelfLocations() {
     return 'bg-green-500';
   };
 
+  const columns: DataTableColumn<ShelfLocation>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Location',
+      sortable: true,
+      getValue: (row) => row.name,
+      render: (location) => (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
+            <MapPin className="h-5 w-5 text-navy" />
+          </div>
+          <span className="font-medium text-foreground">{location.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'code',
+      header: 'Code',
+      sortable: true,
+      render: (location) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
+          {location.code}
+        </span>
+      ),
+    },
+    {
+      key: 'section',
+      header: 'Section',
+      sortable: true,
+      render: (location) => (
+        <span className="font-medium">{location.section}</span>
+      ),
+    },
+    {
+      key: 'capacity',
+      header: 'Capacity',
+      sortable: true,
+      getValue: (row) => row.book_count || 0,
+      render: (location) => (
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-2 bg-secondary rounded-full max-w-[100px]">
+            <div 
+              className={`h-2 rounded-full ${getCapacityColor(location.book_count, location.capacity)}`}
+              style={{ width: `${Math.min(((location.book_count || 0) / (location.capacity || 1)) * 100, 100)}%` }}
+            />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {location.book_count || 0}/{location.capacity}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'is_active',
+      header: 'Status',
+      sortable: true,
+      getValue: (row) => row.is_active ? 'Active' : 'Inactive',
+      render: (location) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          location.is_active 
+            ? 'bg-green-100 text-green-700' 
+            : 'bg-gray-100 text-gray-700'
+        }`}>
+          {location.is_active ? 'Active' : 'Inactive'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (location) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => openEditDialog(location)}
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-red-600"
+            onClick={() => openDeleteDialog(location)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
+
   return (
     <div className="space-y-6">
-      {/* Notification */}
-      {notification && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg ${
-            notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-          }`}
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle2 className="h-5 w-5" />
-          ) : (
-            <AlertCircle className="h-5 w-5" />
-          )}
-          {notification.message}
-        </motion.div>
-      )}
-
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 18 }}
@@ -242,7 +290,7 @@ export function ShelfLocations() {
         </div>
         <Button 
           onClick={() => {
-            setFormData({ code: '', name: '', section: '', capacity: 100 });
+            setFormData({ code: '', name: '', section: '', capacity: 100, level: !isAdmin && userLevel ? userLevel : '' });
             setShowAddDialog(true);
           }}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
@@ -328,127 +376,16 @@ export function ShelfLocations() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden"
       >
-        {isLoading ? (
-          <div className="p-6 space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-[150px]" />
-                  <Skeleton className="h-3 w-[200px]" />
-                </div>
-                <Skeleton className="h-6 w-[80px] rounded-full" />
-                <Skeleton className="h-8 w-8 rounded-lg" />
-              </div>
-            ))}
-          </div>
-        ) : filteredLocations.length === 0 ? (
-          <EmptyState
-            icon={MapPin}
-            title="No shelf locations found"
-            description="Add your first shelf location to get started."
-            actionLabel="Add Location"
-            onAction={() => setShowAddDialog(true)}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border/60">
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Code
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Section
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Capacity
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="text-right px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLocations.map((location) => (
-                  <tr 
-                    key={location.id} 
-                    className="border-b border-border/40 last:border-0 hover:bg-secondary/50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-                          <MapPin className="h-5 w-5 text-navy" />
-                        </div>
-                        <span className="font-medium text-foreground">{location.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
-                        {location.code}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">
-                      {location.section}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-secondary rounded-full max-w-[100px]">
-                          <div 
-                            className={`h-2 rounded-full ${getCapacityColor(location.book_count, location.capacity)}`}
-                            style={{ width: `${Math.min(((location.book_count || 0) / (location.capacity || 1)) * 100, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {location.book_count || 0}/{location.capacity}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        location.is_active 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {location.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(location)}>
-                            <Edit2 className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => openDeleteDialog(location)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          data={filteredLocations}
+          columns={columns}
+          isLoading={isLoading}
+          getRowId={(row) => row.id}
+          emptyIcon={MapPin}
+          emptyTitle="No shelf locations found"
+          emptyDescription="Add your first shelf location to get started."
+        />
       </motion.div>
 
       {/* Add Dialog */}
@@ -496,6 +433,22 @@ export function ShelfLocations() {
                 onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
                 className="rounded-xl h-11"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Level</Label>
+              <Select
+                value={isAdmin ? formData.level : (userLevel || '')}
+                onValueChange={(value) => setFormData({ ...formData, level: value })}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="primary">Primary Level</SelectItem>
+                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -554,6 +507,22 @@ export function ShelfLocations() {
                 onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
                 className="rounded-xl h-11"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Level</Label>
+              <Select
+                value={isAdmin ? formData.level : (userLevel || '')}
+                onValueChange={(value) => setFormData({ ...formData, level: value })}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="primary">Primary Level</SelectItem>
+                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

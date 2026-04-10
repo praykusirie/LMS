@@ -1,31 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Shield, 
   Search, 
-  MoreHorizontal, 
-  Edit, 
+  Edit2, 
   Trash2, 
   Plus,
   Loader2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +22,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/ui/data-table';
+import type { DataTableColumn } from '@/components/ui/data-table';
+import api from '@/lib/api';
 
 interface Role {
   id: string;
@@ -43,8 +33,6 @@ interface Role {
   created_at: string;
   updated_at: string;
 }
-
-const API_BASE = 'http://localhost:8080/api';
 
 export function RoleMaster() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -67,15 +55,11 @@ export function RoleMaster() {
   const fetchRoles = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/roles`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setRoles(data);
-      }
+      const { data } = await api.get('/roles');
+      setRoles(data);
     } catch (error) {
       console.error('Error fetching roles:', error);
+      toast.error('Failed to fetch roles');
     } finally {
       setIsLoading(false);
     }
@@ -86,20 +70,14 @@ export function RoleMaster() {
     
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE}/roles`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-      
-      if (response.ok) {
-        await fetchRoles();
-        setIsCreateDialogOpen(false);
-        resetForm();
-      }
-    } catch (error) {
+      await api.post('/roles', formData);
+      await fetchRoles();
+      setIsCreateDialogOpen(false);
+      resetForm();
+      toast.success('Role created successfully');
+    } catch (error: any) {
       console.error('Error creating role:', error);
+      toast.error(error?.message || 'Failed to create role');
     } finally {
       setIsSubmitting(false);
     }
@@ -110,21 +88,15 @@ export function RoleMaster() {
     
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE}/roles/${selectedRole.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-      
-      if (response.ok) {
-        await fetchRoles();
-        setIsEditDialogOpen(false);
-        setSelectedRole(null);
-        resetForm();
-      }
+      await api.put(`/roles/${selectedRole.id}`, formData);
+      await fetchRoles();
+      setIsEditDialogOpen(false);
+      setSelectedRole(null);
+      resetForm();
+      toast.success('Role updated successfully');
     } catch (error) {
       console.error('Error updating role:', error);
+      toast.error('Failed to update role');
     } finally {
       setIsSubmitting(false);
     }
@@ -135,18 +107,14 @@ export function RoleMaster() {
     
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE}/roles/${selectedRole.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        await fetchRoles();
-        setIsDeleteDialogOpen(false);
-        setSelectedRole(null);
-      }
+      await api.delete(`/roles/${selectedRole.id}`);
+      await fetchRoles();
+      setIsDeleteDialogOpen(false);
+      setSelectedRole(null);
+      toast.success('Role deleted successfully');
     } catch (error) {
       console.error('Error deleting role:', error);
+      toast.error('Failed to delete role');
     } finally {
       setIsSubmitting(false);
     }
@@ -173,19 +141,103 @@ export function RoleMaster() {
     setIsDeleteDialogOpen(true);
   };
 
-  const filteredRoles = roles.filter(
-    (role) =>
-      role.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      role.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRoles = useMemo(() => {
+    return roles.filter(
+      (role) =>
+        role.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        role.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [roles, searchQuery]);
 
   const isSystemRole = (roleName: string) => {
     return ['admin', 'user'].includes(roleName.toLowerCase());
   };
 
+  const columns: DataTableColumn<Role>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Role Name',
+      sortable: true,
+      getValue: (row) => row.name,
+      render: (role) => (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
+            <Shield className="h-5 w-5 text-navy" />
+          </div>
+          <span className="font-medium text-foreground capitalize">{role.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      sortable: true,
+      getValue: (row) => row.description,
+      render: (role) => (
+        <span className="text-muted-foreground max-w-[300px] truncate block">{role.description || '-'}</span>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      sortable: true,
+      getValue: (row) => isSystemRole(row.name) ? 'System' : 'Custom',
+      render: (role) => (
+        <Badge variant={isSystemRole(role.name) ? 'secondary' : 'outline'}>
+          {isSystemRole(role.name) ? 'System' : 'Custom'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'created_at',
+      header: 'Created',
+      sortable: true,
+      getValue: (row) => row.created_at,
+      render: (role) => (
+        <span className="text-muted-foreground text-xs">
+          {new Date(role.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (role) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => openEditDialog(role)}
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          {!isSystemRole(role.name) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-red-600"
+              onClick={() => openDeleteDialog(role)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ], []);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-bold text-foreground">Role Master</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -194,99 +246,47 @@ export function RoleMaster() {
         </div>
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-navy hover:bg-navy/90"
+          className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Role
         </Button>
-      </div>
+      </motion.div>
 
-      <div className="rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search roles..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 rounded-xl"
-            />
-          </div>
+      {/* Search */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="flex gap-3"
+      >
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search roles..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 rounded-xl h-11"
+          />
         </div>
+      </motion.div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Role Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="w-[70px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRoles.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                    No roles found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRoles.map((role) => (
-                  <TableRow key={role.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium capitalize">{role.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[300px] truncate">
-                      {role.description || '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={isSystemRole(role.name) ? 'secondary' : 'outline'}>
-                        {isSystemRole(role.name) ? 'System' : 'Custom'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(role.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(role)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          {!isSystemRole(role.name) && (
-                            <DropdownMenuItem 
-                              onClick={() => openDeleteDialog(role)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {/* Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+      >
+        <DataTable
+          data={filteredRoles}
+          columns={columns}
+          isLoading={isLoading}
+          getRowId={(row) => row.id}
+          emptyIcon={Shield}
+          emptyTitle="No roles found"
+          emptyDescription="Add your first role to get started."
+        />
+      </motion.div>
 
       {/* Create Role Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

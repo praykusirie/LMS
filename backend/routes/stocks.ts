@@ -1,12 +1,15 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
+import { getSessionUser, getLevelFilter } from '../lib/session.js';
 
 const router = Router();
 
 // GET all stocks with summary
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
+    const user = await getSessionUser(req);
+    const { clause, params } = getLevelFilter(user, 's');
     const result = await pool.query(`
       SELECT 
         s.*,
@@ -17,9 +20,10 @@ router.get('/', async (_req: Request, res: Response) => {
         COUNT(CASE WHEN si.status = 'available' THEN 1 END) as available_count
       FROM stocks s
       LEFT JOIN stock_items si ON s.id = si.stock_id
+      WHERE 1=1 ${clause}
       GROUP BY s.id
       ORDER BY s.created_at DESC
-    `);
+    `, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching stocks:', error);
@@ -39,8 +43,10 @@ router.get('/next-id', async (_req: Request, res: Response) => {
 });
 
 // GET stock details report (aggregate totals)
-router.get('/report', async (_req: Request, res: Response) => {
+router.get('/report', async (req: Request, res: Response) => {
   try {
+    const user = await getSessionUser(req);
+    const { clause, params } = getLevelFilter(user, 'i');
     const result = await pool.query(`
       SELECT 
         i.id as item_id,
@@ -56,9 +62,10 @@ router.get('/report', async (_req: Request, res: Response) => {
         COUNT(DISTINCT si.stock_id) as stock_count
       FROM items i
       LEFT JOIN stock_items si ON i.id = si.item_id
+      WHERE 1=1 ${clause}
       GROUP BY i.id, i.name, i.unit
       ORDER BY i.name ASC
-    `);
+    `, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching stock report:', error);
@@ -105,7 +112,9 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     await client.query('BEGIN');
     
-    const { created_by, created_by_name, notes, items } = req.body;
+    const { created_by, created_by_name, notes, items, level } = req.body;
+    const user = await getSessionUser(req);
+    const recordLevel = level ?? user?.level ?? null;
     
     // Get next stock ID
     const idResult = await client.query('SELECT get_next_stock_id() as next_id');
@@ -113,8 +122,8 @@ router.post('/', async (req: Request, res: Response) => {
     
     // Create stock
     const stockResult = await client.query(
-      'INSERT INTO stocks (stock_id, created_by, created_by_name, notes) VALUES ($1, $2, $3, $4) RETURNING *',
-      [stockId, created_by, created_by_name, notes || null]
+      'INSERT INTO stocks (stock_id, created_by, created_by_name, notes, level) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [stockId, created_by, created_by_name, notes || null, recordLevel]
     );
     const stock = stockResult.rows[0];
     

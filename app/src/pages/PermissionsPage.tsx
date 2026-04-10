@@ -31,6 +31,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface Permission {
   id: string;
@@ -50,8 +52,6 @@ interface Role {
 interface GroupedPermissions {
   [module: string]: Permission[];
 }
-
-const API_BASE = 'http://localhost:8080/api';
 
 const moduleLabels: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -89,35 +89,27 @@ export function PermissionsPage() {
 
   const fetchRoles = async () => {
     try {
-      const response = await fetch(`${API_BASE}/roles`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setRoles(data);
-        if (data.length > 0) {
-          setSelectedRole(data[0].id);
-        }
+      const { data } = await api.get('/roles');
+      setRoles(data);
+      if (data.length > 0) {
+        setSelectedRole(data[0].id);
       }
     } catch (error) {
       console.error('Error fetching roles:', error);
+      toast.error('Failed to fetch roles');
     }
   };
 
   const fetchPermissions = async (roleId: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/permissions/role/${roleId}`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPermissions(data);
-        setOriginalPermissions(data.filter((p: Permission) => p.assigned).map((p: Permission) => p.id));
-        setHasChanges(false);
-      }
+      const { data } = await api.get(`/permissions/role/${roleId}`);
+      setPermissions(data);
+      setOriginalPermissions(data.filter((p: Permission) => p.assigned).map((p: Permission) => p.id));
+      setHasChanges(false);
     } catch (error) {
       console.error('Error fetching permissions:', error);
+      toast.error('Failed to fetch permissions');
     } finally {
       setIsLoading(false);
     }
@@ -145,20 +137,13 @@ export function PermissionsPage() {
     setIsSaving(true);
     try {
       const assignedPermissions = permissions.filter(p => p.assigned).map(p => p.id);
-      
-      const response = await fetch(`${API_BASE}/permissions/role/${selectedRole}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ permissionIds: assignedPermissions }),
-      });
-      
-      if (response.ok) {
-        setOriginalPermissions(assignedPermissions);
-        setHasChanges(false);
-      }
+      await api.put(`/permissions/role/${selectedRole}`, { permissionIds: assignedPermissions });
+      setOriginalPermissions(assignedPermissions);
+      setHasChanges(false);
+      toast.success('Permissions saved successfully');
     } catch (error) {
       console.error('Error saving permissions:', error);
+      toast.error('Failed to save permissions');
     } finally {
       setIsSaving(false);
     }

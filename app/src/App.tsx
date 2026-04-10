@@ -4,7 +4,8 @@ import {
   Login, 
   Dashboard, 
   Books, 
-  AddBook, 
+  AddBook,
+  BookDetail, 
   Students, 
   AddStudent, 
   Classes,
@@ -27,6 +28,7 @@ import {
 } from '@/pages';
 import './App.css';
 import { useSession } from '@/lib/auth-client';
+import { Toaster } from '@/components/ui/sonner';
 
 function ProtectedRoute() {
   const { data: session, isPending } = useSession();
@@ -70,6 +72,7 @@ function PublicRoute() {
 
 function App() {
   return (
+    <>
     <Routes>
       {/* Public routes */}
       <Route element={<PublicRoute />}>
@@ -85,6 +88,7 @@ function App() {
         <Route path="/add-student" element={<AddStudent />} />
         <Route path="/books" element={<Books />} />
         <Route path="/add-book" element={<AddBook />} />
+        <Route path="/books/:bookId" element={<BookDetail />} />
         <Route path="/classes" element={<Classes />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/subjects" element={<Subjects />} />
@@ -115,6 +119,8 @@ function App() {
       {/* Default redirect */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    <Toaster position="top-right" richColors closeButton />
+    </>
   );
 }
 

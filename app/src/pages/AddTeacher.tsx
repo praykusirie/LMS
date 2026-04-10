@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Loader2, Save, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import api from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
+import { toast } from 'sonner';
 
 interface ClassItem {
   id: string;
@@ -27,12 +30,16 @@ interface Teacher {
   homeroom_class_id: string | null;
 }
 
-const API_BASE = 'http://localhost:8080/api';
-
 export function AddTeacher() {
   const navigate = useNavigate();
   const { teacherId } = useParams();
+  const [searchParams] = useSearchParams();
+  const isViewMode = searchParams.get('mode') === 'view';
   const isEdit = Boolean(teacherId);
+  const { data: session } = useSession();
+  const userRole = session?.user?.role ?? null;
+  const userLevel = (session?.user as any)?.level ?? null;
+  const isAdmin = userRole === 'admin';
 
   const [nextTeacherId, setNextTeacherId] = useState('');
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -41,6 +48,7 @@ export function AddTeacher() {
     gender: 'male' as 'male' | 'female',
     is_homeroom_teacher: false,
     homeroom_class_id: '',
+    level: '',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -50,33 +58,25 @@ export function AddTeacher() {
   }, [teacherId]);
 
   const fetchClasses = async () => {
-    const response = await fetch(`${API_BASE}/classes`, { credentials: 'include' });
-    if (response.ok) {
-      const data = await response.json();
-      setClasses(data);
-    }
+    const { data } = await api.get('/classes');
+    setClasses(data);
   };
 
   const fetchNextTeacherId = async () => {
-    const response = await fetch(`${API_BASE}/teachers/next-id`, { credentials: 'include' });
-    if (response.ok) {
-      const data = await response.json();
-      setNextTeacherId(data.nextId);
-    }
+    const { data } = await api.get('/teachers/next-id');
+    setNextTeacherId(data.nextId);
   };
 
   const fetchTeacher = async () => {
-    const response = await fetch(`${API_BASE}/teachers/${teacherId}`, { credentials: 'include' });
-    if (response.ok) {
-      const data: Teacher = await response.json();
-      setNextTeacherId(data.teacher_id);
-      setFormData({
-        name: data.name,
-        gender: data.gender || 'male',
-        is_homeroom_teacher: data.is_homeroom_teacher,
-        homeroom_class_id: data.homeroom_class_id || '',
-      });
-    }
+    const { data } = await api.get<Teacher>(`/teachers/${teacherId}`);
+    setNextTeacherId(data.teacher_id);
+    setFormData({
+      name: data.name,
+      gender: data.gender || 'male',
+      is_homeroom_teacher: data.is_homeroom_teacher,
+      homeroom_class_id: data.homeroom_class_id || '',
+      level: (data as any).level || '',
+    });
   };
 
   const handleSave = async () => {
@@ -84,23 +84,24 @@ export function AddTeacher() {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_BASE}/teachers${isEdit ? `/${teacherId}` : ''}`, {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name,
-          gender: formData.gender,
-          is_homeroom_teacher: formData.is_homeroom_teacher,
-          homeroom_class_id: formData.is_homeroom_teacher ? formData.homeroom_class_id : null,
-        }),
-      });
+      const payload = {
+        name: formData.name,
+        gender: formData.gender,
+        is_homeroom_teacher: formData.is_homeroom_teacher,
+        homeroom_class_id: formData.is_homeroom_teacher ? formData.homeroom_class_id : null,
+        level: isAdmin ? (formData.level || null) : userLevel,
+      };
 
-      if (response.ok) {
-        navigate('/teachers');
+      if (isEdit) {
+        await api.put(`/teachers/${teacherId}`, payload);
+      } else {
+        await api.post('/teachers', payload);
       }
-    } catch (error) {
+      toast.success(isEdit ? 'Teacher updated successfully' : 'Teacher added successfully');
+      navigate('/teachers');
+    } catch (error: any) {
       console.error('Error saving teacher:', error);
+      toast.error(error?.message || 'Failed to save teacher');
     } finally {
       setIsSaving(false);
     }
@@ -121,7 +122,7 @@ export function AddTeacher() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{isEdit ? 'Edit Teacher' : 'Add Teacher'}</h1>
+          <h1 className="text-2xl font-bold text-foreground">{isViewMode ? 'Teacher Details' : isEdit ? 'Edit Teacher' : 'Add Teacher'}</h1>
           <p className="text-sm text-muted-foreground mt-1">Create and manage teacher details</p>
         </div>
       </div>
@@ -140,6 +141,7 @@ export function AddTeacher() {
               onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="Enter teacher name"
               className="rounded-xl"
+              disabled={isViewMode}
             />
           </div>
           <div className="space-y-2">
@@ -147,6 +149,7 @@ export function AddTeacher() {
             <Select
               value={formData.gender}
               onValueChange={(value: 'male' | 'female') => setFormData((prev) => ({ ...prev, gender: value }))}
+              disabled={isViewMode}
             >
               <SelectTrigger className="rounded-xl">
                 <SelectValue placeholder="Select gender" />
@@ -170,6 +173,7 @@ export function AddTeacher() {
                 homeroom_class_id: checked === true ? prev.homeroom_class_id : '',
               }))
             }
+            disabled={isViewMode}
           />
           <Label htmlFor="is_homeroom_teacher">Homeroom Teacher</Label>
         </div>
@@ -180,6 +184,7 @@ export function AddTeacher() {
             <Select
               value={formData.homeroom_class_id}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, homeroom_class_id: value }))}
+              disabled={isViewMode}
             >
               <SelectTrigger className="rounded-xl">
                 <SelectValue placeholder="Select class" />
@@ -195,14 +200,38 @@ export function AddTeacher() {
           </div>
         )}
 
+        <div className="space-y-2">
+          <Label>Level</Label>
+          <Select
+            value={isAdmin ? formData.level : (userLevel || '')}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, level: value }))}
+            disabled={isViewMode || !isAdmin}
+          >
+            <SelectTrigger className="rounded-xl">
+              <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="primary">Primary Level</SelectItem>
+              <SelectItem value="secondary">Secondary Level</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="flex justify-end gap-3 pt-4">
           <Button variant="outline" onClick={() => navigate('/teachers')} className="rounded-xl">
-            Cancel
+            {isViewMode ? 'Back' : 'Cancel'}
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-navy hover:bg-navy/90 rounded-xl">
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            {isEdit ? 'Save Changes' : 'Create Teacher'}
-          </Button>
+          {isViewMode ? (
+            <Button onClick={() => navigate(`/teachers/${teacherId}`)} className="bg-navy hover:bg-navy/90 rounded-xl">
+              <Edit2 className="h-4 w-4 mr-2" />
+              Edit Teacher
+            </Button>
+          ) : (
+            <Button onClick={handleSave} disabled={isSaving} className="bg-navy hover:bg-navy/90 rounded-xl">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              {isEdit ? 'Save Changes' : 'Create Teacher'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

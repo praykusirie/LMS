@@ -1,33 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { 
   UserPlus, 
   Search, 
-  MoreHorizontal, 
-  Edit, 
+  Edit2, 
   Trash2, 
   Mail, 
   Shield,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  Users,
+  ShieldBan,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -45,24 +35,28 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { PersonAvatar } from '@/components/shared/PersonAvatar';
+import { DataTable } from '@/components/ui/data-table';
+import type { DataTableColumn } from '@/components/ui/data-table';
 import { authClient } from '@/lib/auth-client';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface User {
   id: string;
   name: string;
   email: string;
   role: string | null;
+  level: string | null;
   gender: 'male' | 'female';
   banned: boolean | null;
   createdAt: Date;
 }
 
-const API_BASE = 'http://localhost:8080/api';
-
 interface EditFormData {
   name: string;
   gender: 'male' | 'female';
   role: string;
+  level: string;
   newPassword: string;
 }
 
@@ -73,6 +67,7 @@ interface Role {
 }
 
 export function UserMaster() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,11 +84,13 @@ export function UserMaster() {
     password: '',
     gender: 'male' as 'male' | 'female',
     role: 'user',
+    level: '',
   });
   const [editFormData, setEditFormData] = useState<EditFormData>({
     name: '',
     gender: 'male',
     role: 'user',
+    level: '',
     newPassword: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,13 +103,11 @@ export function UserMaster() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/users`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
-      }
+      const { data } = await api.get('/users');
+      setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
+      toast.error('Failed to fetch users');
     } finally {
       setIsLoading(false);
     }
@@ -120,13 +115,8 @@ export function UserMaster() {
 
   const fetchRoles = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/roles', {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setRoles(data);
-      }
+      const { data } = await api.get('/roles');
+      setRoles(data);
     } catch (error) {
       console.error('Error fetching roles:', error);
     }
@@ -144,6 +134,7 @@ export function UserMaster() {
         role: formData.role as "user" | "admin",
         data: {
           gender: formData.gender,
+          level: formData.role === 'librarian' ? formData.level || null : null,
         },
       });
       
@@ -151,9 +142,11 @@ export function UserMaster() {
         await fetchUsers();
         setIsCreateDialogOpen(false);
         resetForm();
+        toast.success('User created successfully');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating user:', error);
+      toast.error(error?.message || 'Failed to create user');
     } finally {
       setIsSubmitting(false);
     }
@@ -165,21 +158,12 @@ export function UserMaster() {
     setIsSubmitting(true);
     try {
       // Update name, gender, role via direct DB route
-      const updateResponse = await fetch(`${API_BASE}/users/${selectedUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: editFormData.name,
-          gender: editFormData.gender,
-          role: editFormData.role,
-        }),
+      await api.put(`/users/${selectedUser.id}`, {
+        name: editFormData.name,
+        gender: editFormData.gender,
+        role: editFormData.role,
+        level: editFormData.role === 'librarian' ? editFormData.level || null : null,
       });
-
-      if (!updateResponse.ok) {
-        console.error('Failed to update user details');
-        return;
-      }
 
       // Update password if provided (via better-auth admin API)
       if (editFormData.newPassword) {
@@ -192,8 +176,10 @@ export function UserMaster() {
       await fetchUsers();
       setIsEditDialogOpen(false);
       setSelectedUser(null);
+      toast.success('User updated successfully');
     } catch (error) {
       console.error('Error updating user:', error);
+      toast.error('Failed to update user');
     } finally {
       setIsSubmitting(false);
     }
@@ -211,8 +197,10 @@ export function UserMaster() {
       await fetchUsers();
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
+      toast.success('User deleted successfully');
     } catch (error) {
       console.error('Error deleting user:', error);
+      toast.error('Failed to delete user');
     } finally {
       setIsSubmitting(false);
     }
@@ -238,6 +226,7 @@ export function UserMaster() {
       password: '',
       gender: 'male',
       role: 'user',
+      level: '',
     });
     setShowPassword(false);
     setShowEditPassword(false);
@@ -249,6 +238,7 @@ export function UserMaster() {
       name: user.name,
       gender: user.gender || 'male',
       role: user.role || 'user',
+      level: user.level || '',
       newPassword: '',
     });
     setShowEditPassword(false);
@@ -260,11 +250,13 @@ export function UserMaster() {
     setIsDeleteDialogOpen(true);
   };
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = useMemo(() => {
+    return users.filter(
+      (user) =>
+        user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [users, searchQuery]);
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
@@ -279,9 +271,118 @@ export function UserMaster() {
     }
   };
 
+  const columns: DataTableColumn<User>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Name',
+      sortable: true,
+      getValue: (row) => row.name,
+      render: (user) => (
+        <div className="flex items-center gap-3">
+          <PersonAvatar name={user.name} gender={user.gender || 'male'} className="h-10 w-10" />
+          <span className="font-medium text-foreground">{user.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      sortable: true,
+      getValue: (row) => row.email,
+      render: (user) => (
+        <div className="flex items-center gap-2">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">{user.email}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'role',
+      header: 'Role',
+      sortable: true,
+      getValue: (row) => row.role || 'user',
+      render: (user) => (
+        <div className="flex items-center gap-2">
+          <Badge variant={getRoleBadgeVariant(user.role || 'user')}>
+            <Shield className="h-3 w-3 mr-1" />
+            {user.role || 'user'}
+          </Badge>
+          {user.level && (
+            <Badge variant="outline" className="text-xs capitalize">
+              {user.level}
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      getValue: (row) => row.banned ? 'Banned' : 'Active',
+      render: (user) => (
+        <Badge variant={user.banned ? 'destructive' : 'outline'}>
+          {user.banned ? 'Banned' : 'Active'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Created',
+      sortable: true,
+      getValue: (row) => String(row.createdAt),
+      render: (user) => (
+        <span className="text-muted-foreground text-xs">
+          {new Date(user.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (user) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => openEditDialog(user)}
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-8 w-8 text-muted-foreground ${user.banned ? 'hover:text-green-600' : 'hover:text-amber-600'}`}
+            onClick={() => handleBanUser(user)}
+            title={user.banned ? 'Unban User' : 'Ban User'}
+          >
+            {user.banned ? <ShieldCheck className="h-4 w-4" /> : <ShieldBan className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-red-600"
+            onClick={() => openDeleteDialog(user)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-bold text-foreground">User Master</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -290,111 +391,48 @@ export function UserMaster() {
         </div>
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-navy hover:bg-navy/90"
+          className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <UserPlus className="h-4 w-4 mr-2" />
           Add User
         </Button>
-      </div>
+      </motion.div>
 
-      <div className="rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 rounded-xl"
-            />
-          </div>
+      {/* Search */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="flex gap-3"
+      >
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 rounded-xl h-11"
+          />
         </div>
+      </motion.div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="w-[70px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                    No users found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <PersonAvatar name={user.name} gender={user.gender || 'male'} className="h-9 w-9" />
-                        <span className="font-medium">{user.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        {user.email}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role || 'user')}>
-                        <Shield className="h-3 w-3 mr-1" />
-                        {user.role || 'user'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.banned ? 'destructive' : 'outline'}>
-                        {user.banned ? 'Banned' : 'Active'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleBanUser(user)}>
-                            <Shield className="h-4 w-4 mr-2" />
-                            {user.banned ? 'Unban User' : 'Ban User'}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => openDeleteDialog(user)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {/* Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+      >
+        <DataTable
+          data={filteredUsers}
+          columns={columns}
+          isLoading={isLoading}
+          getRowId={(row) => row.id}
+          onRowClick={(row) => navigate(`/users/${row.id}`)}
+          emptyIcon={Users}
+          emptyTitle="No users found"
+          emptyDescription="Add your first user to get started."
+        />
+      </motion.div>
 
       {/* Create User Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -468,7 +506,7 @@ export function UserMaster() {
               <Label htmlFor="role">Role</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                onValueChange={(value) => setFormData({ ...formData, role: value, level: '' })}
               >
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder="Select a role" />
@@ -482,6 +520,23 @@ export function UserMaster() {
                 </SelectContent>
               </Select>
             </div>
+            {formData.role === 'librarian' && (
+              <div className="space-y-2">
+                <Label htmlFor="level">Level</Label>
+                <Select
+                  value={formData.level}
+                  onValueChange={(value) => setFormData({ ...formData, level: value })}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Select level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="primary">Primary Level</SelectItem>
+                    <SelectItem value="secondary">Secondary Level</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -489,7 +544,7 @@ export function UserMaster() {
             </Button>
             <Button 
               onClick={handleCreateUser} 
-              disabled={isSubmitting}
+              disabled={isSubmitting || (formData.role === 'librarian' && !formData.level)}
               className="bg-navy hover:bg-navy/90"
             >
               {isSubmitting ? (
@@ -543,7 +598,7 @@ export function UserMaster() {
               <Label>Role</Label>
               <Select
                 value={editFormData.role}
-                onValueChange={(value) => setEditFormData({ ...editFormData, role: value })}
+                onValueChange={(value) => setEditFormData({ ...editFormData, role: value, level: '' })}
               >
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder="Select a role" />
@@ -557,6 +612,23 @@ export function UserMaster() {
                 </SelectContent>
               </Select>
             </div>
+            {editFormData.role === 'librarian' && (
+              <div className="space-y-2">
+                <Label>Level</Label>
+                <Select
+                  value={editFormData.level}
+                  onValueChange={(value) => setEditFormData({ ...editFormData, level: value })}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Select level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="primary">Primary Level</SelectItem>
+                    <SelectItem value="secondary">Secondary Level</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>New Password <span className="text-muted-foreground text-xs">(leave blank to keep current)</span></Label>
               <div className="relative">

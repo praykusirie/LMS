@@ -1,25 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MoreHorizontal, Plus, School, Loader2, BadgeCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Plus, Search, School, BadgeCheck, Edit2, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { PersonAvatar } from '@/components/shared/PersonAvatar';
+import { DataTable } from '@/components/ui/data-table';
+import type { DataTableColumn } from '@/components/ui/data-table';
 import { usePermissions } from '@/lib/permissions';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface Teacher {
   id: string;
@@ -31,8 +22,6 @@ interface Teacher {
   homeroom_class_name?: string | null;
   created_at: string;
 }
-
-const API_BASE = 'http://localhost:8080/api';
 
 export function Teachers() {
   const navigate = useNavigate();
@@ -48,13 +37,11 @@ export function Teachers() {
   const fetchTeachers = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/teachers`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setTeachers(data);
-      }
+      const { data } = await api.get('/teachers');
+      setTeachers(data);
     } catch (error) {
       console.error('Error fetching teachers:', error);
+      toast.error('Failed to fetch teachers');
     } finally {
       setIsLoading(false);
     }
@@ -62,120 +49,166 @@ export function Teachers() {
 
   const handleDelete = async (teacherId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/teachers/${teacherId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        await fetchTeachers();
-      }
-    } catch (error) {
+      await api.delete(`/teachers/${teacherId}`);
+      await fetchTeachers();
+      toast.success('Teacher deleted successfully');
+    } catch (error: any) {
       console.error('Error deleting teacher:', error);
+      toast.error(error?.message || 'Failed to delete teacher');
     }
   };
 
-  const filteredTeachers = teachers.filter((teacher) =>
-    teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    teacher.teacher_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (teacher.homeroom_class_name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTeachers = useMemo(() => {
+    return teachers.filter((teacher) =>
+      teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      teacher.teacher_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (teacher.homeroom_class_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [teachers, searchQuery]);
+
+  const columns: DataTableColumn<Teacher>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Teacher',
+      sortable: true,
+      getValue: (row) => row.name,
+      render: (teacher) => (
+        <div className="flex items-center gap-3">
+          <PersonAvatar name={teacher.name} gender={teacher.gender || 'male'} className="h-10 w-10" />
+          <span className="font-medium text-foreground">{teacher.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'teacher_id',
+      header: 'Teacher ID',
+      sortable: true,
+      render: (teacher) => (
+        <span className="font-mono text-xs text-muted-foreground">{teacher.teacher_id}</span>
+      ),
+    },
+    {
+      key: 'homeroom',
+      header: 'Homeroom',
+      sortable: true,
+      getValue: (row) => row.homeroom_class_name || '',
+      render: (teacher) =>
+        teacher.is_homeroom_teacher ? (
+          <Badge variant="outline" className="border-green-300 bg-green-50 text-green-700">
+            <BadgeCheck className="mr-1 h-3 w-3" />
+            {teacher.homeroom_class_name || 'Assigned'}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">No</span>
+        ),
+    },
+    {
+      key: 'created_at',
+      header: 'Created',
+      sortable: true,
+      getValue: (row) => row.created_at,
+      render: (teacher) => (
+        <span className="text-muted-foreground text-xs">
+          {new Date(teacher.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (teacher) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate(`/teachers/${teacher.id}?mode=view`)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          {hasPermission('teachers:edit') && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => navigate(`/teachers/${teacher.id}`)}
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          )}
+          {hasPermission('teachers:delete') && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-red-600"
+              onClick={() => handleDelete(teacher.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ], [navigate, hasPermission]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-bold text-foreground">Teachers</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage teachers and homeroom assignments</p>
         </div>
         {hasPermission('teachers:create') && (
-          <Button onClick={() => navigate('/add-teacher')} className="bg-navy hover:bg-navy/90">
+          <Button onClick={() => navigate('/add-teacher')} className="bg-navy hover:bg-navy/90 rounded-xl h-11">
             <Plus className="h-4 w-4 mr-2" />
             Add New Teacher
           </Button>
         )}
-      </div>
+      </motion.div>
 
-      <div className="rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
-        <div className="mb-6 max-w-sm">
+      {/* Search */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="flex gap-3"
+      >
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search teachers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="rounded-xl"
+            className="pl-10 rounded-xl h-11"
           />
         </div>
+      </motion.div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Teacher</TableHead>
-                <TableHead>Teacher ID</TableHead>
-                <TableHead>Homeroom</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="w-[70px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTeachers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
-                    No teachers found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredTeachers.map((teacher) => (
-                  <TableRow key={teacher.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <PersonAvatar name={teacher.name} gender={teacher.gender || 'male'} className="h-10 w-10" />
-                        <span className="font-medium">{teacher.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono">{teacher.teacher_id}</TableCell>
-                    <TableCell>
-                      {teacher.is_homeroom_teacher ? (
-                        <Badge variant="outline" className="border-green-300 bg-green-50 text-green-700">
-                          <BadgeCheck className="mr-1 h-3 w-3" />
-                          {teacher.homeroom_class_name || 'Assigned'}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{new Date(teacher.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {hasPermission('teachers:edit') && (
-                            <DropdownMenuItem onClick={() => navigate(`/teachers/${teacher.id}`)}>
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {hasPermission('teachers:delete') && (
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(teacher.id)}>
-                              Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {/* Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+      >
+        <DataTable
+          data={filteredTeachers}
+          columns={columns}
+          isLoading={isLoading}
+          getRowId={(row) => row.id}
+          onRowClick={(row) => navigate(`/teachers/${row.id}?mode=view`)}
+          emptyIcon={School}
+          emptyTitle="No teachers found"
+          emptyDescription="Add your first teacher to get started."
+        />
+      </motion.div>
     </div>
   );
 }

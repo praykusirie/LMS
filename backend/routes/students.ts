@@ -1,18 +1,23 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
+import { getSessionUser, getLevelFilter } from '../lib/session.js';
 
 const router = Router();
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
     try {
+        const user = await getSessionUser(req);
+        const { clause, params } = getLevelFilter(user, 's');
         const result = await pool.query(
             `SELECT s.*, 
                     c.name AS class_name,
                     (SELECT COUNT(*) FROM borrow_records br WHERE br.student_id = s.id AND br.status = 'borrowed')::INTEGER AS active_borrows
              FROM students s
              LEFT JOIN classes c ON c.id = s.class_id
-             ORDER BY s.created_at DESC`
+             WHERE 1=1 ${clause}
+             ORDER BY s.created_at DESC`,
+            params
         );
         res.json(result.rows);
     } catch (error) {
@@ -74,16 +79,27 @@ router.get('/:id/borrow-history', async (req: Request, res: Response) => {
 
 router.post('/', async (req: Request, res: Response) => {
     try {
-        const { name, class_id, gender, email, phone, avatar } = req.body;
+        const { name, class_id, gender, email, phone, avatar, level } = req.body;
+        const user = await getSessionUser(req);
+        const recordLevel = level ?? user?.level ?? null;
+
+        const existing = await pool.query(
+            'SELECT id FROM students WHERE LOWER(name) = LOWER($1) AND class_id = $2',
+            [name.trim(), class_id || null]
+        );
+        if (existing.rows.length > 0) {
+            res.status(409).json({ message: `Student "${name.trim()}" already exists in this class` });
+            return;
+        }
         
         const nextIdResult = await pool.query('SELECT get_next_admission_number() AS next_id');
         const admissionNumber = nextIdResult.rows[0].next_id;
         
         const result = await pool.query(
-            `INSERT INTO students (admission_number, name, class_id, gender, email, phone, avatar)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO students (admission_number, name, class_id, gender, email, phone, avatar, level)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [admissionNumber, name, class_id || null, gender || 'male', email || null, phone || null, avatar || null]
+            [admissionNumber, name, class_id || null, gender || 'male', email || null, phone || null, avatar || null, recordLevel]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
