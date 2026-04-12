@@ -8,6 +8,7 @@ import {
   BookDetail, 
   Students, 
   AddStudent, 
+  StudentDetail,
   Classes,
   Categories,
   Subjects,
@@ -24,7 +25,9 @@ import {
   StockDetails,
   StockView,
   Teachers,
-  AddTeacher
+  AddTeacher,
+  ClassActivities,
+  Results
 } from '@/pages';
 import './App.css';
 import { useSession } from '@/lib/auth-client';
@@ -86,6 +89,7 @@ function App() {
         {/* Master Management */}
         <Route path="/students" element={<Students />} />
         <Route path="/add-student" element={<AddStudent />} />
+        <Route path="/students/:studentId" element={<StudentDetail />} />
         <Route path="/books" element={<Books />} />
         <Route path="/add-book" element={<AddBook />} />
         <Route path="/books/:bookId" element={<BookDetail />} />
@@ -102,6 +106,10 @@ function App() {
         <Route path="/user-management/user-master" element={<UserMaster />} />
         <Route path="/user-management/role-master" element={<RoleMaster />} />
         <Route path="/user-management/permissions" element={<PermissionsPage />} />
+
+        {/* Class Management */}
+        <Route path="/class-activities" element={<ClassActivities />} />
+        <Route path="/results" element={<Results />} />
 
         {/* Library Inventory */}
         <Route path="/library-inventory/add-stock" element={<StockList />} />

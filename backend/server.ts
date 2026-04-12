@@ -15,6 +15,8 @@ import booksRouter from './routes/books.js';
 import studentsRouter from './routes/students.js';
 import dashboardRouter from './routes/dashboard.js';
 import usersRouter from './routes/users.js';
+import activitiesRouter from './routes/activities.js';
+import resultsRouter from './routes/results.js';
 import morgan from "morgan"
 
 const app = express()
@@ -46,6 +48,8 @@ app.use('/api/books', booksRouter);
 app.use('/api/students', studentsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/activities', activitiesRouter);
+app.use('/api/results', resultsRouter);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

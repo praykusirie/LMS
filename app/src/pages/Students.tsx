@@ -1,20 +1,20 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
   Filter, 
-  MoreHorizontal, 
   Edit2, 
   Trash2, 
   Users,
-  BookOpen,
-  AlertCircle
+  Eye,
+  X,
+  Loader2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -23,150 +23,474 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import { StatusBadge, EmptyState } from '@/components/ui-custom';
-import { students as mockStudents, borrowRecords } from '@/data/mockData';
-import type { Student } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui-custom';
+import { DataTable } from '@/components/ui/data-table';
+import type { DataTableColumn } from '@/components/ui/data-table';
+import api from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 import { useNavigate } from 'react-router-dom';
+import { LazyBookCover } from '@/components/shared/LazyBookCover';
+
+interface StudentRecord {
+  id: string;
+  student_id: string;
+  name: string;
+  first_name: string | null;
+  last_name: string | null;
+  admission_number: string;
+  class_id: string | null;
+  class_name: string | null;
+  gender: string;
+  email: string | null;
+  phone: string | null;
+  dob: string | null;
+  nationality: string | null;
+  parent_email: string | null;
+  parent_phone: string | null;
+  address: string | null;
+  avatar: string | null;
+  level: string | null;
+  is_active: boolean;
+  created_at: string;
+  active_borrows: number;
+}
+
+interface ClassItem {
+  id: string;
+  name: string;
+}
+
+const generateAvatar = (name: string, gender: string) => {
+  const seed = encodeURIComponent(name);
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&gender=${gender}`;
+};
 
 export function Students() {
   const navigate = useNavigate();
-  const [students, setStudents] = useState<Student[]>([]);
+  const { data: session } = useSession();
+  const userRole = session?.user?.role ?? null;
+  const userLevel = (session?.user as any)?.level ?? null;
+  const isAdmin = userRole === 'admin';
+
+  const [students, setStudents] = useState<StudentRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
+  const [genderFilter, setGenderFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+
+  // Dialogs
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showProfileDialog, setShowProfileDialog] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const loadStudents = async () => {
-      setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setStudents(mockStudents);
-      setIsLoading(false);
-    };
-    loadStudents();
-  }, []);
+  // Master data
+  const [classes, setClasses] = useState<ClassItem[]>([]);
 
   // Form state
-  const [formData, setFormData] = useState<Partial<Student>>({
-    name: '',
-    admissionNumber: '',
-    class: '',
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    class_id: '',
     gender: 'male',
     email: '',
-    phone: ''
+    phone: '',
+    dob: '',
+    nationality: '',
+    parent_email: '',
+    parent_phone: '',
+    address: '',
   });
+
+  useEffect(() => {
+    fetchStudents();
+    fetchClasses();
+  }, []);
+
+  const fetchStudents = async () => {
+    try {
+      setIsLoading(true);
+      const { data } = await api.get('/students');
+      setStudents(data);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast.error('Failed to fetch students');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchClasses = async () => {
+    try {
+      const { data } = await api.get('/classes');
+      setClasses(data);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    }
+  };
 
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
-      const matchesSearch = 
+      const matchesSearch = !searchQuery ||
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.email?.toLowerCase().includes(searchQuery.toLowerCase());
+        (student.student_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (student.first_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (student.last_name || '').toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesClass = classFilter === 'all' || student.class === classFilter;
+      const matchesClass = classFilter === 'all' || student.class_name === classFilter;
+      const matchesGender = genderFilter === 'all' || student.gender === genderFilter;
       const matchesStatus = statusFilter === 'all' || 
-        (statusFilter === 'active' ? student.isActive : !student.isActive);
+        (statusFilter === 'active' ? student.is_active : !student.is_active);
+      const matchesLevel = levelFilter === 'all' || student.level === levelFilter;
       
-      return matchesSearch && matchesClass && matchesStatus;
+      return matchesSearch && matchesClass && matchesGender && matchesStatus && matchesLevel;
     });
-  }, [students, searchQuery, classFilter, statusFilter]);
+  }, [students, searchQuery, classFilter, genderFilter, statusFilter, levelFilter]);
 
-  const paginatedStudents = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredStudents.slice(start, start + itemsPerPage);
-  }, [filteredStudents, currentPage]);
+  const classNames = [...new Set(students.map(s => s.class_name).filter(Boolean))] as string[];
+  const hasActiveFilters = classFilter !== 'all' || genderFilter !== 'all' || statusFilter !== 'all' || levelFilter !== 'all';
 
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-
-  const classes = [...new Set(students.map(s => s.class))];
-
-  const generateAvatar = (name: string, gender: string) => {
-    const seed = encodeURIComponent(name);
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&gender=${gender}`;
-  };
-
-  const handleAddStudent = () => {
-    const newStudent: Student = {
-      id: `s${Date.now()}`,
-      name: formData.name || '',
-      admissionNumber: formData.admissionNumber || '',
-      class: formData.class || '',
-      gender: formData.gender as 'male' | 'female' | 'other',
-      avatar: generateAvatar(formData.name || '', formData.gender || 'male'),
-      email: formData.email,
-      phone: formData.phone,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      borrowHistory: [],
-      currentBorrows: [],
-      overdueCount: 0
-    };
-    setStudents([newStudent, ...students]);
-    setShowAddDialog(false);
-    setFormData({
-      name: '',
-      admissionNumber: '',
-      class: '',
-      gender: 'male',
-      email: '',
-      phone: ''
-    });
-  };
-
-  const handleEditStudent = () => {
+  const handleEditStudent = async () => {
     if (!selectedStudent) return;
-    setStudents(students.map(s => s.id === selectedStudent.id ? { ...s, ...formData } : s));
-    setShowEditDialog(false);
-    setSelectedStudent(null);
+    setIsSubmitting(true);
+    try {
+      await api.put(`/students/${selectedStudent.id}`, {
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        name: `${formData.first_name} ${formData.last_name}`.trim(),
+        class_id: formData.class_id || null,
+        gender: formData.gender,
+        email: formData.email.trim() || null,
+        phone: formData.phone.trim() || null,
+        dob: formData.dob || null,
+        nationality: formData.nationality.trim() || null,
+        parent_email: formData.parent_email.trim() || null,
+        parent_phone: formData.parent_phone.trim() || null,
+        address: formData.address.trim() || null,
+      });
+      await fetchStudents();
+      setShowEditDialog(false);
+      setSelectedStudent(null);
+      toast.success('Student updated successfully');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to update student');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteStudent = () => {
+  const handleDeleteStudent = async () => {
     if (!selectedStudent) return;
-    setStudents(students.filter(s => s.id !== selectedStudent.id));
-    setShowDeleteDialog(false);
-    setSelectedStudent(null);
+    setIsSubmitting(true);
+    try {
+      await api.delete(`/students/${selectedStudent.id}`);
+      await fetchStudents();
+      setShowDeleteDialog(false);
+      setSelectedStudent(null);
+      toast.success('Student deleted successfully');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to delete student');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const openEditDialog = (student: Student) => {
+  const handleBulkDelete = async () => {
+    if (selectedRows.size === 0) return;
+    try {
+      await Promise.all(
+        Array.from(selectedRows).map(id => api.delete(`/students/${id}`))
+      );
+      await fetchStudents();
+      setSelectedRows(new Set());
+      toast.success(`Deleted ${selectedRows.size} students`);
+    } catch (error: any) {
+      toast.error('Failed to delete some students');
+    }
+  };
+
+  const openEditDialog = (student: StudentRecord) => {
     setSelectedStudent(student);
-    setFormData(student);
+    setFormData({
+      first_name: student.first_name || '',
+      last_name: student.last_name || '',
+      class_id: student.class_id || '',
+      gender: student.gender || 'male',
+      email: student.email || '',
+      phone: student.phone || '',
+      dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : '',
+      nationality: student.nationality || '',
+      parent_email: student.parent_email || '',
+      parent_phone: student.parent_phone || '',
+      address: student.address || '',
+    });
     setShowEditDialog(true);
   };
 
-  const openDeleteDialog = (student: Student) => {
-    setSelectedStudent(student);
-    setShowDeleteDialog(true);
+  const clearFilters = () => {
+    setClassFilter('all');
+    setGenderFilter('all');
+    setStatusFilter('all');
+    setLevelFilter('all');
+    setSearchQuery('');
   };
 
-  const openProfileDialog = (student: Student) => {
-    setSelectedStudent(student);
-    setShowProfileDialog(true);
-  };
+  // Table columns
+  const columns: DataTableColumn<StudentRecord>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Student',
+      sortable: true,
+      getValue: (row) => row.name,
+      render: (student) => (
+        <div className="flex items-center gap-3">
+          <LazyBookCover
+            src={student.avatar}
+            fallbackSrc={generateAvatar(student.name, student.gender)}
+            alt={student.name}
+            containerClassName="h-10 w-10 rounded-full flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="font-medium text-foreground truncate max-w-[200px]">{student.name}</div>
+            <div className="text-xs text-muted-foreground truncate max-w-[200px]">{student.student_id || student.admission_number}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'student_id',
+      header: 'ID',
+      sortable: true,
+      render: (student) => (
+        <span className="text-muted-foreground font-mono text-xs">{student.student_id || student.admission_number}</span>
+      ),
+    },
+    {
+      key: 'class_name',
+      header: 'Class',
+      sortable: true,
+      getValue: (row) => row.class_name,
+      render: (student) => (
+        <span className="text-muted-foreground">{student.class_name || '-'}</span>
+      ),
+    },
+    {
+      key: 'gender',
+      header: 'Gender',
+      sortable: true,
+      render: (student) => (
+        <span className="text-muted-foreground capitalize">{student.gender}</span>
+      ),
+    },
+    {
+      key: 'active_borrows',
+      header: 'Active Borrows',
+      sortable: true,
+      render: (student) => (
+        <Badge variant={student.active_borrows > 0 ? 'default' : 'secondary'} className="rounded-lg">
+          {student.active_borrows}
+        </Badge>
+      ),
+    },
+    {
+      key: 'is_active',
+      header: 'Status',
+      sortable: true,
+      render: (student) => (
+        <StatusBadge status={student.is_active ? 'active' : 'inactive'}>
+          {student.is_active ? 'Active' : 'Inactive'}
+        </StatusBadge>
+      ),
+    },
+    {
+      key: 'level',
+      header: 'Level',
+      sortable: true,
+      render: (student) => (
+        student.level ? (
+          <Badge variant="outline" className="rounded-lg capitalize">
+            {student.level}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (student) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate(`/students/${student.id}`)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => openEditDialog(student)}
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-red-600"
+            onClick={() => { setSelectedStudent(student); setShowDeleteDialog(true); }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ], [navigate, classes]);
 
-  const getStudentBorrows = (studentId: string) => {
-    return borrowRecords.filter(r => r.studentId === studentId);
-  };
+  const renderStudentForm = () => (
+    <div className="space-y-4 py-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>First Name</Label>
+          <Input
+            value={formData.first_name}
+            onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+            placeholder="Enter first name"
+            className="rounded-xl h-11"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Last Name</Label>
+          <Input
+            value={formData.last_name}
+            onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+            placeholder="Enter last name"
+            className="rounded-xl h-11"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Class</Label>
+          <Select
+            value={formData.class_id}
+            onValueChange={(value) => setFormData({ ...formData, class_id: value })}
+          >
+            <SelectTrigger className="rounded-xl h-11">
+              <SelectValue placeholder="Select class" />
+            </SelectTrigger>
+            <SelectContent>
+              {classes.map((cls) => (
+                <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Gender</Label>
+          <Select
+            value={formData.gender}
+            onValueChange={(value) => setFormData({ ...formData, gender: value })}
+          >
+            <SelectTrigger className="rounded-xl h-11">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="male">Male</SelectItem>
+              <SelectItem value="female">Female</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Date of Birth</Label>
+          <Input
+            type="date"
+            value={formData.dob}
+            onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+            className="rounded-xl h-11"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Nationality</Label>
+          <Input
+            value={formData.nationality}
+            onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+            placeholder="e.g., Tanzanian"
+            className="rounded-xl h-11"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Email</Label>
+          <Input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            placeholder="Enter email"
+            className="rounded-xl h-11"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Phone</Label>
+          <Input
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            placeholder="Enter phone"
+            className="rounded-xl h-11"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Parent Email</Label>
+          <Input
+            type="email"
+            value={formData.parent_email}
+            onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
+            placeholder="Enter parent email"
+            className="rounded-xl h-11"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Parent Phone</Label>
+          <Input
+            value={formData.parent_phone}
+            onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
+            placeholder="Enter parent phone"
+            className="rounded-xl h-11"
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>Address</Label>
+        <Input
+          value={formData.address}
+          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          placeholder="Enter address"
+          className="rounded-xl h-11"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -175,21 +499,33 @@ export function Students() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex items-center justify-between"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
           <h1 className="text-2xl font-bold text-foreground">Students</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage student registrations and borrowing
+            Manage student registrations ({filteredStudents.length} students)
           </p>
         </div>
-        <Button 
-          onClick={() => navigate('/add-student')}
-          className="bg-navy hover:bg-navy/90 rounded-xl h-11"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Register Student
-        </Button>
+        <div className="flex gap-3">
+          {selectedRows.size > 0 && (
+            <Button 
+              variant="destructive"
+              className="rounded-xl h-11"
+              onClick={handleBulkDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete ({selectedRows.size})
+            </Button>
+          )}
+          <Button 
+            onClick={() => navigate('/add-student')}
+            className="bg-navy hover:bg-navy/90 rounded-xl h-11"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Register Student
+          </Button>
+        </div>
       </motion.div>
 
       {/* Filters */}
@@ -197,39 +533,68 @@ export function Students() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="flex flex-wrap gap-4"
+        className="flex flex-wrap gap-3 items-center"
       >
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search students..."
+            placeholder="Search by name or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-11 pl-10 rounded-xl"
           />
         </div>
         <Select value={classFilter} onValueChange={setClassFilter}>
-          <SelectTrigger className="w-[160px] h-11 rounded-xl">
+          <SelectTrigger className="w-[150px] h-11 rounded-xl">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Class" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Classes</SelectItem>
-            {classes.map(cls => (
+            {classNames.map(cls => (
               <SelectItem key={cls} value={cls}>{cls}</SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <Select value={genderFilter} onValueChange={setGenderFilter}>
+          <SelectTrigger className="w-[130px] h-11 rounded-xl">
+            <SelectValue placeholder="Gender" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Genders</SelectItem>
+            <SelectItem value="male">Male</SelectItem>
+            <SelectItem value="female">Female</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px] h-11 rounded-xl">
+          <SelectTrigger className="w-[130px] h-11 rounded-xl">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
+        {isAdmin && (
+          <Select value={levelFilter} onValueChange={setLevelFilter}>
+            <SelectTrigger className="w-[130px] h-11 rounded-xl">
+              <SelectValue placeholder="Level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Levels</SelectItem>
+              <SelectItem value="primary">Primary</SelectItem>
+              <SelectItem value="secondary">Secondary</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-xl text-muted-foreground">
+            <X className="h-4 w-4 mr-1" />
+            Clear
+          </Button>
+        )}
       </motion.div>
 
       {/* Table */}
@@ -237,325 +602,39 @@ export function Students() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden"
       >
-        {isLoading ? (
-          <div className="p-6 space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-[180px]" />
-                  <Skeleton className="h-3 w-[120px]" />
-                </div>
-                <Skeleton className="h-4 w-[100px]" />
-                <Skeleton className="h-4 w-[80px]" />
-                <Skeleton className="h-6 w-[60px] rounded-full" />
-                <Skeleton className="h-8 w-8 rounded-lg" />
-              </div>
-            ))}
-          </div>
-        ) : filteredStudents.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title="No students found"
-            description="Try adjusting your search or filters, or register a new student."
-            actionLabel="Register Student"
-            onAction={() => setShowAddDialog(true)}
-          />
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border/60">
-                    <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Admission No.
-                    </th>
-                    <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Class
-                    </th>
-                    <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Overdue
-                    </th>
-                    <th className="text-right px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedStudents.map((student) => (
-                    <tr 
-                      key={student.id} 
-                      className="border-b border-border/40 last:border-0 hover:bg-secondary/50 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={student.avatar} alt={student.name} />
-                            <AvatarFallback className="bg-navy text-white text-xs">
-                              {student.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium text-foreground">{student.name}</div>
-                            <div className="text-xs text-muted-foreground">{student.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
-                        {student.admissionNumber}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
-                        {student.class}
-                      </td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={student.isActive ? 'active' : 'inactive'} />
-                      </td>
-                      <td className="px-6 py-4">
-                        {student.overdueCount > 0 ? (
-                          <span className="flex items-center gap-1 text-red-600 text-sm font-medium">
-                            <AlertCircle className="h-4 w-4" />
-                            {student.overdueCount}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openProfileDialog(student)}>
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              View Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEditDialog(student)}>
-                              <Edit2 className="h-4 w-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => openDeleteDialog(student)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-border/60">
-              <p className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredStudents.length)} of {filteredStudents.length} students
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="rounded-lg"
-                >
-                  Previous
-                </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setCurrentPage(page)}
-                    className={`rounded-lg ${currentPage === page ? 'bg-navy hover:bg-navy/90' : ''}`}
-                  >
-                    {page}
-                  </Button>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="rounded-lg"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+        <DataTable
+          data={filteredStudents}
+          columns={columns}
+          isLoading={isLoading}
+          selectable
+          selectedRows={selectedRows}
+          onSelectionChange={setSelectedRows}
+          getRowId={(row) => row.id}
+          onRowClick={(row) => navigate(`/students/${row.id}`)}
+          emptyIcon={Users}
+          emptyTitle="No students found"
+          emptyDescription="Try adjusting your search or filters, or register a new student."
+        />
       </motion.div>
-
-      {/* Add Student Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="rounded-[20px] max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Register New Student</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Full Name</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter student name"
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Admission Number</Label>
-              <Input
-                value={formData.admissionNumber}
-                onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
-                placeholder="e.g., ADM2024001"
-                className="rounded-xl"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Class</Label>
-                <Input
-                  value={formData.class}
-                  onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                  placeholder="e.g., Grade 10"
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Gender</Label>
-                <Select 
-                  value={formData.gender} 
-                  onValueChange={(value) => setFormData({ ...formData, gender: value as 'male' | 'female' | 'other' })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email address"
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="Enter phone number"
-                className="rounded-xl"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)} className="rounded-xl">
-              Cancel
-            </Button>
-            <Button onClick={handleAddStudent} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Register Student
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Student Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="rounded-[20px] max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="rounded-[20px] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Student</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Full Name</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Admission Number</Label>
-              <Input
-                value={formData.admissionNumber}
-                onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
-                className="rounded-xl"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Class</Label>
-                <Input
-                  value={formData.class}
-                  onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Gender</Label>
-                <Select 
-                  value={formData.gender} 
-                  onValueChange={(value) => setFormData({ ...formData, gender: value as 'male' | 'female' | 'other' })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="rounded-xl"
-              />
-            </div>
-          </div>
+          {renderStudentForm()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
               Cancel
             </Button>
-            <Button onClick={handleEditStudent} className="bg-navy hover:bg-navy/90 rounded-xl">
+            <Button 
+              onClick={handleEditStudent} 
+              className="bg-navy hover:bg-navy/90 rounded-xl"
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save Changes
             </Button>
           </DialogFooter>
@@ -581,78 +660,6 @@ export function Students() {
               Delete
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Student Profile Dialog */}
-      <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="rounded-[20px] max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Student Profile</DialogTitle>
-          </DialogHeader>
-          {selectedStudent && (
-            <div className="py-4">
-              <div className="flex items-center gap-4 mb-6">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={selectedStudent.avatar} alt={selectedStudent.name} />
-                  <AvatarFallback className="bg-navy text-white text-lg">
-                    {selectedStudent.name.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground">{selectedStudent.name}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedStudent.admissionNumber} • {selectedStudent.class}</p>
-                </div>
-              </div>
-
-              <Tabs defaultValue="current">
-                <TabsList className="rounded-xl">
-                  <TabsTrigger value="current">Current Borrows</TabsTrigger>
-                  <TabsTrigger value="history">Borrow History</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="current" className="mt-4">
-                  {getStudentBorrows(selectedStudent.id).filter(r => r.status === 'borrowed').length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">No current borrows</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {getStudentBorrows(selectedStudent.id)
-                        .filter(r => r.status === 'borrowed')
-                        .map(borrow => (
-                          <div key={borrow.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
-                            <div>
-                              <p className="font-medium text-sm">{borrow.bookTitle}</p>
-                              <p className="text-xs text-muted-foreground">Due: {new Date(borrow.dueDate).toLocaleDateString()}</p>
-                            </div>
-                            <StatusBadge status="borrowed" />
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="history" className="mt-4">
-                  {getStudentBorrows(selectedStudent.id).length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">No borrow history</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {getStudentBorrows(selectedStudent.id).map(borrow => (
-                        <div key={borrow.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
-                          <div>
-                            <p className="font-medium text-sm">{borrow.bookTitle}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(borrow.borrowDate).toLocaleDateString()} - {borrow.returnDate ? new Date(borrow.returnDate).toLocaleDateString() : 'Not returned'}
-                            </p>
-                          </div>
-                          <StatusBadge status={borrow.status === 'returned' ? 'returned' : borrow.status === 'overdue' ? 'overdue' : 'borrowed'} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>

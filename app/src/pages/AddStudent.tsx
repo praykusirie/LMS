@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -8,8 +8,10 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
-  Download
+  Download,
+  Loader2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,216 +23,237 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Student } from '@/types';
+import api from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 import { useNavigate } from 'react-router-dom';
+
+interface ClassItem {
+  id: string;
+  name: string;
+}
 
 export function AddStudent() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const { data: session } = useSession();
+  const userRole = session?.user?.role ?? null;
+  const userLevel = (session?.user as any)?.level ?? null;
+  const isAdmin = userRole === 'admin';
+
+  // Classes from master
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [nextId, setNextId] = useState<string>('');
+
   // Form state
-  const [formData, setFormData] = useState<Partial<Student>>({
-    name: '',
-    admissionNumber: '',
-    class: '',
-    gender: 'male',
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    class_id: '',
+    gender: 'male' as 'male' | 'female' | 'other',
     email: '',
-    phone: ''
+    phone: '',
+    dob: '',
+    nationality: '',
+    parent_email: '',
+    parent_phone: '',
+    address: '',
+    level: '',
   });
-  
-  // CSV state
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvPreview, setCsvPreview] = useState<Partial<Student>[]>([]);
-  const [csvError, setCsvError] = useState('');
-  
+
+  // Bulk import state
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkLevel, setBulkLevel] = useState('');
+
   // Status
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number; errors?: string[] } | null>(null);
+
+  useEffect(() => {
+    fetchClasses();
+    fetchNextId();
+    if (!isAdmin && userLevel) {
+      setFormData(prev => ({ ...prev, level: userLevel }));
+      setBulkLevel(userLevel);
+    }
+  }, [isAdmin, userLevel]);
+
+  const fetchClasses = async () => {
+    try {
+      const { data } = await api.get('/classes');
+      setClasses(data);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    }
+  };
+
+  const fetchNextId = async () => {
+    try {
+      const { data } = await api.get('/students/next-id');
+      setNextId(data.nextId);
+    } catch (error) {
+      console.error('Error fetching next ID:', error);
+    }
+  };
+
+  const getEffectiveLevel = () => {
+    if (isAdmin) return formData.level || null;
+    return userLevel;
+  };
 
   const generateAvatar = (name: string, gender: string) => {
     const seed = encodeURIComponent(name);
     return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&gender=${gender}`;
   };
 
-  // Generate unique student ID in format LMS202600001
-  const generateStudentId = () => {
-    const year = new Date().getFullYear();
-    const randomNum = Math.floor(10000 + Math.random() * 90000); // 5 digit random number
-    return `LMS${year}${randomNum}`;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
-    
-    if (!formData.name || !formData.class) {
+
+    if (!formData.first_name || !formData.last_name || !formData.class_id) {
       setErrorMessage('Please fill in all required fields');
+      return;
+    }
+    if (isAdmin && !formData.level) {
+      setErrorMessage('Level is required');
       return;
     }
 
     setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const studentId = generateStudentId();
-    
-    const newStudent: Student = {
-      id: `s${Date.now()}`,
-      name: formData.name || '',
-      admissionNumber: studentId, // Auto-generated LMS ID
-      class: formData.class || '',
-      gender: formData.gender as 'male' | 'female' | 'other',
-      avatar: generateAvatar(formData.name || '', formData.gender || 'male'),
-      email: formData.email,
-      phone: formData.phone,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      borrowHistory: [],
-      currentBorrows: [],
-      overdueCount: 0
-    };
-    
-    // Student created successfully
-    setSuccessMessage(`Student registered successfully! Student ID: ${studentId}`);
-    setFormData({
-      name: '',
-      admissionNumber: '',
-      class: '',
-      gender: 'male',
-      email: '',
-      phone: ''
-    });
-    setIsSubmitting(false);
+    try {
+      const fullName = `${formData.first_name} ${formData.last_name}`.trim();
+      const avatar = generateAvatar(fullName, formData.gender);
+
+      await api.post('/students', {
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        name: fullName,
+        class_id: formData.class_id,
+        gender: formData.gender,
+        email: formData.email.trim() || null,
+        phone: formData.phone.trim() || null,
+        dob: formData.dob || null,
+        nationality: formData.nationality.trim() || null,
+        parent_email: formData.parent_email.trim() || null,
+        parent_phone: formData.parent_phone.trim() || null,
+        address: formData.address.trim() || null,
+        avatar,
+        level: getEffectiveLevel(),
+      });
+
+      setSuccessMessage(`Student registered successfully! Student ID: ${nextId}`);
+      toast.success('Student registered successfully');
+      
+      // Reset form and get next ID
+      setFormData({
+        first_name: '',
+        last_name: '',
+        class_id: '',
+        gender: 'male',
+        email: '',
+        phone: '',
+        dob: '',
+        nationality: '',
+        parent_email: '',
+        parent_phone: '',
+        address: '',
+        level: isAdmin ? '' : (userLevel || ''),
+      });
+      fetchNextId();
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || 'Failed to register student');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    setCsvError('');
-    setCsvPreview([]);
-    
-    if (!file.name.endsWith('.csv')) {
-      setCsvError('Please upload a CSV file');
-      return;
-    }
-    
-    setCsvFile(file);
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      parseCSV(text);
-    };
-    reader.readAsText(file);
-  };
 
-  const parseCSV = (text: string) => {
-    const lines = text.split('\n').filter(line => line.trim());
-    if (lines.length < 2) {
-      setCsvError('CSV file must have a header row and at least one data row');
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(ext || '')) {
+      setErrorMessage('Please upload a CSV or Excel (.xlsx/.xls) file');
       return;
     }
-    
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const requiredHeaders = ['name', 'admissionnumber', 'class', 'gender'];
-    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
-    
-    if (missingHeaders.length > 0) {
-      setCsvError(`Missing required columns: ${missingHeaders.join(', ')}`);
-      return;
-    }
-    
-    const students: Partial<Student>[] = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      if (values.length !== headers.length) continue;
-      
-      const student: Partial<Student> = {};
-      headers.forEach((header, index) => {
-        const value = values[index];
-        switch (header) {
-          case 'name':
-            student.name = value;
-            break;
-          case 'admissionnumber':
-            student.admissionNumber = value;
-            break;
-          case 'class':
-            student.class = value;
-            break;
-          case 'gender':
-            student.gender = value.toLowerCase() as 'male' | 'female' | 'other';
-            break;
-          case 'email':
-            student.email = value;
-            break;
-          case 'phone':
-            student.phone = value;
-            break;
-        }
-      });
-      
-      if (student.name && student.admissionNumber && student.class) {
-        students.push(student);
-      }
-    }
-    
-    if (students.length === 0) {
-      setCsvError('No valid student records found in CSV');
-      return;
-    }
-    
-    setCsvPreview(students);
+
+    setBulkFile(file);
+    setImportResult(null);
+    setErrorMessage('');
   };
 
   const handleBulkUpload = async () => {
-    if (csvPreview.length === 0) return;
-    
+    if (!bulkFile) return;
+
     setIsSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newStudents: Student[] = csvPreview.map((data, index) => ({
-      id: `s${Date.now()}_${index}`,
-      name: data.name || '',
-      admissionNumber: data.admissionNumber || '',
-      class: data.class || '',
-      gender: (data.gender as 'male' | 'female' | 'other') || 'male',
-      avatar: generateAvatar(data.name || '', data.gender || 'male'),
-      email: data.email,
-      phone: data.phone,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      borrowHistory: [],
-      currentBorrows: [],
-      overdueCount: 0
-    }));
-    
-    // Students imported successfully
-    setSuccessMessage(`Successfully imported ${newStudents.length} students!`);
-    setCsvFile(null);
-    setCsvPreview([]);
-    setIsSubmitting(false);
+    setImportResult(null);
+
+    try {
+      const effectiveLevel = isAdmin ? bulkLevel : (userLevel || '');
+      if (isAdmin && !effectiveLevel) {
+        setErrorMessage('Level is required for bulk import');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('file', bulkFile);
+      if (effectiveLevel) fd.append('level', effectiveLevel);
+
+      const { data } = await api.post('/students/bulk', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      setImportResult(data);
+      if (data.imported > 0) {
+        setSuccessMessage(`Successfully imported ${data.imported} of ${data.total} students!`);
+        toast.success(`Imported ${data.imported} students`);
+      }
+      if (data.skipped > 0 && data.imported === 0) {
+        setErrorMessage(`All ${data.skipped} rows were skipped. Check the file format.`);
+      }
+      setBulkFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.error || 'Failed to import students');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const downloadTemplate = () => {
-    const template = 'name,admissionNumber,class,gender,email,phone\nJohn Doe,ADM2024001,Grade 10,male,john@example.com,+1234567890';
+    const template = 'StudentID,FirstName,LastName,DOB,Nationality,Gender,ParentEmail,Class\nLMSSTD00001,John,Doe,05/08/2022,Tanzanian,Male,parent@email.com,Grade 10';
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'students_template.csv';
+    a.download = 'students_import_template.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const renderLevelSelect = () => (
+    <div className="space-y-2">
+      <Label>Level <span className="text-red-500">*</span></Label>
+      <Select
+        value={isAdmin ? formData.level : (userLevel || '')}
+        onValueChange={(value) => setFormData({ ...formData, level: value })}
+        disabled={!isAdmin}
+      >
+        <SelectTrigger className="rounded-xl h-11">
+          <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="primary">Primary Level</SelectItem>
+          <SelectItem value="secondary">Secondary Level</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -252,7 +275,7 @@ export function AddStudent() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Register Student</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Add individual student or bulk import via CSV
+            Add individual student or bulk import via Excel/CSV
           </p>
         </div>
       </motion.div>
@@ -295,50 +318,65 @@ export function AddStudent() {
             </TabsTrigger>
             <TabsTrigger value="bulk" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
               <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Bulk Import (CSV)
+              Bulk Import (Excel/CSV)
             </TabsTrigger>
           </TabsList>
 
           {/* Individual Registration Tab */}
           <TabsContent value="individual" className="mt-0">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="p-4 bg-navy-light rounded-xl mb-4">
+              {/* Next ID Display */}
+              <div className="p-4 bg-navy/5 rounded-xl">
                 <p className="text-sm text-navy">
-                  <strong>Note:</strong> A unique Student ID (e.g., LMS202600001) will be automatically generated upon registration.
+                  <strong>Next Student ID:</strong> <span className="font-mono text-navy font-bold">{nextId || 'Loading...'}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This ID will be automatically assigned to the new student.
                 </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Full Name <span className="text-red-500">*</span></Label>
+                  <Label>First Name <span className="text-red-500">*</span></Label>
                   <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter student name"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    placeholder="Enter first name"
                     className="rounded-xl h-11"
                     required
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>Last Name <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    placeholder="Enter last name"
+                    className="rounded-xl h-11"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label>Class <span className="text-red-500">*</span></Label>
                   <Select 
-                    value={formData.class} 
-                    onValueChange={(value) => setFormData({ ...formData, class: value })}
+                    value={formData.class_id} 
+                    onValueChange={(value) => setFormData({ ...formData, class_id: value })}
                   >
                     <SelectTrigger className="rounded-xl h-11">
                       <SelectValue placeholder="Select class" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Grade 9">Grade 9</SelectItem>
-                      <SelectItem value="Grade 10">Grade 10</SelectItem>
-                      <SelectItem value="Grade 11">Grade 11</SelectItem>
-                      <SelectItem value="Grade 12">Grade 12</SelectItem>
+                      {classes.map((cls) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Gender <span className="text-red-500">*</span></Label>
                   <Select 
@@ -355,13 +393,24 @@ export function AddStudent() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>Date of Birth</Label>
                   <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="Enter email address"
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                    className="rounded-xl h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nationality</Label>
+                  <Input
+                    value={formData.nationality}
+                    onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                    placeholder="e.g., Tanzanian"
                     className="rounded-xl h-11"
                   />
                 </div>
@@ -369,15 +418,59 @@ export function AddStudent() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Phone</Label>
+                  <Label>Student Email</Label>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="Enter student email"
+                    className="rounded-xl h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Student Phone</Label>
                   <Input
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="Enter phone number"
+                    placeholder="Enter student phone"
                     className="rounded-xl h-11"
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Parent Email</Label>
+                  <Input
+                    type="email"
+                    value={formData.parent_email}
+                    onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
+                    placeholder="Enter parent email"
+                    className="rounded-xl h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Parent Phone</Label>
+                  <Input
+                    value={formData.parent_phone}
+                    onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
+                    placeholder="Enter parent phone"
+                    className="rounded-xl h-11"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Address</Label>
+                <Input
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Enter address"
+                  className="rounded-xl h-11"
+                />
+              </div>
+
+              {renderLevelSelect()}
               
               <div className="flex gap-3 pt-4">
                 <Button 
@@ -393,7 +486,7 @@ export function AddStudent() {
                   className="bg-navy hover:bg-navy/90 rounded-xl h-11"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Registering...' : 'Register Student'}
+                  {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Registering...</> : 'Register Student'}
                 </Button>
               </div>
             </form>
@@ -402,19 +495,21 @@ export function AddStudent() {
           {/* Bulk Import Tab */}
           <TabsContent value="bulk" className="mt-0">
             <div className="space-y-6">
-              {/* CSV Structure Info */}
+              {/* File Format Info */}
               <div className="p-4 bg-secondary/50 rounded-xl">
-                <h3 className="font-medium text-sm mb-2">Required CSV Structure</h3>
+                <h3 className="font-medium text-sm mb-2">Supported File Formats</h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Your CSV file must include the following columns (headers are case-insensitive):
+                  Upload an Excel (.xlsx/.xls) or CSV file. The following columns are recognized (headers are case-insensitive):
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">name *</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">admissionNumber *</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">class *</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">gender *</span>
-                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">email</span>
-                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">phone</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">StudentID (optional)</span>
+                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">FirstName *</span>
+                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">LastName *</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">DOB</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Nationality</span>
+                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">Gender *</span>
+                  <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">ParentEmail</span>
+                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">Class *</span>
                 </div>
                 <Button 
                   variant="outline" 
@@ -423,9 +518,28 @@ export function AddStudent() {
                   className="rounded-lg"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download Template
+                  Download CSV Template
                 </Button>
               </div>
+
+              {/* Level for bulk */}
+              {isAdmin && (
+                <div className="space-y-2">
+                  <Label>Level <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={bulkLevel}
+                    onValueChange={(value) => setBulkLevel(value)}
+                  >
+                    <SelectTrigger className="rounded-xl h-11">
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="primary">Primary Level</SelectItem>
+                      <SelectItem value="secondary">Secondary Level</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* File Upload */}
               <div 
@@ -435,96 +549,59 @@ export function AddStudent() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={handleFileChange}
                   className="hidden"
                 />
                 <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm font-medium text-foreground">
-                  {csvFile ? csvFile.name : 'Click to upload CSV file'}
+                  {bulkFile ? bulkFile.name : 'Click to upload Excel or CSV file'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  or drag and drop
+                  Supports .xlsx, .xls, and .csv formats
                 </p>
               </div>
 
-              {/* CSV Error */}
-              {csvError && (
-                <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  {csvError}
+              {/* Import Result */}
+              {importResult && (
+                <div className="p-4 bg-secondary/50 rounded-xl space-y-2">
+                  <h3 className="font-medium text-sm">Import Results</h3>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <span className="text-green-600">Imported: {importResult.imported}</span>
+                    <span className="text-amber-600">Skipped: {importResult.skipped}</span>
+                    <span className="text-muted-foreground">Total rows: {importResult.total}</span>
+                  </div>
+                  {importResult.errors && importResult.errors.length > 0 && (
+                    <div className="mt-2 max-h-[150px] overflow-y-auto">
+                      {importResult.errors.map((err, i) => (
+                        <p key={i} className="text-xs text-red-500">{err}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* CSV Preview */}
-              {csvPreview.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-sm">
-                      Preview ({csvPreview.length} students)
-                    </h3>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setCsvFile(null);
-                        setCsvPreview([]);
-                      }}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Clear
-                    </Button>
-                  </div>
-                  
-                  <div className="max-h-[300px] overflow-y-auto rounded-xl border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-secondary/50 sticky top-0">
-                        <tr>
-                          <th className="text-left px-4 py-2 font-medium">Name</th>
-                          <th className="text-left px-4 py-2 font-medium">Admission No.</th>
-                          <th className="text-left px-4 py-2 font-medium">Class</th>
-                          <th className="text-left px-4 py-2 font-medium">Gender</th>
-                          <th className="text-left px-4 py-2 font-medium">Email</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {csvPreview.slice(0, 10).map((student, index) => (
-                          <tr key={index} className="border-t">
-                            <td className="px-4 py-2">{student.name}</td>
-                            <td className="px-4 py-2">{student.admissionNumber}</td>
-                            <td className="px-4 py-2">{student.class}</td>
-                            <td className="px-4 py-2 capitalize">{student.gender}</td>
-                            <td className="px-4 py-2 text-muted-foreground">{student.email || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {csvPreview.length > 10 && (
-                      <p className="text-xs text-muted-foreground text-center py-2">
-                        ... and {csvPreview.length - 10} more students
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setCsvFile(null);
-                        setCsvPreview([]);
-                      }}
-                      className="rounded-xl h-11"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleBulkUpload}
-                      className="bg-navy hover:bg-navy/90 rounded-xl h-11"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Importing...' : `Import ${csvPreview.length} Students`}
-                    </Button>
-                  </div>
+              {bulkFile && (
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setBulkFile(null);
+                      setImportResult(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="rounded-xl h-11"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                  <Button 
+                    onClick={handleBulkUpload}
+                    className="bg-navy hover:bg-navy/90 rounded-xl h-11"
+                    disabled={isSubmitting || (isAdmin && !bulkLevel)}
+                  >
+                    {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importing...</> : 'Import Students'}
+                  </Button>
                 </div>
               )}
             </div>

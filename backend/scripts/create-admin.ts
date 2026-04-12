@@ -23,9 +23,11 @@ async function createAdmin() {
     // Create user via better-auth
     const result = await auth.api.signUpEmail({
       body: {
-        name: 'Admin User',
+        name: 'Pray Jonas',
         email: 'prayjonas27@gmail.com',
-        password: 'pray1000',
+        password: '123456789',
+        gender: 'male',
+        level: null,
       }
     });
     

@@ -26,7 +26,9 @@ import {
   ClipboardList,
   PackagePlus,
   Package,
-  School
+  School,
+  CalendarDays,
+  Trophy
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -72,6 +74,16 @@ const navItems: NavItem[] = [
       { id: 'subjects', path: '/subjects', label: 'Subjects', icon: BookMarked, permission: 'master:view' },
       { id: 'shelf-locations', path: '/shelf-locations', label: 'Shelf Locations', icon: MapPin, permission: 'master:view' },
       { id: 'items', path: '/items', label: 'Items Master', icon: Package, permission: 'items:view' },
+    ]
+  },
+  {
+    id: 'class-management',
+    path: '/class-management',
+    label: 'Class Management',
+    icon: GraduationCap,
+    subItems: [
+      { id: 'class-activities', path: '/class-activities', label: 'Class Activities', icon: CalendarDays, permission: 'class_activities:view' },
+      { id: 'results', path: '/results', label: 'Results', icon: Trophy, permission: 'results:view' },
     ]
   },
   {
@@ -183,7 +195,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy flex-shrink-0">
           <Library className="h-5 w-5 text-white" />
         </div>
-        {!isCollapsed && <span className="text-lg font-bold text-foreground">LMS</span>}
+        {!isCollapsed && <span className="text-lg font-bold text-foreground">ShulePro..</span>}
       </div>
 
       {/* Toggle Button */}
