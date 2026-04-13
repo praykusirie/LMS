@@ -116,7 +116,7 @@ export function Dashboard() {
       title: 'Borrow / Return', 
       icon: ArrowLeftRight, 
       color: 'amber' as const,
-      onClick: () => navigate('/borrow-return')
+      onClick: () => navigate('/books-items-management/issue-book')
     },
     { 
       title: 'Add Teacher', 
@@ -142,7 +142,7 @@ export function Dashboard() {
           </p>
         </div>
         <Button 
-          onClick={() => navigate('/borrow-return')}
+          onClick={() => navigate('/books-items-management/issue-book')}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11 px-5"
         >
           <Plus className="h-4 w-4 mr-2" />

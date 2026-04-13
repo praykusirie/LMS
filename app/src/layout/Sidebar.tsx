@@ -4,7 +4,6 @@ import {
   LayoutDashboard, 
   BookOpen, 
   Users, 
-  ArrowLeftRight, 
   AlertCircle, 
   FileText, 
   Settings, 
@@ -28,7 +27,9 @@ import {
   Package,
   School,
   CalendarDays,
-  Trophy
+  Trophy,
+  ArrowRightLeft,
+  RotateCcw
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -97,6 +98,17 @@ const navItems: NavItem[] = [
     ]
   },
   {
+    id: 'books-items-management',
+    path: '/books-items-management',
+    label: 'Distribution',
+    icon: ArrowRightLeft,
+    subItems: [
+      { id: 'issue-book', path: '/books-items-management/issue-book', label: 'Issue Book', icon: ArrowRightLeft, permission: 'borrow:view' },
+      { id: 'return-book', path: '/books-items-management/return-book', label: 'Return Book', icon: RotateCcw, permission: 'borrow:view' },
+      { id: 'items-distribution', path: '/books-items-management/items-distribution', label: 'Items Distribution', icon: PackagePlus, permission: 'items:view' },
+    ]
+  },
+  {
     id: 'user-management',
     path: '/user-management',
     label: 'User Management',
@@ -107,7 +119,6 @@ const navItems: NavItem[] = [
       { id: 'permissions', path: '/user-management/permissions', label: 'Permissions', icon: Key, permission: 'permissions:manage' },
     ]
   },
-  { id: 'borrow-return', path: '/borrow-return', label: 'Borrow/Return', icon: ArrowLeftRight, permission: 'borrow:view' },
   { id: 'overdue', path: '/overdue', label: 'Overdue', icon: AlertCircle, permission: 'overdue:view' },
   { id: 'reports', path: '/reports', label: 'Reports', icon: FileText, permission: 'reports:view' },
   { id: 'settings', path: '/settings', label: 'Settings', icon: Settings, permission: 'settings:view' }
@@ -115,6 +126,7 @@ const navItems: NavItem[] = [
 
 const parentPaths: Record<string, string[]> = {
   'master': ['/students', '/books', '/teachers', '/classes', '/categories', '/subjects', '/shelf-locations', '/items', '/add-student', '/add-book', '/add-teacher'],
+  'books-items-management': ['/books-items-management'],
   'library-inventory': ['/library-inventory'],
   'user-management': ['/user-management'],
 };

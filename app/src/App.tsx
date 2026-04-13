@@ -13,7 +13,10 @@ import {
   Categories,
   Subjects,
   ShelfLocations,
-  BorrowReturn, 
+  IssueBook,
+  ReturnBook,
+  ItemsDistribution,
+  ItemsDistributionCreate,
   Overdue, 
   Reports, 
   Settings,
@@ -118,7 +121,10 @@ function App() {
         <Route path="/library-inventory/stock-details" element={<StockDetails />} />
 
         {/* Other */}
-        <Route path="/borrow-return" element={<BorrowReturn />} />
+        <Route path="/books-items-management/issue-book" element={<IssueBook />} />
+        <Route path="/books-items-management/return-book" element={<ReturnBook />} />
+        <Route path="/books-items-management/items-distribution" element={<ItemsDistribution />} />
+        <Route path="/books-items-management/items-distribution/new" element={<ItemsDistributionCreate />} />
         <Route path="/overdue" element={<Overdue />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />

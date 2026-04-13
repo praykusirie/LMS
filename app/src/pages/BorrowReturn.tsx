@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BookOpen, 
@@ -10,8 +10,10 @@ import {
   Search,
   RotateCcw,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,13 +41,51 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { books as mockBooks, students as mockStudents, borrowRecords as mockBorrowRecords } from '@/data/mockData';
-import type { Book, Student, BorrowRecord } from '@/types';
+import api from '@/lib/api';
 
-export function BorrowReturn() {
-  const [books, setBooks] = useState<Book[]>(mockBooks);
-  const [students] = useState<Student[]>(mockStudents);
-  const [borrowRecords, setBorrowRecords] = useState<BorrowRecord[]>(mockBorrowRecords);
+interface BorrowReturnProps {
+  mode?: 'borrow' | 'return' | 'both';
+}
+
+interface BookRecord {
+  id: string;
+  title: string;
+  author: string;
+  available: number;
+  is_active?: boolean;
+}
+
+interface StudentRecord {
+  id: string;
+  name: string;
+  student_id?: string;
+  admission_number?: string;
+  class_name?: string;
+  avatar?: string;
+  is_active?: boolean;
+}
+
+interface BorrowRecord {
+  id: string;
+  bookId: string;
+  bookTitle: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  borrowDate: string;
+  dueDate: string;
+  returnDate?: string;
+  status: 'borrowed' | 'returned' | 'overdue';
+  lateDays?: number;
+  penalty?: number;
+}
+
+export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
+  const [books, setBooks] = useState<BookRecord[]>([]);
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [borrowRecords, setBorrowRecords] = useState<BorrowRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Issue form state
   const [selectedStudent, setSelectedStudent] = useState<string>('');
@@ -64,6 +104,70 @@ export function BorrowReturn() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    const defaultDueDate = new Date();
+    defaultDueDate.setDate(defaultDueDate.getDate() + 14);
+    setDueDate(defaultDueDate.toISOString().split('T')[0] || '');
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [booksRes, studentsRes, borrowRes] = await Promise.all([
+        api.get('/books'),
+        api.get('/students'),
+        api.get('/borrow-records?status=active'),
+      ]);
+
+      const mappedBooks: BookRecord[] = (booksRes.data || [])
+        .filter((book: any) => book.is_active !== false)
+        .map((book: any) => ({
+          id: book.id,
+          title: book.title,
+          author: book.author || 'Unknown',
+          available: Number(book.available || 0),
+          is_active: book.is_active,
+        }));
+
+      const mappedStudents: StudentRecord[] = (studentsRes.data || [])
+        .filter((student: any) => student.is_active !== false)
+        .map((student: any) => ({
+          id: student.id,
+          name: student.name,
+          student_id: student.student_id,
+          admission_number: student.admission_number,
+          class_name: student.class_name,
+          avatar: student.avatar,
+          is_active: student.is_active,
+        }));
+
+      const mappedBorrows: BorrowRecord[] = (borrowRes.data || []).map((record: any) => ({
+        id: record.id,
+        bookId: record.book_id,
+        bookTitle: record.book_title,
+        studentId: record.student_id,
+        studentName: record.student_name,
+        studentCode: record.student_code || '',
+        borrowDate: record.borrow_date,
+        dueDate: record.due_date,
+        returnDate: record.return_date,
+        status: record.current_status,
+        lateDays: record.late_days,
+        penalty: record.penalty,
+      }));
+
+      setBooks(mappedBooks);
+      setStudents(mappedStudents);
+      setBorrowRecords(mappedBorrows);
+    } catch (error) {
+      console.error('Error fetching borrow/return data:', error);
+      toast.error('Failed to load borrow/return data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const activeBorrows = useMemo(() => {
     return borrowRecords.filter(r => r.status === 'borrowed' || r.status === 'overdue');
@@ -98,7 +202,7 @@ export function BorrowReturn() {
     }
 
     // Check student borrow limit (max 3 books)
-    const studentBorrows = borrowRecords.filter(r => r.studentId === selectedStudent && r.status === 'borrowed');
+    const studentBorrows = borrowRecords.filter(r => r.studentId === selectedStudent && (r.status === 'borrowed' || r.status === 'overdue'));
     if (studentBorrows.length >= 3) {
       setErrorMessage('Student has reached the maximum borrow limit (3 books)');
       return;
@@ -107,37 +211,35 @@ export function BorrowReturn() {
     setShowIssueConfirm(true);
   };
 
-  const confirmIssue = () => {
+  const confirmIssue = async () => {
     if (!selectedStudentData || !selectedBookData || !dueDate) return;
 
-    const newBorrow: BorrowRecord = {
-      id: `br${Date.now()}`,
-      bookId: selectedBookData.id,
-      bookTitle: selectedBookData.title,
-      studentId: selectedStudentData.id,
-      studentName: selectedStudentData.name,
-      borrowDate: new Date().toISOString(),
-      dueDate: new Date(dueDate).toISOString(),
-      status: 'borrowed'
-    };
+    try {
+      setIsSubmitting(true);
+      await api.post('/borrow-records', {
+        student_id: selectedStudentData.id,
+        book_id: selectedBookData.id,
+        due_date: dueDate,
+      });
 
-    setBorrowRecords([newBorrow, ...borrowRecords]);
-    
-    // Update book availability
-    setBooks(books.map(b => 
-      b.id === selectedBookData.id 
-        ? { ...b, available: b.available - 1 } 
-        : b
-    ));
+      setShowIssueConfirm(false);
+      setSuccessMessage(`Book "${selectedBookData.title}" issued to ${selectedStudentData.name}`);
+      setShowSuccess(true);
 
-    setShowIssueConfirm(false);
-    setSuccessMessage(`Book "${selectedBookData.title}" issued to ${selectedStudentData.name}`);
-    setShowSuccess(true);
-    
-    // Reset form
-    setSelectedStudent('');
-    setSelectedBook('');
-    setDueDate('');
+      setSelectedStudent('');
+      setSelectedBook('');
+      const nextDueDate = new Date();
+      nextDueDate.setDate(nextDueDate.getDate() + 14);
+      setDueDate(nextDueDate.toISOString().split('T')[0] || '');
+
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error issuing book:', error);
+      setErrorMessage(error?.message || 'Failed to issue book');
+      setShowIssueConfirm(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReturnBook = (borrow: BorrowRecord) => {
@@ -145,45 +247,28 @@ export function BorrowReturn() {
     setShowReturnConfirm(true);
   };
 
-  const confirmReturn = () => {
+  const confirmReturn = async () => {
     if (!selectedBorrow) return;
 
-    const returnDate = new Date().toISOString();
-    const dueDate = new Date(selectedBorrow.dueDate);
-    const now = new Date();
-    
-    let lateDays = 0;
-    let penalty = 0;
-    
-    if (now > dueDate) {
-      lateDays = Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-      penalty = lateDays * 1000; // TSH 1,000 per day
+    try {
+      setIsSubmitting(true);
+      await api.patch(`/borrow-records/${selectedBorrow.id}/return`);
+
+      setShowReturnConfirm(false);
+      setSuccessMessage(`Book "${selectedBorrow.bookTitle}" returned successfully`);
+      setShowSuccess(true);
+      setSelectedBorrow(null);
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error returning book:', error);
+      setErrorMessage(error?.message || 'Failed to return book');
+      setShowReturnConfirm(false);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setBorrowRecords(borrowRecords.map(r => 
-      r.id === selectedBorrow.id 
-        ? { 
-            ...r, 
-            status: 'returned', 
-            returnDate,
-            lateDays,
-            penalty
-          } 
-        : r
-    ));
-
-    // Update book availability
-    setBooks(books.map(b => 
-      b.id === selectedBorrow.bookId 
-        ? { ...b, available: b.available + 1 } 
-        : b
-    ));
-
-    setShowReturnConfirm(false);
-    setSuccessMessage(`Book "${selectedBorrow.bookTitle}" returned successfully`);
-    setShowSuccess(true);
-    setSelectedBorrow(null);
   };
+
+  const getStudentCode = (student: StudentRecord) => student.student_id || student.admission_number || '';
 
   return (
     <div className="space-y-6">
@@ -206,19 +291,27 @@ export function BorrowReturn() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
       >
-        <Tabs defaultValue="borrow" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 rounded-xl h-12">
-            <TabsTrigger value="borrow" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
-              <ArrowRightLeft className="h-4 w-4 mr-2" />
-              Issue Book
-            </TabsTrigger>
-            <TabsTrigger value="return" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Return Book
-            </TabsTrigger>
-          </TabsList>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+        <Tabs defaultValue={mode === 'return' ? 'return' : 'borrow'} className="w-full">
+          {mode === 'both' && (
+            <TabsList className="grid w-full grid-cols-2 mb-6 rounded-xl h-12">
+              <TabsTrigger value="borrow" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
+                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                Issue Book
+              </TabsTrigger>
+              <TabsTrigger value="return" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Return Book
+              </TabsTrigger>
+            </TabsList>
+          )}
 
           {/* Borrow Tab Content */}
+          {(mode === 'both' || mode === 'borrow') && (
           <TabsContent value="borrow" className="mt-0">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
@@ -257,7 +350,7 @@ export function BorrowReturn() {
                               <AvatarImage src={selectedStudentData?.avatar} />
                               <AvatarFallback className="text-xs">{selectedStudentData?.name[0]}</AvatarFallback>
                             </Avatar>
-                            <span>{selectedStudentData?.name} ({selectedStudentData?.admissionNumber})</span>
+                            <span>{selectedStudentData?.name} ({selectedStudentData ? getStudentCode(selectedStudentData) : ''})</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">Search and select a student...</span>
@@ -275,10 +368,10 @@ export function BorrowReturn() {
                       <CommandList>
                         <CommandEmpty>No student found.</CommandEmpty>
                         <CommandGroup>
-                          {students.filter(s => s.isActive).map((student) => (
+                          {students.filter(s => s.is_active !== false).map((student) => (
                             <CommandItem
                               key={student.id}
-                              value={`${student.name} ${student.admissionNumber}`}
+                              value={`${student.name} ${getStudentCode(student)}`}
                               onSelect={() => {
                                 setSelectedStudent(student.id);
                                 setStudentComboboxOpen(false);
@@ -292,7 +385,7 @@ export function BorrowReturn() {
                                 </Avatar>
                                 <div>
                                   <p className="text-sm font-medium">{student.name}</p>
-                                  <p className="text-xs text-muted-foreground">{student.admissionNumber} • {student.class}</p>
+                                  <p className="text-xs text-muted-foreground">{getStudentCode(student)} • {student.class_name || '-'}</p>
                                 </div>
                               </div>
                               <Check
@@ -397,8 +490,10 @@ export function BorrowReturn() {
               </Button>
             </div>
           </TabsContent>
+          )}
 
           {/* Return Tab Content */}
+          {(mode === 'both' || mode === 'return') && (
           <TabsContent value="return" className="mt-0">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
@@ -459,7 +554,9 @@ export function BorrowReturn() {
               </div>
             </div>
           </TabsContent>
+          )}
         </Tabs>
+        )}
       </motion.div>
 
       {/* Issue Confirmation Dialog */}
@@ -478,7 +575,7 @@ export function BorrowReturn() {
                   </Avatar>
                   <div>
                     <p className="font-medium text-sm">{selectedStudentData.name}</p>
-                    <p className="text-xs text-muted-foreground">{selectedStudentData.admissionNumber}</p>
+                    <p className="text-xs text-muted-foreground">{getStudentCode(selectedStudentData)}</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-center">
@@ -498,7 +595,8 @@ export function BorrowReturn() {
             <Button variant="outline" onClick={() => setShowIssueConfirm(false)} className="rounded-xl">
               Cancel
             </Button>
-            <Button onClick={confirmIssue} className="bg-navy hover:bg-navy/90 rounded-xl">
+            <Button onClick={confirmIssue} className="bg-navy hover:bg-navy/90 rounded-xl" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Confirm Issue
             </Button>
           </DialogFooter>
@@ -537,7 +635,8 @@ export function BorrowReturn() {
             <Button variant="outline" onClick={() => setShowReturnConfirm(false)} className="rounded-xl">
               Cancel
             </Button>
-            <Button onClick={confirmReturn} className="bg-green hover:bg-green/90 rounded-xl">
+            <Button onClick={confirmReturn} className="bg-green hover:bg-green/90 rounded-xl" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Confirm Return
             </Button>
           </DialogFooter>
