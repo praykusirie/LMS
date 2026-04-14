@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -83,6 +84,7 @@ const generateAvatar = (name: string) => {
 };
 
 export function ClassActivities() {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
@@ -130,7 +132,7 @@ export function ClassActivities() {
       setActivities(data);
     } catch (error) {
       console.error('Error fetching activities:', error);
-      toast.error('Failed to fetch activities');
+      toast.error(t('classActivities.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +159,7 @@ export function ClassActivities() {
 
   const handleCreateActivity = async () => {
     if (!formData.name || !formData.class_id || !formData.date || !formData.total_marks) {
-      toast.error('Please fill in all required fields');
+      toast.error(t('classActivities.fillRequired'));
       return;
     }
 
@@ -173,7 +175,7 @@ export function ClassActivities() {
         level: effectiveLevel,
       });
 
-      toast.success('Activity created successfully');
+      toast.success(t('classActivities.activityCreated'));
       setShowCreateDialog(false);
       fetchActivities();
       
@@ -187,7 +189,7 @@ export function ClassActivities() {
       });
       setNextId('');
     } catch (error: any) {
-      toast.error(error?.response?.data?.error || 'Failed to create activity');
+      toast.error(error?.response?.data?.error || t('classActivities.failedToCreate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -207,7 +209,7 @@ export function ClassActivities() {
       setStudentMarks(marks);
     } catch (error) {
       console.error('Error fetching activity details:', error);
-      toast.error('Failed to load activity details');
+      toast.error(t('classActivities.failedToLoadDetails'));
     } finally {
       setIsLoading(false);
     }
@@ -219,7 +221,7 @@ export function ClassActivities() {
     // Validate marks don't exceed total
     for (const [, mark] of Object.entries(studentMarks)) {
       if (mark !== '' && Number(mark) > selectedActivity.total_marks) {
-        toast.error(`Marks cannot exceed total marks (${selectedActivity.total_marks})`);
+        toast.error(t('classActivities.marksExceed', { max: selectedActivity.total_marks }));
         return;
       }
     }
@@ -234,10 +236,10 @@ export function ClassActivities() {
         }));
 
       await api.post(`/activities/${selectedActivity.id}/marks`, { marks: marksArray });
-      toast.success('Marks saved successfully');
+      toast.success(t('classActivities.marksSaved'));
       fetchActivities();
     } catch (error: any) {
-      toast.error(error?.response?.data?.error || 'Failed to save marks');
+      toast.error(error?.response?.data?.error || t('classActivities.failedToSaveMarks'));
     } finally {
       setIsSavingMarks(false);
     }
@@ -252,7 +254,7 @@ export function ClassActivities() {
   const columns: DataTableColumn<Activity>[] = [
     {
       key: 'name',
-      header: 'Activity',
+      header: t('classActivities.activity'),
       sortable: true,
       render: (activity) => (
         <div className="flex items-center gap-3">
@@ -268,7 +270,7 @@ export function ClassActivities() {
     },
     {
       key: 'class_name',
-      header: 'Class',
+      header: t('classActivities.class'),
       sortable: true,
       render: (activity) => (
         <span className="text-muted-foreground">{activity.class_name}</span>
@@ -276,7 +278,7 @@ export function ClassActivities() {
     },
     {
       key: 'date',
-      header: 'Date',
+      header: t('classActivities.date'),
       sortable: true,
       render: (activity) => (
         <span className="text-muted-foreground">
@@ -286,7 +288,7 @@ export function ClassActivities() {
     },
     {
       key: 'total_marks',
-      header: 'Total Marks',
+      header: t('classActivities.totalMarks'),
       sortable: true,
       render: (activity) => (
         <Badge variant="outline" className="rounded-lg">
@@ -296,7 +298,7 @@ export function ClassActivities() {
     },
     {
       key: 'marks_count',
-      header: 'Progress',
+      header: t('classActivities.progress'),
       sortable: true,
       render: (activity) => (
         <div className="flex items-center gap-2">
@@ -314,7 +316,7 @@ export function ClassActivities() {
     },
     {
       key: 'level',
-      header: 'Level',
+      header: t('classActivities.level'),
       sortable: true,
       render: (activity) => (
         activity.level ? (
@@ -328,7 +330,7 @@ export function ClassActivities() {
     },
     {
       key: 'actions',
-      header: 'Action',
+      header: t('classActivities.action'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (activity) => (
@@ -338,7 +340,7 @@ export function ClassActivities() {
           className="rounded-xl"
           onClick={() => viewActivity(activity)}
         >
-          Enter Marks
+          {t('classActivities.enterMarks')}
           <ChevronRight className="h-4 w-4 ml-1" />
         </Button>
       ),
@@ -378,7 +380,7 @@ export function ClassActivities() {
             disabled={isSavingMarks}
           >
             {isSavingMarks ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Marks
+            {t('classActivities.saveMarks')}
           </Button>
         </motion.div>
 
@@ -395,9 +397,9 @@ export function ClassActivities() {
                 <Users className="h-6 w-6 text-navy" />
               </div>
               <div>
-                <p className="text-sm font-medium">Student Progress</p>
+                <p className="text-sm font-medium">{t('classActivities.studentProgress')}</p>
                 <p className="text-xs text-muted-foreground">
-                  {selectedActivity.students.filter(s => studentMarks[s.id] !== '').length} of {selectedActivity.students.length} students marked
+                  {t('classActivities.studentsMarked', { count: selectedActivity.students.filter(s => studentMarks[s.id] !== '').length, total: selectedActivity.students.length })}
                 </p>
               </div>
             </div>
@@ -414,7 +416,7 @@ export function ClassActivities() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+          className="rounded-[20px] bg-card p-6 shadow-card"
         >
           <div className="space-y-4">
             {selectedActivity.students.map((student) => (
@@ -436,12 +438,12 @@ export function ClassActivities() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Total Marks</p>
+                    <p className="text-xs text-muted-foreground">{t('classActivities.totalMarks')}</p>
                     <p className="font-medium text-navy">{selectedActivity.total_marks}</p>
                   </div>
                   <div className="w-px h-8 bg-border" />
                   <div>
-                    <Label className="text-xs">Marks Obtained</Label>
+                    <Label className="text-xs">{t('classActivities.marksObtained')}</Label>
                     <Input
                       type="number"
                       min={0}
@@ -450,7 +452,7 @@ export function ClassActivities() {
                       onChange={(e) => {
                         const value = e.target.value === '' ? '' : parseInt(e.target.value);
                         if (value !== '' && (value < 0 || value > selectedActivity.total_marks)) {
-                          toast.error(`Marks must be between 0 and ${selectedActivity.total_marks}`);
+                          toast.error(t('classActivities.marksBetween', { max: selectedActivity.total_marks }));
                           return;
                         }
                         setStudentMarks(prev => ({ ...prev, [student.id]: value }));
@@ -486,9 +488,9 @@ export function ClassActivities() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Class Activities</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('classActivities.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Create and manage class activities with student marks
+            {t('classActivities.createAndManageSubtitle')}
           </p>
         </div>
         <Button 
@@ -496,7 +498,7 @@ export function ClassActivities() {
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Create Activity
+          {t('classActivities.createActivity')}
         </Button>
       </motion.div>
 
@@ -510,7 +512,7 @@ export function ClassActivities() {
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search activities..."
+            placeholder={t('classActivities.searchActivities')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-11 pl-10 rounded-xl"
@@ -519,10 +521,10 @@ export function ClassActivities() {
         <Select value={classFilter} onValueChange={setClassFilter}>
           <SelectTrigger className="w-[180px] h-11 rounded-xl">
             <GraduationCap className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by class" />
+            <SelectValue placeholder={t('classActivities.filterByClass')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Classes</SelectItem>
+            <SelectItem value="all">{t('classActivities.allClasses')}</SelectItem>
             {classes.map(cls => (
               <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
             ))}
@@ -542,8 +544,8 @@ export function ClassActivities() {
           isLoading={isLoading}
           getRowId={(row) => row.id}
           emptyIcon={Award}
-          emptyTitle="No activities found"
-          emptyDescription="Create a new activity to get started with marking student performance."
+          emptyTitle={t('classActivities.noActivities')}
+          emptyDescription={t('classActivities.noActivitiesDesc')}
         />
       </motion.div>
 
@@ -551,30 +553,30 @@ export function ClassActivities() {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Create New Activity</DialogTitle>
+            <DialogTitle>{t('classActivities.createNewActivity')}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             {/* Next ID Preview */}
             {nextId && (
               <div className="p-3 bg-navy/5 rounded-xl">
-                <p className="text-xs text-muted-foreground">Activity ID</p>
+                <p className="text-xs text-muted-foreground">{t('classActivities.activityId')}</p>
                 <p className="font-mono text-navy font-medium">{nextId}</p>
               </div>
             )}
 
             <div className="space-y-2">
-              <Label>Activity Name <span className="text-red-500">*</span></Label>
+              <Label>{t('classActivities.activityName')} <span className="text-red-500">*</span></Label>
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Mid-term Test"
+                placeholder={t('classActivities.midtermExample')}
                 className="rounded-xl h-11"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Class <span className="text-red-500">*</span></Label>
+              <Label>{t('classActivities.class')} <span className="text-red-500">*</span></Label>
               <Select
                 value={formData.class_id}
                 onValueChange={(value) => {
@@ -583,7 +585,7 @@ export function ClassActivities() {
                 }}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder="Select class" />
+                  <SelectValue placeholder={t('classActivities.selectClass')} />
                 </SelectTrigger>
                 <SelectContent>
                   {classes.map(cls => (
@@ -595,7 +597,7 @@ export function ClassActivities() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Date <span className="text-red-500">*</span></Label>
+                <Label>{t('classActivities.date')} <span className="text-red-500">*</span></Label>
                 <Input
                   type="date"
                   value={formData.date}
@@ -604,13 +606,13 @@ export function ClassActivities() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Total Marks <span className="text-red-500">*</span></Label>
+                <Label>{t('classActivities.totalMarks')} <span className="text-red-500">*</span></Label>
                 <Input
                   type="number"
                   min={1}
                   value={formData.total_marks}
                   onChange={(e) => setFormData({ ...formData, total_marks: e.target.value })}
-                  placeholder="e.g., 100"
+                  placeholder={t('classActivities.marksExample')}
                   className="rounded-xl h-11"
                 />
               </div>
@@ -618,17 +620,17 @@ export function ClassActivities() {
 
             {isAdmin && (
               <div className="space-y-2">
-                <Label>Level <span className="text-red-500">*</span></Label>
-                <Select
-                  value={formData.level}
-                  onValueChange={(value) => setFormData({ ...formData, level: value })}
-                >
-                  <SelectTrigger className="rounded-xl h-11">
-                    <SelectValue placeholder="Select level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="primary">Primary</SelectItem>
-                    <SelectItem value="secondary">Secondary</SelectItem>
+              <Label>{t('classActivities.level')} <span className="text-red-500">*</span></Label>
+              <Select
+                value={formData.level}
+                onValueChange={(value) => setFormData({ ...formData, level: value })}
+              >
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder={t('classActivities.selectLevel')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="primary">{t('classActivities.primary')}</SelectItem>
+                  <SelectItem value="secondary">{t('classActivities.secondary')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -637,7 +639,7 @@ export function ClassActivities() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleCreateActivity}
@@ -645,7 +647,7 @@ export function ClassActivities() {
               disabled={isSubmitting}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Create Activity
+              {t('classActivities.createActivity')}
             </Button>
           </DialogFooter>
         </DialogContent>

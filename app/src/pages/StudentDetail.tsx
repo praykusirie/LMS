@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -93,6 +94,7 @@ const generateAvatar = (name: string, gender: string) => {
 };
 
 export function StudentDetail() {
+  const { t } = useTranslation();
   const { studentId } = useParams();
   const navigate = useNavigate();
   const [student, setStudent] = useState<StudentRecord | null>(null);
@@ -149,7 +151,7 @@ export function StudentDetail() {
       });
     } catch (error) {
       console.error('Error fetching student:', error);
-      toast.error('Failed to load student details');
+      toast.error(t('students.failedToLoadDetails'));
       navigate('/students');
     } finally {
       setIsLoading(false);
@@ -178,10 +180,10 @@ export function StudentDetail() {
     if (!student) return;
     try {
       await api.delete(`/students/${student.id}`);
-      toast.success('Student deleted successfully');
+      toast.success(t('students.deleteSuccess'));
       navigate('/students');
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to delete student');
+      toast.error(error?.response?.data?.message || t('students.failedToDelete'));
     } finally {
       setShowDeleteDialog(false);
     }
@@ -207,9 +209,9 @@ export function StudentDetail() {
       });
       await fetchStudent();
       setShowEditDialog(false);
-      toast.success('Student updated successfully');
+      toast.success(t('students.updateSuccess'));
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to update student');
+      toast.error(error?.response?.data?.message || t('students.failedToUpdate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -248,9 +250,9 @@ export function StudentDetail() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
         <Users className="h-16 w-16 mb-4" />
-        <p className="text-lg">Student not found</p>
+        <p className="text-lg">{t('students.notFound')}</p>
         <Button onClick={() => navigate('/students')} className="mt-4 rounded-xl">
-          Back to Students
+          {t('students.backToStudents')}
         </Button>
       </div>
     );
@@ -279,9 +281,9 @@ export function StudentDetail() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Student Profile</h1>
+            <h1 className="text-2xl font-bold text-foreground">{t('students.studentProfile')}</h1>
             <p className="text-sm text-muted-foreground">
-              View and manage student information
+              {t('students.profileSubtitle')}
             </p>
           </div>
         </div>
@@ -292,7 +294,7 @@ export function StudentDetail() {
             onClick={() => setShowEditDialog(true)}
           >
             <Edit2 className="h-4 w-4 mr-2" />
-            Edit
+            {t('common.edit')}
           </Button>
           <Button 
             variant="destructive"
@@ -300,7 +302,7 @@ export function StudentDetail() {
             onClick={() => setShowDeleteDialog(true)}
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete
+            {t('common.delete')}
           </Button>
         </div>
       </motion.div>
@@ -310,7 +312,7 @@ export function StudentDetail() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+        className="rounded-[20px] bg-card p-6 shadow-card"
       >
         <div className="flex flex-col md:flex-row gap-6">
           {/* Avatar */}
@@ -337,7 +339,7 @@ export function StudentDetail() {
                 </p>
                 <div className="flex flex-wrap gap-2 mt-3">
                   <Badge variant={student.is_active ? 'default' : 'secondary'} className="rounded-lg">
-                    {student.is_active ? 'Active' : 'Inactive'}
+                    {student.is_active ? t('common.active') : t('common.inactive')}
                   </Badge>
                   {student.level && (
                     <Badge variant="outline" className="rounded-lg capitalize">
@@ -354,17 +356,17 @@ export function StudentDetail() {
               <div className="flex gap-6">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-navy">{currentBorrows.length}</p>
-                  <p className="text-xs text-muted-foreground">Current Borrows</p>
+                  <p className="text-xs text-muted-foreground">{t('students.currentBorrows')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-red-600">{overdueBorrows.length}</p>
-                  <p className="text-xs text-muted-foreground">Overdue</p>
+                  <p className="text-xs text-muted-foreground">{t('students.overdue')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-600">
                     {borrowHistory.filter(b => b.status === 'returned').length}
                   </p>
-                  <p className="text-xs text-muted-foreground">Returned</p>
+                  <p className="text-xs text-muted-foreground">{t('students.returned')}</p>
                 </div>
               </div>
             </div>
@@ -376,7 +378,7 @@ export function StudentDetail() {
                   <GraduationCap className="h-5 w-5 text-navy" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Class</p>
+                  <p className="text-xs text-muted-foreground">{t('students.class')}</p>
                   <p className="text-sm font-medium">{student.class_name || '-'}</p>
                 </div>
               </div>
@@ -387,8 +389,8 @@ export function StudentDetail() {
                     <Calendar className="h-5 w-5 text-navy" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Age</p>
-                    <p className="text-sm font-medium">{age} years old</p>
+                    <p className="text-xs text-muted-foreground">{t('students.age')}</p>
+                    <p className="text-sm font-medium">{t('students.yearsOld', { age })}</p>
                   </div>
                 </div>
               )}
@@ -399,7 +401,7 @@ export function StudentDetail() {
                     <Calendar className="h-5 w-5 text-navy" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Date of Birth</p>
+                    <p className="text-xs text-muted-foreground">{t('students.dateOfBirth')}</p>
                     <p className="text-sm font-medium">{formatDate(student.dob)}</p>
                   </div>
                 </div>
@@ -411,7 +413,7 @@ export function StudentDetail() {
                     <Flag className="h-5 w-5 text-navy" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Nationality</p>
+                    <p className="text-xs text-muted-foreground">{t('students.nationality')}</p>
                     <p className="text-sm font-medium">{student.nationality}</p>
                   </div>
                 </div>
@@ -423,7 +425,7 @@ export function StudentDetail() {
                     <Mail className="h-5 w-5 text-navy" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="text-xs text-muted-foreground">{t('students.email')}</p>
                     <p className="text-sm font-medium truncate">{student.email}</p>
                   </div>
                 </div>
@@ -435,7 +437,7 @@ export function StudentDetail() {
                     <Phone className="h-5 w-5 text-navy" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <p className="text-xs text-muted-foreground">{t('students.phone')}</p>
                     <p className="text-sm font-medium">{student.phone}</p>
                   </div>
                 </div>
@@ -447,7 +449,7 @@ export function StudentDetail() {
                     <MapPin className="h-5 w-5 text-navy" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Address</p>
+                    <p className="text-xs text-muted-foreground">{t('students.address')}</p>
                     <p className="text-sm font-medium">{student.address}</p>
                   </div>
                 </div>
@@ -459,7 +461,7 @@ export function StudentDetail() {
                     <Users className="h-5 w-5 text-navy" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Parent Email</p>
+                    <p className="text-xs text-muted-foreground">{t('students.parentEmail')}</p>
                     <p className="text-sm font-medium truncate">{student.parent_email}</p>
                   </div>
                 </div>
@@ -471,7 +473,7 @@ export function StudentDetail() {
                     <Phone className="h-5 w-5 text-navy" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Parent Phone</p>
+                    <p className="text-xs text-muted-foreground">{t('students.parentPhoneLabel')}</p>
                     <p className="text-sm font-medium">{student.parent_phone}</p>
                   </div>
                 </div>
@@ -486,21 +488,21 @@ export function StudentDetail() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+        className="rounded-[20px] bg-card p-6 shadow-card"
       >
         <Tabs defaultValue="current">
           <TabsList className="rounded-xl">
             <TabsTrigger value="current" className="rounded-lg">
               <BookOpen className="h-4 w-4 mr-2" />
-              Current Borrows ({currentBorrows.length})
+              {t('students.currentBorrows')} ({currentBorrows.length})
             </TabsTrigger>
             <TabsTrigger value="overdue" className="rounded-lg">
               <AlertCircle className="h-4 w-4 mr-2" />
-              Overdue ({overdueBorrows.length})
+              {t('students.overdue')} ({overdueBorrows.length})
             </TabsTrigger>
             <TabsTrigger value="history" className="rounded-lg">
               <Clock className="h-4 w-4 mr-2" />
-              History ({borrowHistory.length})
+              {t('students.history')} ({borrowHistory.length})
             </TabsTrigger>
           </TabsList>
 
@@ -508,7 +510,7 @@ export function StudentDetail() {
             {currentBorrows.length === 0 ? (
               <div className="text-center py-12">
                 <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No current borrows</p>
+                <p className="text-muted-foreground">{t('students.noCurrentBorrows')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -521,10 +523,10 @@ export function StudentDetail() {
                       <div>
                         <p className="font-medium text-sm">{borrow.book_title}</p>
                         <p className="text-xs text-muted-foreground">{borrow.book_code}</p>
-                        <p className="text-xs text-muted-foreground">Due: {formatDate(borrow.due_date)}</p>
+                        <p className="text-xs text-muted-foreground">{t('students.due')}: {formatDate(borrow.due_date)}</p>
                       </div>
                     </div>
-                    <StatusBadge status="borrowed">Borrowed</StatusBadge>
+                    <StatusBadge status="borrowed">{t('students.borrowed')}</StatusBadge>
                   </div>
                 ))}
               </div>
@@ -535,26 +537,26 @@ export function StudentDetail() {
             {overdueBorrows.length === 0 ? (
               <div className="text-center py-12">
                 <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <p className="text-muted-foreground">No overdue books</p>
+                <p className="text-muted-foreground">{t('students.noOverdueBooks')}</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {overdueBorrows.map((borrow) => (
-                  <div key={borrow.id} className="flex items-center justify-between p-4 bg-red-50 rounded-xl">
+                  <div key={borrow.id} className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950/30 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-8 rounded-lg bg-red-100 flex items-center justify-center">
+                      <div className="h-10 w-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                         <AlertCircle className="h-5 w-5 text-red-600" />
                       </div>
                       <div>
                         <p className="font-medium text-sm">{borrow.book_title}</p>
                         <p className="text-xs text-muted-foreground">{borrow.book_code}</p>
-                        <p className="text-xs text-red-600">Due: {formatDate(borrow.due_date)}</p>
+                        <p className="text-xs text-red-600">{t('students.due')}: {formatDate(borrow.due_date)}</p>
                         {borrow.fine_amount > 0 && (
-                          <p className="text-xs text-red-600 font-medium">Fine: ${borrow.fine_amount.toFixed(2)}</p>
+                          <p className="text-xs text-red-600 font-medium">{t('students.fine')}: ${borrow.fine_amount.toFixed(2)}</p>
                         )}
                       </div>
                     </div>
-                    <StatusBadge status="overdue">Overdue</StatusBadge>
+                    <StatusBadge status="overdue">{t('students.overdue')}</StatusBadge>
                   </div>
                 ))}
               </div>
@@ -565,7 +567,7 @@ export function StudentDetail() {
             {borrowHistory.length === 0 ? (
               <div className="text-center py-12">
                 <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No borrow history</p>
+                <p className="text-muted-foreground">{t('students.noBorrowHistory')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -579,12 +581,12 @@ export function StudentDetail() {
                         <p className="font-medium text-sm">{borrow.book_title}</p>
                         <p className="text-xs text-muted-foreground">{borrow.book_code}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDate(borrow.borrow_date)} - {borrow.return_date ? formatDate(borrow.return_date) : (borrow.status === 'overdue' ? 'Overdue' : 'Not returned')}
+                          {formatDate(borrow.borrow_date)} - {borrow.return_date ? formatDate(borrow.return_date) : (borrow.status === 'overdue' ? t('students.overdue') : t('students.notReturned'))}
                         </p>
                       </div>
                     </div>
                     <StatusBadge status={borrow.status === 'returned' ? 'returned' : borrow.status === 'overdue' ? 'overdue' : 'borrowed'}>
-                      {borrow.status === 'returned' ? 'Returned' : borrow.status === 'overdue' ? 'Overdue' : 'Borrowed'}
+                      {borrow.status === 'returned' ? t('students.returned') : borrow.status === 'overdue' ? t('students.overdue') : t('students.borrowed')}
                     </StatusBadge>
                   </div>
                 ))}
@@ -598,12 +600,12 @@ export function StudentDetail() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="rounded-[20px] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Student</DialogTitle>
+            <DialogTitle>{t('students.editStudent')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>First Name</Label>
+                <Label>{t('students.firstName')}</Label>
                 <Input
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
@@ -611,7 +613,7 @@ export function StudentDetail() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Last Name</Label>
+                <Label>{t('students.lastName')}</Label>
                 <Input
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
@@ -621,13 +623,13 @@ export function StudentDetail() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Class</Label>
+                <Label>{t('students.class')}</Label>
                 <Select
                   value={formData.class_id}
                   onValueChange={(value) => setFormData({ ...formData, class_id: value })}
                 >
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select class" />
+                    <SelectValue placeholder={t('students.selectClass')} />
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((cls) => (
@@ -637,7 +639,7 @@ export function StudentDetail() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Gender</Label>
+                <Label>{t('students.gender')}</Label>
                 <Select
                   value={formData.gender}
                   onValueChange={(value) => setFormData({ ...formData, gender: value })}
@@ -646,16 +648,16 @@ export function StudentDetail() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="male">{t('common.male')}</SelectItem>
+                    <SelectItem value="female">{t('common.female')}</SelectItem>
+                    <SelectItem value="other">{t('common.other')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Date of Birth</Label>
+                <Label>{t('students.dateOfBirth')}</Label>
                 <Input
                   type="date"
                   value={formData.dob}
@@ -664,7 +666,7 @@ export function StudentDetail() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Nationality</Label>
+                <Label>{t('students.nationality')}</Label>
                 <Input
                   value={formData.nationality}
                   onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
@@ -675,7 +677,7 @@ export function StudentDetail() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>{t('students.email')}</Label>
                 <Input
                   type="email"
                   value={formData.email}
@@ -684,7 +686,7 @@ export function StudentDetail() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Phone</Label>
+                <Label>{t('students.phone')}</Label>
                 <Input
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -694,7 +696,7 @@ export function StudentDetail() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Parent Email</Label>
+                <Label>{t('students.parentEmail')}</Label>
                 <Input
                   type="email"
                   value={formData.parent_email}
@@ -703,7 +705,7 @@ export function StudentDetail() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Parent Phone</Label>
+                <Label>{t('students.parentPhoneLabel')}</Label>
                 <Input
                   value={formData.parent_phone}
                   onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
@@ -712,7 +714,7 @@ export function StudentDetail() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Address</Label>
+              <Label>{t('students.address')}</Label>
               <Input
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -722,7 +724,7 @@ export function StudentDetail() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleEdit} 
@@ -730,7 +732,7 @@ export function StudentDetail() {
               disabled={isSubmitting}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -740,19 +742,19 @@ export function StudentDetail() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Student</DialogTitle>
+            <DialogTitle>{t('students.deleteStudent')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete "{student.name}"? This action cannot be undone.
+              {t('students.deleteConfirmMessage', { name: student.name })}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

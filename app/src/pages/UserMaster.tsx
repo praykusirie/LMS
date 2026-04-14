@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   UserPlus, 
@@ -68,6 +69,7 @@ interface Role {
 
 export function UserMaster() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -107,7 +109,7 @@ export function UserMaster() {
       setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast.error('Failed to fetch users');
+      toast.error(t('users.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -142,11 +144,11 @@ export function UserMaster() {
         await fetchUsers();
         setIsCreateDialogOpen(false);
         resetForm();
-        toast.success('User created successfully');
+        toast.success(t('users.createSuccess'));
       }
     } catch (error: any) {
       console.error('Error creating user:', error);
-      toast.error(error?.message || 'Failed to create user');
+      toast.error(error?.message || t('users.failedToCreate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -176,10 +178,10 @@ export function UserMaster() {
       await fetchUsers();
       setIsEditDialogOpen(false);
       setSelectedUser(null);
-      toast.success('User updated successfully');
+      toast.success(t('users.updateSuccess'));
     } catch (error) {
       console.error('Error updating user:', error);
-      toast.error('Failed to update user');
+      toast.error(t('users.failedToUpdate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -197,10 +199,10 @@ export function UserMaster() {
       await fetchUsers();
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
-      toast.success('User deleted successfully');
+      toast.success(t('users.deleteSuccess'));
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
+      toast.error(t('users.failedToDelete'));
     } finally {
       setIsSubmitting(false);
     }
@@ -274,7 +276,7 @@ export function UserMaster() {
   const columns: DataTableColumn<User>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Name',
+      header: t('common.name'),
       sortable: true,
       getValue: (row) => row.name,
       render: (user) => (
@@ -286,7 +288,7 @@ export function UserMaster() {
     },
     {
       key: 'email',
-      header: 'Email',
+      header: t('users.email'),
       sortable: true,
       getValue: (row) => row.email,
       render: (user) => (
@@ -298,7 +300,7 @@ export function UserMaster() {
     },
     {
       key: 'role',
-      header: 'Role',
+      header: t('users.role'),
       sortable: true,
       getValue: (row) => row.role || 'user',
       render: (user) => (
@@ -317,18 +319,18 @@ export function UserMaster() {
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('common.status'),
       sortable: true,
-      getValue: (row) => row.banned ? 'Banned' : 'Active',
+      getValue: (row) => row.banned ? t('users.banned') : t('users.active'),
       render: (user) => (
         <Badge variant={user.banned ? 'destructive' : 'outline'}>
-          {user.banned ? 'Banned' : 'Active'}
+          {user.banned ? t('users.banned') : t('users.active')}
         </Badge>
       ),
     },
     {
       key: 'createdAt',
-      header: 'Created',
+      header: t('common.createdAt'),
       sortable: true,
       getValue: (row) => String(row.createdAt),
       render: (user) => (
@@ -339,7 +341,7 @@ export function UserMaster() {
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('common.actions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (user) => (
@@ -357,7 +359,7 @@ export function UserMaster() {
             size="icon"
             className={`h-8 w-8 text-muted-foreground ${user.banned ? 'hover:text-green-600' : 'hover:text-amber-600'}`}
             onClick={() => handleBanUser(user)}
-            title={user.banned ? 'Unban User' : 'Ban User'}
+            title={user.banned ? t('users.unbanUser') : t('users.banUser')}
           >
             {user.banned ? <ShieldCheck className="h-4 w-4" /> : <ShieldBan className="h-4 w-4" />}
           </Button>
@@ -372,7 +374,7 @@ export function UserMaster() {
         </div>
       ),
     },
-  ], []);
+  ], [t]);
 
   return (
     <div className="space-y-6">
@@ -384,9 +386,9 @@ export function UserMaster() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">User Master</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('users.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage system users and their roles
+            {t('users.subtitle')}
           </p>
         </div>
         <Button 
@@ -394,7 +396,7 @@ export function UserMaster() {
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <UserPlus className="h-4 w-4 mr-2" />
-          Add User
+          {t('users.addUser')}
         </Button>
       </motion.div>
 
@@ -408,7 +410,7 @@ export function UserMaster() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search users..."
+            placeholder={t('users.searchUsers')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -429,8 +431,8 @@ export function UserMaster() {
           getRowId={(row) => row.id}
           onRowClick={(row) => navigate(`/users/${row.id}`)}
           emptyIcon={Users}
-          emptyTitle="No users found"
-          emptyDescription="Add your first user to get started."
+          emptyTitle={t('users.noUsers')}
+          emptyDescription={t('users.noUsersDesc')}
         />
       </motion.div>
 
@@ -438,59 +440,59 @@ export function UserMaster() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Create New User</DialogTitle>
+            <DialogTitle>{t('users.createNewUser')}</DialogTitle>
             <DialogDescription>
-              Add a new user to the system with email and password authentication.
+              {t('users.createUserDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{t('users.fullName')}</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter full name"
+                  placeholder={t('users.enterFullName')}
                   className="rounded-xl"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
+                <Label htmlFor="gender">{t('users.gender')}</Label>
                 <Select
                   value={formData.gender}
                   onValueChange={(value: 'male' | 'female') => setFormData({ ...formData, gender: value })}
                 >
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select gender" />
+                    <SelectValue placeholder={t('users.selectGender')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="male">{t('common.male')}</SelectItem>
+                    <SelectItem value="female">{t('common.female')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('users.email')}</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email address"
+                placeholder={t('users.enterEmail')}
                 className="rounded-xl"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('users.password')}</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Enter password"
+                  placeholder={t('users.enterPassword')}
                   className="rounded-xl pr-10"
                 />
                 <button
@@ -503,13 +505,13 @@ export function UserMaster() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">{t('users.role')}</Label>
               <Select
                 value={formData.role}
                 onValueChange={(value) => setFormData({ ...formData, role: value, level: '' })}
               >
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Select a role" />
+                  <SelectValue placeholder={t('users.selectRole')} />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((role) => (
@@ -522,17 +524,17 @@ export function UserMaster() {
             </div>
             {formData.role === 'librarian' && (
               <div className="space-y-2">
-                <Label htmlFor="level">Level</Label>
+                <Label htmlFor="level">{t('users.level')}</Label>
                 <Select
                   value={formData.level}
                   onValueChange={(value) => setFormData({ ...formData, level: value })}
                 >
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select level" />
+                    <SelectValue placeholder={t('users.selectLevel')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="primary">Primary Level</SelectItem>
-                    <SelectItem value="secondary">Secondary Level</SelectItem>
+                    <SelectItem value="primary">{t('users.primaryLevel')}</SelectItem>
+                    <SelectItem value="secondary">{t('users.secondaryLevel')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -540,7 +542,7 @@ export function UserMaster() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleCreateUser} 
@@ -552,7 +554,7 @@ export function UserMaster() {
               ) : (
                 <UserPlus className="h-4 w-4 mr-2" />
               )}
-              Create User
+              {t('users.createUser')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -562,46 +564,46 @@ export function UserMaster() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
+            <DialogTitle>{t('users.editUser')}</DialogTitle>
             <DialogDescription>
-              Update details for {selectedUser?.name}
+              {t('users.editUserDesc', { name: selectedUser?.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Name</Label>
+                <Label>{t('common.name')}</Label>
                 <Input
                   value={editFormData.name}
                   onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  placeholder="Full name"
+                  placeholder={t('users.enterFullName')}
                   className="rounded-xl"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Gender</Label>
+                <Label>{t('users.gender')}</Label>
                 <Select
                   value={editFormData.gender}
                   onValueChange={(value: 'male' | 'female') => setEditFormData({ ...editFormData, gender: value })}
                 >
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select gender" />
+                    <SelectValue placeholder={t('users.selectGender')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="male">{t('common.male')}</SelectItem>
+                    <SelectItem value="female">{t('common.female')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label>{t('users.role')}</Label>
               <Select
                 value={editFormData.role}
                 onValueChange={(value) => setEditFormData({ ...editFormData, role: value, level: '' })}
               >
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Select a role" />
+                  <SelectValue placeholder={t('users.selectRole')} />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((role) => (
@@ -614,29 +616,29 @@ export function UserMaster() {
             </div>
             {editFormData.role === 'librarian' && (
               <div className="space-y-2">
-                <Label>Level</Label>
+                <Label>{t('users.level')}</Label>
                 <Select
                   value={editFormData.level}
                   onValueChange={(value) => setEditFormData({ ...editFormData, level: value })}
                 >
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select level" />
+                    <SelectValue placeholder={t('users.selectLevel')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="primary">Primary Level</SelectItem>
-                    <SelectItem value="secondary">Secondary Level</SelectItem>
+                    <SelectItem value="primary">{t('users.primaryLevel')}</SelectItem>
+                    <SelectItem value="secondary">{t('users.secondaryLevel')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
             <div className="space-y-2">
-              <Label>New Password <span className="text-muted-foreground text-xs">(leave blank to keep current)</span></Label>
+              <Label>{t('users.newPassword')} <span className="text-muted-foreground text-xs">({t('users.leaveBlankPassword')})</span></Label>
               <div className="relative">
                 <Input
                   type={showEditPassword ? 'text' : 'password'}
                   value={editFormData.newPassword}
                   onChange={(e) => setEditFormData({ ...editFormData, newPassword: e.target.value })}
-                  placeholder="Enter new password"
+                  placeholder={t('users.enterNewPassword')}
                   className="rounded-xl pr-10"
                 />
                 <button
@@ -651,7 +653,7 @@ export function UserMaster() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleEditUser} 
@@ -659,7 +661,7 @@ export function UserMaster() {
               className="bg-navy hover:bg-navy/90"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -669,14 +671,14 @@ export function UserMaster() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle>{t('users.deleteUser')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedUser?.name}? This action cannot be undone.
+              {t('users.deleteConfirmMessage', { name: selectedUser?.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               variant="destructive" 
@@ -684,7 +686,7 @@ export function UserMaster() {
               disabled={isSubmitting}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Delete User
+              {t('users.deleteUser')}
             </Button>
           </DialogFooter>
         </DialogContent>

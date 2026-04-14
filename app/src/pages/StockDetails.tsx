@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   ClipboardList, 
@@ -25,6 +26,7 @@ interface StockReportItem {
 }
 
 export function StockDetails() {
+  const { t } = useTranslation();
   const [reportItems, setReportItems] = useState<StockReportItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -55,27 +57,27 @@ export function StockDetails() {
     switch (status) {
       case 'available':
         return (
-          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">
+          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-950/30">
             <CheckCircle2 className="h-3 w-3 mr-1" />
-            Available
+            {t('stock.available')}
           </Badge>
         );
       case 'low':
         return (
-          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
             <AlertTriangle className="h-3 w-3 mr-1" />
-            Low in Stock
+            {t('stock.lowInStock')}
           </Badge>
         );
       case 'out_of_stock':
         return (
           <Badge variant="destructive">
             <XCircle className="h-3 w-3 mr-1" />
-            Out of Stock
+            {t('stock.outOfStock')}
           </Badge>
         );
       default:
-        return <Badge variant="secondary">N/A</Badge>;
+        return <Badge variant="secondary">{t('stock.na')}</Badge>;
     }
   };
 
@@ -88,12 +90,12 @@ export function StockDetails() {
   const columns: DataTableColumn<StockReportItem>[] = useMemo(() => [
     {
       key: 'item_name',
-      header: 'Item Name',
+      header: t('stock.itemName'),
       sortable: true,
       getValue: (row) => row.item_name,
       render: (item) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center">
             <Package className="h-5 w-5 text-blue-600" />
           </div>
           <span className="font-medium text-foreground">{item.item_name}</span>
@@ -102,7 +104,7 @@ export function StockDetails() {
     },
     {
       key: 'unit',
-      header: 'Unit',
+      header: t('items.unit'),
       sortable: true,
       render: (item) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
@@ -112,7 +114,7 @@ export function StockDetails() {
     },
     {
       key: 'total_quantity',
-      header: 'Total Added',
+      header: t('stock.totalAdded'),
       sortable: true,
       headerClassName: 'text-right',
       className: 'text-right',
@@ -123,7 +125,7 @@ export function StockDetails() {
     },
     {
       key: 'total_current_stock',
-      header: 'Current Stock',
+      header: t('stock.currentStock'),
       sortable: true,
       headerClassName: 'text-right',
       className: 'text-right',
@@ -134,14 +136,14 @@ export function StockDetails() {
     },
     {
       key: 'overall_status',
-      header: 'Status',
+      header: t('stock.status'),
       sortable: true,
       getValue: (row) => row.overall_status,
       render: (item) => getStatusBadge(item.overall_status),
     },
     {
       key: 'stock_count',
-      header: 'Stock Entries',
+      header: t('stock.stockEntries'),
       sortable: true,
       headerClassName: 'text-right',
       className: 'text-right',
@@ -160,9 +162,9 @@ export function StockDetails() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-2xl font-bold text-foreground">Stock Details</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t('stock.title')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Aggregate report of library stock levels
+          {t('stock.subtitle')}
         </p>
       </motion.div>
 
@@ -173,46 +175,46 @@ export function StockDetails() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="grid grid-cols-1 sm:grid-cols-4 gap-4"
       >
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
               <Package className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Items</p>
+              <p className="text-sm text-muted-foreground">{t('stock.totalItems')}</p>
               <p className="text-xl font-bold">{totalItems}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 dark:bg-green-950/30">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Available</p>
+              <p className="text-sm text-muted-foreground">{t('stock.available')}</p>
               <p className="text-xl font-bold text-green-600">{availableItems}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/30">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Low in Stock</p>
+              <p className="text-sm text-muted-foreground">{t('stock.lowInStock')}</p>
               <p className="text-xl font-bold text-amber-600">{lowItems}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30">
               <XCircle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Out of Stock</p>
+              <p className="text-sm text-muted-foreground">{t('stock.outOfStock')}</p>
               <p className="text-xl font-bold text-red-600">{outItems}</p>
             </div>
           </div>
@@ -229,7 +231,7 @@ export function StockDetails() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search items..."
+            placeholder={t('stock.searchItems')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -249,8 +251,8 @@ export function StockDetails() {
           isLoading={isLoading}
           getRowId={(row) => row.item_id}
           emptyIcon={ClipboardList}
-          emptyTitle="No stock data available"
-          emptyDescription="Add items and create stocks to see reports here."
+          emptyTitle={t('stock.noStockData')}
+          emptyDescription={t('stock.noStockDataDesc')}
         />
       </motion.div>
     </div>

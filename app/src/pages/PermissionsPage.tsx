@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Key, 
   Search, 
@@ -68,6 +69,7 @@ const moduleLabels: Record<string, string> = {
 };
 
 export function PermissionsPage() {
+  const { t } = useTranslation();
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('');
@@ -96,7 +98,7 @@ export function PermissionsPage() {
       }
     } catch (error) {
       console.error('Error fetching roles:', error);
-      toast.error('Failed to fetch roles');
+      toast.error(t('permissions.failedToFetchRoles'));
     }
   };
 
@@ -109,7 +111,7 @@ export function PermissionsPage() {
       setHasChanges(false);
     } catch (error) {
       console.error('Error fetching permissions:', error);
-      toast.error('Failed to fetch permissions');
+      toast.error(t('permissions.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -140,10 +142,10 @@ export function PermissionsPage() {
       await api.put(`/permissions/role/${selectedRole}`, { permissionIds: assignedPermissions });
       setOriginalPermissions(assignedPermissions);
       setHasChanges(false);
-      toast.success('Permissions saved successfully');
+      toast.success(t('permissions.saveSuccess'));
     } catch (error) {
       console.error('Error saving permissions:', error);
-      toast.error('Failed to save permissions');
+      toast.error(t('permissions.failedToSave'));
     } finally {
       setIsSaving(false);
     }
@@ -189,9 +191,9 @@ export function PermissionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Permissions</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('permissions.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage role permissions and access control
+            {t('permissions.subtitle')}
           </p>
         </div>
         <Button 
@@ -204,17 +206,17 @@ export function PermissionsPage() {
           ) : (
             <Save className="h-4 w-4 mr-2" />
           )}
-          Save Changes
+          {t('common.save')}
         </Button>
       </div>
 
-      <div className="rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+      <div className="rounded-[20px] bg-card p-6 shadow-card-sm">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
           <div className="w-full sm:w-64">
             <Select value={selectedRole} onValueChange={setSelectedRole}>
               <SelectTrigger className="rounded-xl">
                 <Shield className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Select a role" />
+                <SelectValue placeholder={t('permissions.selectRole')} />
               </SelectTrigger>
               <SelectContent>
                 {roles.map((role) => (
@@ -228,15 +230,15 @@ export function PermissionsPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search permissions..."
+              placeholder={t('permissions.searchPermissions')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 rounded-xl"
             />
           </div>
           {hasChanges && (
-            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-              Unsaved changes
+            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+              {t('permissions.unsavedChanges')}
             </Badge>
           )}
         </div>
@@ -281,7 +283,7 @@ export function PermissionsPage() {
                           disabled={allSelected}
                           className="text-xs"
                         >
-                          Select All
+                          {t('common.selectAll')}
                         </Button>
                         <Button
                           variant="ghost"
@@ -290,15 +292,15 @@ export function PermissionsPage() {
                           disabled={stats.assigned === 0}
                           className="text-xs"
                         >
-                          Clear All
+                          {t('common.clearAll')}
                         </Button>
                       </div>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[50px]">Allow</TableHead>
-                            <TableHead>Permission</TableHead>
-                            <TableHead>Description</TableHead>
+                            <TableHead className="w-[50px]">{t('permissions.allow')}</TableHead>
+                            <TableHead>{t('permissions.permission')}</TableHead>
+                            <TableHead>{t('permissions.description')}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -332,7 +334,7 @@ export function PermissionsPage() {
         {selectedRoleName === 'admin' && (
           <div className="mt-4 p-4 bg-muted/50 rounded-xl text-sm text-muted-foreground">
             <Shield className="h-4 w-4 inline mr-2" />
-            The admin role has full access to all permissions and cannot be modified.
+            {t('permissions.adminFullAccess')}
           </div>
         )}
       </div>

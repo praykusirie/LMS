@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -33,6 +34,7 @@ interface ClassItem {
 }
 
 export function AddStudent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: session } = useSession();
@@ -113,11 +115,11 @@ export function AddStudent() {
     setSuccessMessage('');
 
     if (!formData.first_name || !formData.last_name || !formData.class_id) {
-      setErrorMessage('Please fill in all required fields');
+      setErrorMessage(t('students.fillRequired'));
       return;
     }
     if (isAdmin && !formData.level) {
-      setErrorMessage('Level is required');
+      setErrorMessage(t('students.levelRequired'));
       return;
     }
 
@@ -143,8 +145,8 @@ export function AddStudent() {
         level: getEffectiveLevel(),
       });
 
-      setSuccessMessage(`Student registered successfully! Student ID: ${nextId}`);
-      toast.success('Student registered successfully');
+      setSuccessMessage(t('students.registeredSuccessId', { id: nextId }));
+      toast.success(t('students.registerSuccess'));
       
       // Reset form and get next ID
       setFormData({
@@ -163,7 +165,7 @@ export function AddStudent() {
       });
       fetchNextId();
     } catch (error: any) {
-      setErrorMessage(error?.response?.data?.message || 'Failed to register student');
+      setErrorMessage(error?.response?.data?.message || t('students.failedToRegister'));
     } finally {
       setIsSubmitting(false);
     }
@@ -175,7 +177,7 @@ export function AddStudent() {
 
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!['csv', 'xlsx', 'xls'].includes(ext || '')) {
-      setErrorMessage('Please upload a CSV or Excel (.xlsx/.xls) file');
+      setErrorMessage(t('students.uploadError'));
       return;
     }
 
@@ -195,7 +197,7 @@ export function AddStudent() {
     try {
       const effectiveLevel = isAdmin ? bulkLevel : (userLevel || '');
       if (isAdmin && !effectiveLevel) {
-        setErrorMessage('Level is required for bulk import');
+        setErrorMessage(t('students.levelRequiredBulk'));
         setIsSubmitting(false);
         return;
       }
@@ -210,16 +212,16 @@ export function AddStudent() {
 
       setImportResult(data);
       if (data.imported > 0) {
-        setSuccessMessage(`Successfully imported ${data.imported} of ${data.total} students!`);
-        toast.success(`Imported ${data.imported} students`);
+        setSuccessMessage(t('students.successfullyImported', { imported: data.imported, total: data.total }));
+        toast.success(t('students.importedCount', { count: data.imported }));
       }
       if (data.skipped > 0 && data.imported === 0) {
-        setErrorMessage(`All ${data.skipped} rows were skipped. Check the file format.`);
+        setErrorMessage(t('students.allRowsSkipped', { count: data.skipped }));
       }
       setBulkFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error: any) {
-      setErrorMessage(error?.response?.data?.error || 'Failed to import students');
+      setErrorMessage(error?.response?.data?.error || t('students.failedToImport'));
     } finally {
       setIsSubmitting(false);
     }
@@ -238,18 +240,18 @@ export function AddStudent() {
 
   const renderLevelSelect = () => (
     <div className="space-y-2">
-      <Label>Level <span className="text-red-500">*</span></Label>
+      <Label>{t('students.level')} <span className="text-red-500">*</span></Label>
       <Select
         value={isAdmin ? formData.level : (userLevel || '')}
         onValueChange={(value) => setFormData({ ...formData, level: value })}
         disabled={!isAdmin}
       >
         <SelectTrigger className="rounded-xl h-11">
-          <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+          <SelectValue placeholder={isAdmin ? t('students.selectLevel') : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="primary">Primary Level</SelectItem>
-          <SelectItem value="secondary">Secondary Level</SelectItem>
+          <SelectItem value="primary">{t('students.primaryLevel')}</SelectItem>
+          <SelectItem value="secondary">{t('students.secondaryLevel')}</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -273,9 +275,9 @@ export function AddStudent() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Register Student</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('students.registerStudent')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Add individual student or bulk import via Excel/CSV
+            {t('students.addSubtitle')}
           </p>
         </div>
       </motion.div>
@@ -285,7 +287,7 @@ export function AddStudent() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-green-50 text-green-700 rounded-xl flex items-center gap-2"
+          className="p-4 bg-green-50 dark:bg-green-950/30 text-green-700 rounded-xl flex items-center gap-2"
         >
           <CheckCircle2 className="h-5 w-5" />
           {successMessage}
@@ -296,7 +298,7 @@ export function AddStudent() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-2"
+          className="p-4 bg-red-50 dark:bg-red-950/30 text-red-600 rounded-xl flex items-center gap-2"
         >
           <AlertCircle className="h-5 w-5" />
           {errorMessage}
@@ -308,17 +310,17 @@ export function AddStudent() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+        className="rounded-[20px] bg-card p-6 shadow-card"
       >
         <Tabs defaultValue="individual" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6 rounded-xl h-12">
             <TabsTrigger value="individual" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
               <UserPlus className="h-4 w-4 mr-2" />
-              Individual Registration
+              {t('students.individualRegistration')}
             </TabsTrigger>
             <TabsTrigger value="bulk" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
               <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Bulk Import (Excel/CSV)
+              {t('students.bulkImportExcel')}
             </TabsTrigger>
           </TabsList>
 
@@ -328,30 +330,30 @@ export function AddStudent() {
               {/* Next ID Display */}
               <div className="p-4 bg-navy/5 rounded-xl">
                 <p className="text-sm text-navy">
-                  <strong>Next Student ID:</strong> <span className="font-mono text-navy font-bold">{nextId || 'Loading...'}</span>
+                  <strong>{t('students.nextStudentId')}</strong> <span className="font-mono text-navy font-bold">{nextId || t('common.loading')}</span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  This ID will be automatically assigned to the new student.
+                  {t('students.autoAssignId')}
                 </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>First Name <span className="text-red-500">*</span></Label>
+                  <Label>{t('students.firstName')} <span className="text-red-500">*</span></Label>
                   <Input
                     value={formData.first_name}
                     onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    placeholder="Enter first name"
+                    placeholder={t('students.enterFirstName')}
                     className="rounded-xl h-11"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Last Name <span className="text-red-500">*</span></Label>
+                  <Label>{t('students.lastName')} <span className="text-red-500">*</span></Label>
                   <Input
                     value={formData.last_name}
                     onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    placeholder="Enter last name"
+                    placeholder={t('students.enterLastName')}
                     className="rounded-xl h-11"
                     required
                   />
@@ -360,13 +362,13 @@ export function AddStudent() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Class <span className="text-red-500">*</span></Label>
+                  <Label>{t('students.class')} <span className="text-red-500">*</span></Label>
                   <Select 
                     value={formData.class_id} 
                     onValueChange={(value) => setFormData({ ...formData, class_id: value })}
                   >
                     <SelectTrigger className="rounded-xl h-11">
-                      <SelectValue placeholder="Select class" />
+                      <SelectValue placeholder={t('students.selectClass')} />
                     </SelectTrigger>
                     <SelectContent>
                       {classes.map((cls) => (
@@ -378,18 +380,18 @@ export function AddStudent() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Gender <span className="text-red-500">*</span></Label>
+                  <Label>{t('students.gender')} <span className="text-red-500">*</span></Label>
                   <Select 
                     value={formData.gender} 
                     onValueChange={(value) => setFormData({ ...formData, gender: value as 'male' | 'female' | 'other' })}
                   >
                     <SelectTrigger className="rounded-xl h-11">
-                      <SelectValue placeholder="Select gender" />
+                      <SelectValue placeholder={t('students.selectGender')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="male">{t('common.male')}</SelectItem>
+                      <SelectItem value="female">{t('common.female')}</SelectItem>
+                      <SelectItem value="other">{t('common.other')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -397,7 +399,7 @@ export function AddStudent() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Date of Birth</Label>
+                  <Label>{t('students.dateOfBirth')}</Label>
                   <Input
                     type="date"
                     value={formData.dob}
@@ -406,7 +408,7 @@ export function AddStudent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Nationality</Label>
+                  <Label>{t('students.nationality')}</Label>
                   <Input
                     value={formData.nationality}
                     onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
@@ -418,21 +420,21 @@ export function AddStudent() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Student Email</Label>
+                  <Label>{t('students.studentEmail')}</Label>
                   <Input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="Enter student email"
+                    placeholder={t('students.enterStudentEmail')}
                     className="rounded-xl h-11"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Student Phone</Label>
+                  <Label>{t('students.studentPhone')}</Label>
                   <Input
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="Enter student phone"
+                    placeholder={t('students.enterStudentPhone')}
                     className="rounded-xl h-11"
                   />
                 </div>
@@ -440,32 +442,32 @@ export function AddStudent() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Parent Email</Label>
+                  <Label>{t('students.parentEmail')}</Label>
                   <Input
                     type="email"
                     value={formData.parent_email}
                     onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
-                    placeholder="Enter parent email"
+                    placeholder={t('students.enterParentEmail')}
                     className="rounded-xl h-11"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Parent Phone</Label>
+                  <Label>{t('students.parentPhoneLabel')}</Label>
                   <Input
                     value={formData.parent_phone}
                     onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
-                    placeholder="Enter parent phone"
+                    placeholder={t('students.enterParentPhone')}
                     className="rounded-xl h-11"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Address</Label>
+                <Label>{t('students.address')}</Label>
                 <Input
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Enter address"
+                  placeholder={t('students.enterAddress')}
                   className="rounded-xl h-11"
                 />
               </div>
@@ -479,14 +481,14 @@ export function AddStudent() {
                   onClick={() => navigate('/students')}
                   className="rounded-xl h-11"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button 
                   type="submit" 
                   className="bg-navy hover:bg-navy/90 rounded-xl h-11"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Registering...</> : 'Register Student'}
+                  {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('students.registering')}</> : t('students.registerStudent')}
                 </Button>
               </div>
             </form>
@@ -497,9 +499,9 @@ export function AddStudent() {
             <div className="space-y-6">
               {/* File Format Info */}
               <div className="p-4 bg-secondary/50 rounded-xl">
-                <h3 className="font-medium text-sm mb-2">Supported File Formats</h3>
+                <h3 className="font-medium text-sm mb-2">{t('students.supportedFormats')}</h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Upload an Excel (.xlsx/.xls) or CSV file. The following columns are recognized (headers are case-insensitive):
+                  {t('students.formatDescription')}
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
                   <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">StudentID (optional)</span>
@@ -518,24 +520,24 @@ export function AddStudent() {
                   className="rounded-lg"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download CSV Template
+                  {t('students.downloadTemplate')}
                 </Button>
               </div>
 
               {/* Level for bulk */}
               {isAdmin && (
                 <div className="space-y-2">
-                  <Label>Level <span className="text-red-500">*</span></Label>
+                  <Label>{t('students.level')} <span className="text-red-500">*</span></Label>
                   <Select
                     value={bulkLevel}
                     onValueChange={(value) => setBulkLevel(value)}
                   >
                     <SelectTrigger className="rounded-xl h-11">
-                      <SelectValue placeholder="Select level" />
+                      <SelectValue placeholder={t('students.selectLevel')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="primary">Primary Level</SelectItem>
-                      <SelectItem value="secondary">Secondary Level</SelectItem>
+                      <SelectItem value="primary">{t('students.primaryLevel')}</SelectItem>
+                      <SelectItem value="secondary">{t('students.secondaryLevel')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -555,21 +557,21 @@ export function AddStudent() {
                 />
                 <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm font-medium text-foreground">
-                  {bulkFile ? bulkFile.name : 'Click to upload Excel or CSV file'}
+                  {bulkFile ? bulkFile.name : t('students.clickToUpload')}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Supports .xlsx, .xls, and .csv formats
+                  {t('students.supportedFileTypes')}
                 </p>
               </div>
 
               {/* Import Result */}
               {importResult && (
                 <div className="p-4 bg-secondary/50 rounded-xl space-y-2">
-                  <h3 className="font-medium text-sm">Import Results</h3>
+                  <h3 className="font-medium text-sm">{t('students.importResults')}</h3>
                   <div className="flex flex-wrap gap-4 text-sm">
-                    <span className="text-green-600">Imported: {importResult.imported}</span>
-                    <span className="text-amber-600">Skipped: {importResult.skipped}</span>
-                    <span className="text-muted-foreground">Total rows: {importResult.total}</span>
+                    <span className="text-green-600">{t('students.imported')}: {importResult.imported}</span>
+                    <span className="text-amber-600">{t('students.skipped')}: {importResult.skipped}</span>
+                    <span className="text-muted-foreground">{t('students.totalRows')}: {importResult.total}</span>
                   </div>
                   {importResult.errors && importResult.errors.length > 0 && (
                     <div className="mt-2 max-h-[150px] overflow-y-auto">
@@ -593,14 +595,14 @@ export function AddStudent() {
                     className="rounded-xl h-11"
                   >
                     <X className="h-4 w-4 mr-2" />
-                    Clear
+                    {t('common.clear')}
                   </Button>
                   <Button 
                     onClick={handleBulkUpload}
                     className="bg-navy hover:bg-navy/90 rounded-xl h-11"
                     disabled={isSubmitting || (isAdmin && !bulkLevel)}
                   >
-                    {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importing...</> : 'Import Students'}
+                    {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('students.importing')}</> : t('students.importStudents')}
                   </Button>
                 </div>
               )}

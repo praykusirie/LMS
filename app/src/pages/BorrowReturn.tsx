@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   BookOpen, 
@@ -12,7 +13,11 @@ import {
   Check,
   ChevronsUpDown,
   Loader2,
+  Camera,
+  Keyboard,
+  ScanBarcode,
 } from 'lucide-react';
+import { BarcodeScanner } from '@/components/shared/BarcodeScanner';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +56,7 @@ interface BookRecord {
   id: string;
   title: string;
   author: string;
+  isbn: string;
   available: number;
   is_active?: boolean;
 }
@@ -81,6 +87,7 @@ interface BorrowRecord {
 }
 
 export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
+  const { t } = useTranslation();
   const [books, setBooks] = useState<BookRecord[]>([]);
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [borrowRecords, setBorrowRecords] = useState<BorrowRecord[]>([]);
@@ -93,6 +100,13 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
   const [dueDate, setDueDate] = useState<string>('');
   const [studentComboboxOpen, setStudentComboboxOpen] = useState(false);
   const [bookComboboxOpen, setBookComboboxOpen] = useState(false);
+  
+  // Scan state
+  const [showScanner, setShowScanner] = useState(false);
+  const [isbnInput, setIsbnInput] = useState('');
+  const [isbnLookupLoading, setIsbnLookupLoading] = useState(false);
+  const [scanMessage, setScanMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const isbnInputRef = useRef<HTMLInputElement>(null);
   
   // Return form state
   const [returnSearch, setReturnSearch] = useState('');
@@ -127,6 +141,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
           id: book.id,
           title: book.title,
           author: book.author || 'Unknown',
+          isbn: book.isbn || '',
           available: Number(book.available || 0),
           is_active: book.is_active,
         }));
@@ -163,7 +178,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
       setBorrowRecords(mappedBorrows);
     } catch (error) {
       console.error('Error fetching borrow/return data:', error);
-      toast.error('Failed to load borrow/return data');
+      toast.error(t('borrowReturn.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -183,11 +198,75 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
   const selectedStudentData = students.find(s => s.id === selectedStudent);
   const selectedBookData = books.find(b => b.id === selectedBook);
 
+  const handleIsbnLookup = useCallback(async (isbn: string) => {
+    const trimmed = isbn.trim();
+    if (!trimmed) return;
+
+    setScanMessage(null);
+    setIsbnLookupLoading(true);
+
+    // Try local lookup first (fast path — books are already fetched)
+    const localMatch = books.find(b => b.isbn === trimmed && b.available > 0);
+    if (localMatch) {
+      setSelectedBook(localMatch.id);
+      setScanMessage({ type: 'success', text: t('borrowReturn.foundBook', { title: localMatch.title }) });
+      setIsbnInput('');
+      setShowScanner(false);
+      setIsbnLookupLoading(false);
+      return;
+    }
+
+    // Fall back to API (handles edge cases where local data might be stale)
+    try {
+      const res = await api.get(`/books/isbn/${encodeURIComponent(trimmed)}`);
+      const results = res.data || [];
+      const available = results.filter((b: any) => b.is_active !== false && Number(b.available) > 0);
+      if (available.length > 0) {
+        // If the book exists in our local list, select it; otherwise use the first API result
+        const match = books.find(b => b.id === available[0].id) || {
+          id: available[0].id,
+          title: available[0].title,
+          author: available[0].author || 'Unknown',
+          isbn: available[0].isbn || '',
+          available: Number(available[0].available || 0),
+        };
+        if (!books.find(b => b.id === match.id)) {
+          setBooks(prev => [...prev, match]);
+        }
+        setSelectedBook(match.id);
+        setScanMessage({ type: 'success', text: t('borrowReturn.foundBook', { title: match.title }) });
+      } else if (results.length > 0) {
+        setScanMessage({ type: 'error', text: t('borrowReturn.bookFoundNoAvailable') });
+      } else {
+        setScanMessage({ type: 'error', text: t('borrowReturn.noBookFoundIsbn', { isbn: trimmed }) });
+      }
+    } catch {
+      // Check if it was a local-only match with no availability
+      const localAny = books.find(b => b.isbn === trimmed);
+      if (localAny) {
+        setScanMessage({ type: 'error', text: t('borrowReturn.bookFoundNoAvailable') });
+      } else {
+        setScanMessage({ type: 'error', text: t('borrowReturn.noBookFoundIsbn', { isbn: trimmed }) });
+      }
+    } finally {
+      setIsbnInput('');
+      setShowScanner(false);
+      setIsbnLookupLoading(false);
+    }
+  }, [books]);
+
+  const handleIsbnKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleIsbnLookup(isbnInput);
+    }
+  };
+
   const handleIssueBook = () => {
     setErrorMessage('');
     
     if (!selectedStudent || !selectedBook || !dueDate) {
-      setErrorMessage('Please fill in all fields');
+      setErrorMessage(t('borrowReturn.fillAllFields'));
       return;
     }
 
@@ -197,14 +276,14 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
     if (!book || !student) return;
 
     if (book.available <= 0) {
-      setErrorMessage('This book is currently out of stock');
+      setErrorMessage(t('borrowReturn.bookOutOfStock'));
       return;
     }
 
     // Check student borrow limit (max 3 books)
     const studentBorrows = borrowRecords.filter(r => r.studentId === selectedStudent && (r.status === 'borrowed' || r.status === 'overdue'));
     if (studentBorrows.length >= 3) {
-      setErrorMessage('Student has reached the maximum borrow limit (3 books)');
+      setErrorMessage(t('borrowReturn.maxBorrowLimitReached'));
       return;
     }
 
@@ -223,7 +302,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
       });
 
       setShowIssueConfirm(false);
-      setSuccessMessage(`Book "${selectedBookData.title}" issued to ${selectedStudentData.name}`);
+      setSuccessMessage(t('borrowReturn.bookIssuedTo', { book: selectedBookData.title, student: selectedStudentData.name }));
       setShowSuccess(true);
 
       setSelectedStudent('');
@@ -235,7 +314,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
       await fetchData();
     } catch (error: any) {
       console.error('Error issuing book:', error);
-      setErrorMessage(error?.message || 'Failed to issue book');
+      setErrorMessage(error?.message || t('borrowReturn.failedToIssue'));
       setShowIssueConfirm(false);
     } finally {
       setIsSubmitting(false);
@@ -255,13 +334,13 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
       await api.patch(`/borrow-records/${selectedBorrow.id}/return`);
 
       setShowReturnConfirm(false);
-      setSuccessMessage(`Book "${selectedBorrow.bookTitle}" returned successfully`);
+      setSuccessMessage(t('borrowReturn.bookReturnedSuccessfully', { book: selectedBorrow.bookTitle }));
       setShowSuccess(true);
       setSelectedBorrow(null);
       await fetchData();
     } catch (error: any) {
       console.error('Error returning book:', error);
-      setErrorMessage(error?.message || 'Failed to return book');
+      setErrorMessage(error?.message || t('borrowReturn.failedToReturn'));
       setShowReturnConfirm(false);
     } finally {
       setIsSubmitting(false);
@@ -278,9 +357,9 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-2xl font-bold text-foreground">Borrow & Return</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t('borrowReturn.pageTitle')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Issue books to students and process returns
+          {t('borrowReturn.pageSubtitle')}
         </p>
       </motion.div>
 
@@ -289,7 +368,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+        className="rounded-[20px] bg-card p-6 shadow-card"
       >
         {isLoading ? (
           <div className="flex items-center justify-center py-10">
@@ -301,11 +380,11 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
             <TabsList className="grid w-full grid-cols-2 mb-6 rounded-xl h-12">
               <TabsTrigger value="borrow" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
                 <ArrowRightLeft className="h-4 w-4 mr-2" />
-                Issue Book
+                {t('borrowReturn.issueBook')}
               </TabsTrigger>
               <TabsTrigger value="return" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
                 <RotateCcw className="h-4 w-4 mr-2" />
-                Return Book
+                {t('borrowReturn.returnBook')}
               </TabsTrigger>
             </TabsList>
           )}
@@ -318,13 +397,13 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                 <ArrowRightLeft className="h-5 w-5 text-navy" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Issue Book</h2>
-                <p className="text-sm text-muted-foreground">Lend a book to a student</p>
+                <h2 className="text-lg font-semibold text-foreground">{t('borrowReturn.issueBook')}</h2>
+                <p className="text-sm text-muted-foreground">{t('borrowReturn.lendBookToStudent')}</p>
               </div>
             </div>
 
             {errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm flex items-center gap-2">
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 text-red-600 rounded-xl text-sm flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" />
                 {errorMessage}
               </div>
@@ -333,7 +412,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
             <div className="space-y-4">
               {/* Searchable Student Select (Combobox) */}
               <div className="space-y-2">
-                <Label>Select Student</Label>
+                <Label>{t('borrowReturn.selectStudent')}</Label>
                 <Popover open={studentComboboxOpen} onOpenChange={setStudentComboboxOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -353,20 +432,20 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                             <span>{selectedStudentData?.name} ({selectedStudentData ? getStudentCode(selectedStudentData) : ''})</span>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">Search and select a student...</span>
+                          <span className="text-muted-foreground">{t('borrowReturn.searchSelectStudent')}</span>
                         )}
                       </div>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
+                  <PopoverContent className="w-[calc(100vw-3rem)] sm:w-[400px] p-0" align="start">
                     <Command className="rounded-xl">
                       <CommandInput 
-                        placeholder="Search students by name or admission number..." 
+                        placeholder={t('borrowReturn.searchStudentPlaceholder')} 
                         className="h-11 border-0 focus:ring-0"
                       />
                       <CommandList>
-                        <CommandEmpty>No student found.</CommandEmpty>
+                        <CommandEmpty>{t('borrowReturn.noStudentFound')}</CommandEmpty>
                         <CommandGroup>
                           {students.filter(s => s.is_active !== false).map((student) => (
                             <CommandItem
@@ -404,69 +483,132 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Select Book</Label>
-                <Popover open={bookComboboxOpen} onOpenChange={setBookComboboxOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={bookComboboxOpen}
-                      className="w-full justify-between rounded-xl h-11 font-normal"
-                    >
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-muted-foreground" />
-                        {selectedBook
-                          ? books.find(b => b.id === selectedBook)?.title
-                          : "Search and select a book..."}
-                      </div>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command className="rounded-xl">
-                      <CommandInput 
-                        placeholder="Search books by title or author..." 
-                        className="h-11 border-0 focus:ring-0"
-                      />
-                      <CommandList>
-                        <CommandEmpty>No books found.</CommandEmpty>
-                        <CommandGroup heading="Available Books">
-                          {books.filter(b => b.available > 0).map((book) => (
-                            <CommandItem
-                              key={book.id}
-                              value={`${book.title} ${book.author}`}
-                              onSelect={() => {
-                                setSelectedBook(book.id);
-                                setBookComboboxOpen(false);
-                              }}
-                              className="cursor-pointer data-[selected=true]:bg-secondary data-[selected=true]:text-foreground"
-                            >
-                              <div className="flex items-center gap-2 flex-1">
-                                <div className="h-8 w-8 rounded-lg bg-navy-light flex items-center justify-center">
-                                  <BookOpen className="h-4 w-4 text-navy" />
+                <Label>{t('borrowReturn.selectBook')}</Label>
+                {/* Book selection: Search, Scan, or ISBN input */}
+                <div className="flex gap-2">
+                  <Popover open={bookComboboxOpen} onOpenChange={setBookComboboxOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={bookComboboxOpen}
+                        className="w-full justify-between rounded-xl h-11 font-normal"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="truncate">
+                            {selectedBook
+                              ? books.find(b => b.id === selectedBook)?.title
+                              : t('borrowReturn.searchBookPlaceholder')}
+                          </span>
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[calc(100vw-3rem)] sm:w-[400px] p-0" align="start">
+                      <Command className="rounded-xl">
+                        <CommandInput 
+                          placeholder={t('borrowReturn.searchBookPlaceholder')} 
+                          className="h-11 border-0 focus:ring-0"
+                        />
+                        <CommandList>
+                          <CommandEmpty>{t('borrowReturn.noBooksFound')}</CommandEmpty>
+                          <CommandGroup heading={t('borrowReturn.availableBooks')}>
+                            {books.filter(b => b.available > 0).map((book) => (
+                              <CommandItem
+                                key={book.id}
+                                value={`${book.title} ${book.author} ${book.isbn}`}
+                                onSelect={() => {
+                                  setSelectedBook(book.id);
+                                  setBookComboboxOpen(false);
+                                  setScanMessage(null);
+                                }}
+                                className="cursor-pointer data-[selected=true]:bg-secondary data-[selected=true]:text-foreground"
+                              >
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <div className="h-8 w-8 rounded-lg bg-navy-light flex items-center justify-center shrink-0">
+                                    <BookOpen className="h-4 w-4 text-navy" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium truncate">{book.title}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{book.author} • {book.available} {t('borrowReturn.available')}{book.isbn ? ` • ISBN: ${book.isbn}` : ''}</p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium">{book.title}</p>
-                                  <p className="text-xs text-muted-foreground">{book.author} • {book.available} available</p>
-                                </div>
-                              </div>
-                              <Check
-                                className={cn(
-                                  "ml-auto h-4 w-4",
-                                  selectedBook === book.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                                <Check
+                                  className={cn(
+                                    "ml-auto h-4 w-4 shrink-0",
+                                    selectedBook === book.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 rounded-xl shrink-0 border-dashed hover:border-navy hover:text-navy"
+                    onClick={() => setShowScanner(true)}
+                    title={t('borrowReturn.scanBarcodeCamera')}
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* ISBN manual input (also works with USB barcode scanners) */}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <ScanBarcode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      ref={isbnInputRef}
+                      placeholder={t('borrowReturn.enterOrScanIsbn')}
+                      value={isbnInput}
+                      onChange={(e) => setIsbnInput(e.target.value)}
+                      onKeyDown={handleIsbnKeyDown}
+                      className="rounded-xl h-10 pl-10 text-sm"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 rounded-xl px-3"
+                    onClick={() => handleIsbnLookup(isbnInput)}
+                    disabled={!isbnInput.trim() || isbnLookupLoading}
+                  >
+                    {isbnLookupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Keyboard className="h-3 w-3" />
+                  {t('borrowReturn.isbnScannerHint')}
+                </p>
+
+                {/* Scan result message */}
+                {scanMessage && (
+                  <div className={cn(
+                    "p-2.5 rounded-xl text-sm flex items-center gap-2",
+                    scanMessage.type === 'success' ? 'bg-green-50 dark:bg-green-950/30 text-green-700' : 'bg-red-50 dark:bg-red-950/30 text-red-600'
+                  )}>
+                    {scanMessage.type === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                    {scanMessage.text}
+                  </div>
+                )}
               </div>
 
+              {/* Camera barcode scanner overlay */}
+              {showScanner && (
+                <BarcodeScanner
+                  onScan={(isbn) => handleIsbnLookup(isbn)}
+                  onClose={() => setShowScanner(false)}
+                />
+              )}
+
               <div className="space-y-2">
-                <Label>Due Date</Label>
+                <Label>{t('borrowReturn.dueDate')}</Label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -478,7 +620,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Default: 14 days from today
+                  {t('borrowReturn.defaultDueDateHint')}
                 </p>
               </div>
 
@@ -486,7 +628,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                 onClick={handleIssueBook}
                 className="w-full bg-navy hover:bg-navy/90 rounded-xl h-11"
               >
-                Issue Book
+                {t('borrowReturn.issueBook')}
               </Button>
             </div>
           </TabsContent>
@@ -500,8 +642,8 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                 <RotateCcw className="h-5 w-5 text-navy" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Return Book</h2>
-                <p className="text-sm text-muted-foreground">Process book returns</p>
+                <h2 className="text-lg font-semibold text-foreground">{t('borrowReturn.returnBook')}</h2>
+                <p className="text-sm text-muted-foreground">{t('borrowReturn.processReturns')}</p>
               </div>
             </div>
 
@@ -509,7 +651,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
               <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search by student or book..."
+                  placeholder={t('borrowReturn.searchByStudentOrBook')}
                   value={returnSearch}
                   onChange={(e) => setReturnSearch(e.target.value)}
                   className="rounded-xl h-11 pl-10"
@@ -520,7 +662,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                 {filteredBorrows.length === 0 ? (
                   <div className="col-span-full">
                     <p className="text-sm text-muted-foreground text-center py-8">
-                      No active borrows found
+                      {t('borrowReturn.noActiveBorrows')}
                     </p>
                   </div>
                 ) : (
@@ -535,8 +677,8 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                           <p className="font-medium text-sm">{borrow.bookTitle}</p>
                           <p className="text-xs text-muted-foreground mt-1">{borrow.studentName}</p>
                           <p className={`text-xs mt-1 ${isOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
-                            Due: {new Date(borrow.dueDate).toLocaleDateString()}
-                            {isOverdue && ' (Overdue)'}
+                            {t('borrowReturn.dueDate')}: {new Date(borrow.dueDate).toLocaleDateString()}
+                            {isOverdue && ` (${t('borrowReturn.overdue')})`}
                           </p>
                         </div>
                         <Button 
@@ -545,7 +687,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                           className="mt-3 rounded-lg bg-navy hover:bg-navy/90 w-full"
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
-                          Return
+                          {t('borrowReturn.return')}
                         </Button>
                       </div>
                     );
@@ -563,7 +705,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
       <Dialog open={showIssueConfirm} onOpenChange={setShowIssueConfirm}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm Book Issue</DialogTitle>
+            <DialogTitle>{t('borrowReturn.confirmBookIssue')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             {selectedStudentData && selectedBookData && (
@@ -586,18 +728,18 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                   <p className="text-xs text-navy/70">{selectedBookData.author}</p>
                 </div>
                 <p className="text-sm text-muted-foreground text-center">
-                  Due date: {dueDate && new Date(dueDate).toLocaleDateString()}
+                  {t('borrowReturn.dueDate')}: {dueDate && new Date(dueDate).toLocaleDateString()}
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowIssueConfirm(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={confirmIssue} className="bg-navy hover:bg-navy/90 rounded-xl" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Confirm Issue
+              {t('borrowReturn.confirmIssue')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -607,24 +749,24 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
       <Dialog open={showReturnConfirm} onOpenChange={setShowReturnConfirm}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm Book Return</DialogTitle>
+            <DialogTitle>{t('borrowReturn.confirmBookReturn')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             {selectedBorrow && (
               <div className="space-y-3">
                 <div className="p-3 bg-secondary/50 rounded-xl">
                   <p className="font-medium text-sm">{selectedBorrow.bookTitle}</p>
-                  <p className="text-xs text-muted-foreground">Borrowed by: {selectedBorrow.studentName}</p>
+                  <p className="text-xs text-muted-foreground">{t('borrowReturn.borrowedBy', { name: selectedBorrow.studentName })}</p>
                 </div>
                 
                 {new Date() > new Date(selectedBorrow.dueDate) && (
-                  <div className="p-3 bg-red-50 rounded-xl">
-                    <p className="text-sm text-red-600 font-medium">Overdue</p>
+                  <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-xl">
+                    <p className="text-sm text-red-600 font-medium">{t('borrowReturn.overdue')}</p>
                     <p className="text-xs text-red-500">
-                      Late by {Math.ceil((new Date().getTime() - new Date(selectedBorrow.dueDate).getTime()) / (1000 * 60 * 60 * 24))} days
+                      {t('borrowReturn.lateByDays', { days: Math.ceil((new Date().getTime() - new Date(selectedBorrow.dueDate).getTime()) / (1000 * 60 * 60 * 24)) })}
                     </p>
                     <p className="text-xs text-red-500">
-                      Penalty: TSH {(Math.ceil((new Date().getTime() - new Date(selectedBorrow.dueDate).getTime()) / (1000 * 60 * 60 * 24)) * 1000).toLocaleString()}
+                      {t('borrowReturn.penaltyAmount', { amount: (Math.ceil((new Date().getTime() - new Date(selectedBorrow.dueDate).getTime()) / (1000 * 60 * 60 * 24)) * 1000).toLocaleString() })}
                     </p>
                   </div>
                 )}
@@ -633,11 +775,11 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReturnConfirm(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={confirmReturn} className="bg-green hover:bg-green/90 rounded-xl" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Confirm Return
+              {t('borrowReturn.confirmReturn')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -650,12 +792,12 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
             <div className="h-16 w-16 rounded-full bg-green-light flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="h-8 w-8 text-green" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground">Success!</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t('common.success')}!</h3>
             <p className="text-sm text-muted-foreground mt-2">{successMessage}</p>
           </div>
           <DialogFooter>
             <Button onClick={() => setShowSuccess(false)} className="w-full bg-navy hover:bg-navy/90 rounded-xl">
-              Done
+              {t('borrowReturn.done')}
             </Button>
           </DialogFooter>
         </DialogContent>

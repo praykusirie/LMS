@@ -31,6 +31,7 @@ import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { useTranslation } from 'react-i18next';
 
 interface ClassItem {
   id: string;
@@ -46,6 +47,7 @@ export function Classes() {
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
+  const { t } = useTranslation();
 
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,7 +74,7 @@ export function Classes() {
       setClasses(data);
     } catch (error) {
       console.error('Error fetching classes:', error);
-      toast.error('Failed to fetch classes');
+      toast.error(t('classes.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +89,7 @@ export function Classes() {
 
   const handleAdd = async () => {
     if (!formData.name.trim()) {
-      toast.error('Class name is required');
+      toast.error(t('classes.nameRequired'));
       return;
     }
 
@@ -100,16 +102,16 @@ export function Classes() {
       await fetchClasses();
       setShowAddDialog(false);
       setFormData({ name: '', description: '', level: '' });
-      toast.success('Class added successfully');
+      toast.success(t('classes.addSuccess'));
     } catch (error: any) {
       console.error('Error adding class:', error);
-      toast.error(error?.message || 'Failed to add class');
+      toast.error(error?.message || t('classes.failedToAdd'));
     }
   };
 
   const handleEdit = async () => {
     if (!selectedClass || !formData.name.trim()) {
-      toast.error('Class name is required');
+      toast.error(t('classes.nameRequired'));
       return;
     }
 
@@ -123,10 +125,10 @@ export function Classes() {
       setShowEditDialog(false);
       setSelectedClass(null);
       setFormData({ name: '', description: '', level: '' });
-      toast.success('Class updated successfully');
+      toast.success(t('classes.updateSuccess'));
     } catch (error) {
       console.error('Error updating class:', error);
-      toast.error('Failed to update class');
+      toast.error(t('classes.failedToUpdate'));
     }
   };
 
@@ -138,10 +140,10 @@ export function Classes() {
       await fetchClasses();
       setShowDeleteDialog(false);
       setSelectedClass(null);
-      toast.success('Class deleted successfully');
+      toast.success(t('classes.deleteSuccess'));
     } catch (error) {
       console.error('Error deleting class:', error);
-      toast.error('Failed to delete class');
+      toast.error(t('classes.failedToDelete'));
     }
   };
 
@@ -159,7 +161,7 @@ export function Classes() {
   const columns: DataTableColumn<ClassItem>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Class Name',
+      header: t('classes.className'),
       sortable: true,
       getValue: (row) => row.name,
       render: (classItem) => (
@@ -173,7 +175,7 @@ export function Classes() {
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('common.description'),
       sortable: true,
       getValue: (row) => row.description,
       render: (classItem) => (
@@ -182,7 +184,7 @@ export function Classes() {
     },
     {
       key: 'student_count',
-      header: 'Students',
+      header: t('classes.students'),
       sortable: true,
       getValue: (row) => row.student_count || 0,
       render: (classItem) => (
@@ -191,22 +193,22 @@ export function Classes() {
     },
     {
       key: 'is_active',
-      header: 'Status',
+      header: t('common.status'),
       sortable: true,
       getValue: (row) => row.is_active ? 'Active' : 'Inactive',
       render: (classItem) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           classItem.is_active 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-gray-100 text-gray-700'
+            ? 'bg-green-100 dark:bg-green-900/30 text-green-700' 
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-700'
         }`}>
-          {classItem.is_active ? 'Active' : 'Inactive'}
+          {classItem.is_active ? t('classes.active') : t('classes.inactive')}
         </span>
       ),
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('common.actions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (classItem) => (
@@ -242,9 +244,9 @@ export function Classes() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Classes</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('classes.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage school classes and grade levels
+            {t('classes.subtitle')}
           </p>
         </div>
         <Button 
@@ -255,7 +257,7 @@ export function Classes() {
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Class
+          {t('classes.addClass')}
         </Button>
       </motion.div>
 
@@ -269,7 +271,7 @@ export function Classes() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search classes..."
+            placeholder={t('classes.searchClasses')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -284,36 +286,36 @@ export function Classes() {
         transition={{ duration: 0.5, delay: 0.15 }}
         className="grid grid-cols-1 sm:grid-cols-3 gap-4"
       >
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
               <GraduationCap className="h-5 w-5 text-navy" />
             </div>
             <div>
               <p className="text-2xl font-bold">{classes.length}</p>
-              <p className="text-sm text-muted-foreground">Total Classes</p>
+              <p className="text-sm text-muted-foreground">{t('classes.totalClasses')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-green-light flex items-center justify-center">
               <CheckCircle2 className="h-5 w-5 text-green" />
             </div>
             <div>
               <p className="text-2xl font-bold">{classes.filter(c => c.is_active).length}</p>
-              <p className="text-sm text-muted-foreground">Active Classes</p>
+              <p className="text-sm text-muted-foreground">{t('classes.activeClasses')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-amber-light flex items-center justify-center">
               <GraduationCap className="h-5 w-5 text-amber" />
             </div>
             <div>
               <p className="text-2xl font-bold">{classes.reduce((sum, c) => sum + (c.student_count || 0), 0)}</p>
-              <p className="text-sm text-muted-foreground">Total Students</p>
+              <p className="text-sm text-muted-foreground">{t('classes.totalStudents')}</p>
             </div>
           </div>
         </div>
@@ -331,8 +333,8 @@ export function Classes() {
           isLoading={isLoading}
           getRowId={(row) => row.id}
           emptyIcon={GraduationCap}
-          emptyTitle="No classes found"
-          emptyDescription="Add your first class to get started."
+          emptyTitle={t('classes.noClasses')}
+          emptyDescription={t('classes.noClassesDesc')}
         />
       </motion.div>
 
@@ -340,50 +342,50 @@ export function Classes() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Class</DialogTitle>
+            <DialogTitle>{t('classes.addNewClass')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Class Name *</Label>
+              <Label>{t('classes.className')} *</Label>
               <Input
-                placeholder="e.g., Grade 9"
+                placeholder={t('classes.enterClassName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{t('common.description')}</Label>
               <Input
-                placeholder="e.g., Freshman year"
+                placeholder={t('classes.enterDescription')}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('classes.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('classes.selectLevel') : (userLevel ? (userLevel === 'primary' ? t('classes.primaryLevel') : t('classes.secondaryLevel')) : t('classes.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('classes.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('classes.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleAdd} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Add Class
+              {t('classes.addClass')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -393,50 +395,50 @@ export function Classes() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Class</DialogTitle>
+            <DialogTitle>{t('classes.editClass')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Class Name *</Label>
+              <Label>{t('classes.className')} *</Label>
               <Input
-                placeholder="e.g., Grade 9"
+                placeholder={t('classes.enterClassName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{t('common.description')}</Label>
               <Input
-                placeholder="e.g., Freshman year"
+                placeholder={t('classes.enterDescription')}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('classes.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('classes.selectLevel') : (userLevel ? (userLevel === 'primary' ? t('classes.primaryLevel') : t('classes.secondaryLevel')) : t('classes.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('classes.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('classes.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleEdit} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -446,28 +448,27 @@ export function Classes() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Class</DialogTitle>
+            <DialogTitle>{t('classes.deleteClass')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete <span className="font-medium text-foreground">{selectedClass?.name}</span>? 
-              This action cannot be undone.
+              {t('classes.deleteConfirmMessage', { name: selectedClass?.name })}
             </p>
             {selectedClass && (selectedClass.student_count || 0) > 0 && (
-              <div className="mt-3 p-3 bg-amber-50 rounded-xl">
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
                 <p className="text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
-                  This class has {selectedClass.student_count} students assigned.
+                  {t('classes.hasStudents', { count: selectedClass.student_count })}
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

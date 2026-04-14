@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
@@ -65,6 +66,7 @@ interface StockData {
 }
 
 export function StockView() {
+  const { t } = useTranslation();
   const { stockId } = useParams();
   const navigate = useNavigate();
   const { data: session } = useSession();
@@ -198,7 +200,7 @@ export function StockView() {
             quantity: item.quantity,
           })),
         });
-        toast.success('Stock created successfully');
+        toast.success(t('stock.createSuccess'));
         navigate('/library-inventory/add-stock');
       } else {
         await api.put(`/stocks/${stockId}`, {
@@ -209,12 +211,12 @@ export function StockView() {
             current_stock: item.current_stock,
           })),
         });
-        toast.success('Stock updated successfully');
+        toast.success(t('stock.updateSuccess'));
         await fetchStock();
       }
     } catch (error) {
       console.error('Error saving stock:', error);
-      toast.error('Failed to save stock');
+      toast.error(t('stock.failedToSave'));
     } finally {
       setIsSaving(false);
     }
@@ -224,23 +226,23 @@ export function StockView() {
     switch (status) {
       case 'available':
         return (
-          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">
+          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-950/30">
             <CheckCircle2 className="h-3 w-3 mr-1" />
-            Available
+            {t('stock.available')}
           </Badge>
         );
       case 'low':
         return (
-          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
             <AlertTriangle className="h-3 w-3 mr-1" />
-            Low in Stock
+            {t('stock.lowInStock')}
           </Badge>
         );
       case 'out_of_stock':
         return (
           <Badge variant="destructive">
             <XCircle className="h-3 w-3 mr-1" />
-            Out of Stock
+            {t('stock.outOfStock')}
           </Badge>
         );
       default:
@@ -273,10 +275,10 @@ export function StockView() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground">
-            {isNew ? 'Create New Stock' : `Stock ${stock?.stock_id}`}
+            {isNew ? t('stock.createNewStock') : `${t('stock.stockList')} ${stock?.stock_id}`}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {isNew ? 'Add items to create a new stock entry' : 'View and manage stock items'}
+            {isNew ? t('stock.createStockSubtitle') : t('stock.viewManageSubtitle')}
           </p>
         </div>
         <Button 
@@ -289,16 +291,16 @@ export function StockView() {
           ) : (
             <Save className="h-4 w-4 mr-2" />
           )}
-          {isNew ? 'Create Stock' : 'Save Changes'}
+          {isNew ? t('stock.createStock') : t('stock.saveChanges')}
         </Button>
       </div>
 
       {/* Stock Info */}
-      <div className="rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+      <div className="rounded-[20px] bg-card p-6 shadow-card-sm">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
           <div className="space-y-2">
             <Label className="text-muted-foreground flex items-center gap-2">
-              <Hash className="h-4 w-4" /> Stock ID
+              <Hash className="h-4 w-4" /> {t('stock.stockId')}
             </Label>
             <Input 
               value={isNew ? nextStockId : (stock?.stock_id || '')} 
@@ -308,7 +310,7 @@ export function StockView() {
           </div>
           <div className="space-y-2">
             <Label className="text-muted-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4" /> Created Date
+              <Calendar className="h-4 w-4" /> {t('stock.createdDate')}
             </Label>
             <Input 
               value={isNew ? new Date().toLocaleDateString() : (stock ? new Date(stock.created_at).toLocaleDateString() : '')} 
@@ -318,7 +320,7 @@ export function StockView() {
           </div>
           <div className="space-y-2">
             <Label className="text-muted-foreground flex items-center gap-2">
-              <User className="h-4 w-4" /> Created By
+              <User className="h-4 w-4" /> {t('stock.createdBy')}
             </Label>
             <Input 
               value={isNew ? (session?.user?.name || session?.user?.email || '') : (stock?.created_by_name || stock?.created_by || '')} 
@@ -328,30 +330,30 @@ export function StockView() {
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
+          <Label htmlFor="notes">{t('stock.notes')}</Label>
           <Textarea 
             id="notes"
             value={notes} 
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Optional notes about this stock entry..."
+            placeholder={t('stock.notesPlaceholder')}
             className="rounded-xl resize-none"
             rows={2}
           />
         </div>
         {isNew && (
           <div className="space-y-2 mt-4">
-            <Label>Level</Label>
+            <Label>{t('stock.level')}</Label>
             <Select
               value={isAdmin ? stockLevel : (userLevel || '')}
               onValueChange={(value) => setStockLevel(value)}
               disabled={!isAdmin}
             >
               <SelectTrigger className="rounded-xl max-w-xs">
-                <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                <SelectValue placeholder={isAdmin ? t('stock.selectLevel') : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : t('stock.noLevel'))} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="primary">Primary Level</SelectItem>
-                <SelectItem value="secondary">Secondary Level</SelectItem>
+                <SelectItem value="primary">{t('stock.primaryLevel')}</SelectItem>
+                <SelectItem value="secondary">{t('stock.secondaryLevel')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -359,28 +361,28 @@ export function StockView() {
       </div>
 
       {/* Stock Items */}
-      <div className="rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+      <div className="rounded-[20px] bg-card p-6 shadow-card-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Stock Items</h2>
+          <h2 className="text-lg font-semibold">{t('stock.stockItems')}</h2>
           <Button variant="outline" onClick={addItem} className="rounded-xl">
             <Plus className="h-4 w-4 mr-2" />
-            Add Item
+            {t('stock.addItem')}
           </Button>
         </div>
 
         {items.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Package className="h-10 w-10 mx-auto mb-3 opacity-50" />
-            <p>No items added yet. Click "Add Item" to start.</p>
+            <p>{t('stock.noItemsAdded')}</p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40%]">Item</TableHead>
-                <TableHead className="text-right">Current Stock</TableHead>
-                <TableHead className="text-right">Quantity</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="w-[40%]">{t('stock.item')}</TableHead>
+                <TableHead className="text-right">{t('stock.currentStock')}</TableHead>
+                <TableHead className="text-right">{t('stock.quantity')}</TableHead>
+                <TableHead>{t('stock.status')}</TableHead>
                 <TableHead className="w-[60px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -393,7 +395,7 @@ export function StockView() {
                       onValueChange={(value) => updateItem(index, 'item_id', value)}
                     >
                       <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="Select an item" />
+                        <SelectValue placeholder={t('stock.selectAnItem')} />
                       </SelectTrigger>
                       <SelectContent>
                         {availableItems

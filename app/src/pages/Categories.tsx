@@ -32,6 +32,7 @@ import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { useTranslation } from 'react-i18next';
 
 interface Category {
   id: string;
@@ -47,6 +48,7 @@ export function Categories() {
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
+  const { t } = useTranslation();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +75,7 @@ export function Categories() {
       setCategories(data);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      toast.error('Failed to fetch categories');
+      toast.error(t('categories.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +90,7 @@ export function Categories() {
 
   const handleAdd = async () => {
     if (!formData.name.trim()) {
-      toast.error('Category name is required');
+      toast.error(t('categories.nameRequired'));
       return;
     }
 
@@ -101,16 +103,16 @@ export function Categories() {
       await fetchCategories();
       setShowAddDialog(false);
       setFormData({ name: '', description: '', level: '' });
-      toast.success('Category added successfully');
+      toast.success(t('categories.addSuccess'));
     } catch (error: any) {
       console.error('Error adding category:', error);
-      toast.error(error?.message || 'Failed to add category');
+      toast.error(error?.message || t('categories.failedToAdd'));
     }
   };
 
   const handleEdit = async () => {
     if (!selectedCategory || !formData.name.trim()) {
-      toast.error('Category name is required');
+      toast.error(t('categories.nameRequired'));
       return;
     }
 
@@ -123,10 +125,10 @@ export function Categories() {
       setShowEditDialog(false);
       setSelectedCategory(null);
       setFormData({ name: '', description: '', level: '' });
-      toast.success('Category updated successfully');
+      toast.success(t('categories.updateSuccess'));
     } catch (error) {
       console.error('Error updating category:', error);
-      toast.error('Failed to update category');
+      toast.error(t('categories.failedToUpdate'));
     }
   };
 
@@ -138,10 +140,10 @@ export function Categories() {
       await fetchCategories();
       setShowDeleteDialog(false);
       setSelectedCategory(null);
-      toast.success('Category deleted successfully');
+      toast.success(t('categories.deleteSuccess'));
     } catch (error) {
       console.error('Error deleting category:', error);
-      toast.error('Failed to delete category');
+      toast.error(t('categories.failedToDelete'));
     }
   };
 
@@ -159,7 +161,7 @@ export function Categories() {
   const columns: DataTableColumn<Category>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Category Name',
+      header: t('categories.categoryName'),
       sortable: true,
       getValue: (row) => row.name,
       render: (category) => (
@@ -173,7 +175,7 @@ export function Categories() {
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('common.description'),
       sortable: true,
       getValue: (row) => row.description,
       render: (category) => (
@@ -182,7 +184,7 @@ export function Categories() {
     },
     {
       key: 'book_count',
-      header: 'Books',
+      header: t('categories.books'),
       sortable: true,
       getValue: (row) => row.book_count || 0,
       render: (category) => (
@@ -191,22 +193,22 @@ export function Categories() {
     },
     {
       key: 'is_active',
-      header: 'Status',
+      header: t('common.status'),
       sortable: true,
       getValue: (row) => row.is_active ? 'Active' : 'Inactive',
       render: (category) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           category.is_active 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-gray-100 text-gray-700'
+            ? 'bg-green-100 dark:bg-green-900/30 text-green-700' 
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-700'
         }`}>
-          {category.is_active ? 'Active' : 'Inactive'}
+          {category.is_active ? t('categories.active') : t('categories.inactive')}
         </span>
       ),
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('common.actions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (category) => (
@@ -242,9 +244,9 @@ export function Categories() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Book Categories</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('categories.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage book categories for classification
+            {t('categories.subtitle')}
           </p>
         </div>
         <Button 
@@ -255,7 +257,7 @@ export function Categories() {
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Category
+          {t('categories.addCategory')}
         </Button>
       </motion.div>
 
@@ -269,7 +271,7 @@ export function Categories() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search categories..."
+            placeholder={t('categories.searchCategories')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -284,36 +286,36 @@ export function Categories() {
         transition={{ duration: 0.5, delay: 0.15 }}
         className="grid grid-cols-1 sm:grid-cols-3 gap-4"
       >
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
               <FolderTree className="h-5 w-5 text-navy" />
             </div>
             <div>
               <p className="text-2xl font-bold">{categories.length}</p>
-              <p className="text-sm text-muted-foreground">Total Categories</p>
+              <p className="text-sm text-muted-foreground">{t('categories.totalCategories')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-green-light flex items-center justify-center">
               <CheckCircle2 className="h-5 w-5 text-green" />
             </div>
             <div>
               <p className="text-2xl font-bold">{categories.filter(c => c.is_active).length}</p>
-              <p className="text-sm text-muted-foreground">Active Categories</p>
+              <p className="text-sm text-muted-foreground">{t('categories.activeCategories')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-amber-light flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-amber" />
             </div>
             <div>
               <p className="text-2xl font-bold">{categories.reduce((sum, c) => sum + (c.book_count || 0), 0)}</p>
-              <p className="text-sm text-muted-foreground">Total Books</p>
+              <p className="text-sm text-muted-foreground">{t('categories.totalBooks')}</p>
             </div>
           </div>
         </div>
@@ -331,8 +333,8 @@ export function Categories() {
           isLoading={isLoading}
           getRowId={(row) => row.id}
           emptyIcon={FolderTree}
-          emptyTitle="No categories found"
-          emptyDescription="Add your first category to get started."
+          emptyTitle={t('categories.noCategories')}
+          emptyDescription={t('categories.noCategoriesDesc')}
         />
       </motion.div>
 
@@ -340,50 +342,50 @@ export function Categories() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Category</DialogTitle>
+            <DialogTitle>{t('categories.addNewCategory')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Category Name *</Label>
+              <Label>{t('categories.categoryName')} *</Label>
               <Input
-                placeholder="e.g., Fiction"
+                placeholder={t('categories.enterCategoryName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{t('common.description')}</Label>
               <Input
-                placeholder="e.g., Novels and fictional stories"
+                placeholder={t('categories.enterDescription')}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('classes.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('categories.selectLevel') : (userLevel ? (userLevel === 'primary' ? t('categories.primaryLevel') : t('categories.secondaryLevel')) : t('categories.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('categories.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('categories.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleAdd} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Add Category
+              {t('categories.addCategory')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -393,50 +395,50 @@ export function Categories() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Category</DialogTitle>
+            <DialogTitle>{t('categories.editCategory')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Category Name *</Label>
+              <Label>{t('categories.categoryName')} *</Label>
               <Input
-                placeholder="e.g., Fiction"
+                placeholder={t('categories.enterCategoryName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{t('common.description')}</Label>
               <Input
-                placeholder="e.g., Novels and fictional stories"
+                placeholder={t('categories.enterDescription')}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('classes.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('categories.selectLevel') : (userLevel ? (userLevel === 'primary' ? t('categories.primaryLevel') : t('categories.secondaryLevel')) : t('categories.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('categories.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('categories.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleEdit} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -446,28 +448,27 @@ export function Categories() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Category</DialogTitle>
+            <DialogTitle>{t('categories.deleteCategory')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete <span className="font-medium text-foreground">{selectedCategory?.name}</span>? 
-              This action cannot be undone.
+              {t('categories.deleteConfirmMessage', { name: selectedCategory?.name })}
             </p>
             {selectedCategory && (selectedCategory.book_count || 0) > 0 && (
-              <div className="mt-3 p-3 bg-amber-50 rounded-xl">
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
                 <p className="text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
-                  This category has {selectedCategory.book_count} books assigned.
+                  {t('categories.hasBooks', { count: selectedCategory.book_count })}
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -72,6 +73,7 @@ const generateBookCover = (title: string) => {
 export function BookDetail() {
   const { bookId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [book, setBook] = useState<BookRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -87,7 +89,7 @@ export function BookDetail() {
       setBook(data);
     } catch (error) {
       console.error('Error fetching book:', error);
-      toast.error('Failed to load book details');
+      toast.error(t('books.failedToLoadDetails'));
       navigate('/books');
     } finally {
       setIsLoading(false);
@@ -98,10 +100,10 @@ export function BookDetail() {
     if (!book) return;
     try {
       await api.delete(`/books/${book.id}`);
-      toast.success('Book deleted successfully');
+      toast.success(t('books.bookDeletedSuccess'));
       navigate('/books');
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to delete book');
+      toast.error(error?.message || t('books.failedToDelete'));
     }
   };
 
@@ -119,19 +121,19 @@ export function BookDetail() {
   const availPercent = book.quantity > 0 ? (book.available / book.quantity) * 100 : 0;
 
   const infoItems = [
-    { icon: User, label: 'Author', value: book.author },
-    { icon: Hash, label: 'ISBN', value: book.isbn },
-    { icon: Building2, label: 'Publisher', value: book.publisher },
-    { icon: Calendar, label: 'Published', value: book.published_year?.toString() },
-    { icon: FileText, label: 'Pages', value: book.pages?.toString() },
-    { icon: Globe, label: 'Language', value: book.language },
-    { icon: BookCopy, label: 'Series', value: book.series },
-    { icon: Layers, label: 'Volume', value: book.volume },
-    { icon: BookOpen, label: 'Format', value: book.format },
-    { icon: Tag, label: 'Category', value: book.category_name },
-    { icon: GraduationCap, label: 'Subject', value: book.subject_name },
-    { icon: GraduationCap, label: 'Class', value: book.class_name },
-    { icon: MapPin, label: 'Shelf Location', value: book.shelf_location_code ? `${book.shelf_location_code} — ${book.shelf_location_name}` : book.shelf_location_name },
+    { icon: User, label: t('books.author'), value: book.author },
+    { icon: Hash, label: t('books.isbn'), value: book.isbn },
+    { icon: Building2, label: t('books.publisher'), value: book.publisher },
+    { icon: Calendar, label: t('books.publishYear'), value: book.published_year?.toString() },
+    { icon: FileText, label: t('books.pages'), value: book.pages?.toString() },
+    { icon: Globe, label: t('books.language'), value: book.language },
+    { icon: BookCopy, label: t('books.summary'), value: book.series },
+    { icon: Layers, label: t('books.edition'), value: book.volume },
+    { icon: BookOpen, label: t('books.copies'), value: book.format },
+    { icon: Tag, label: t('books.category'), value: book.category_name },
+    { icon: GraduationCap, label: t('books.subject'), value: book.subject_name },
+    { icon: GraduationCap, label: t('books.class'), value: book.class_name },
+    { icon: MapPin, label: t('books.shelfLocation'), value: book.shelf_location_code ? `${book.shelf_location_code} — ${book.shelf_location_name}` : book.shelf_location_name },
   ].filter(item => item.value);
 
   return (
@@ -153,7 +155,7 @@ export function BookDetail() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Book Details</h1>
+            <h1 className="text-2xl font-bold text-foreground">{t('books.bookDetails')}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">ID: {book.book_id}</p>
           </div>
         </div>
@@ -165,7 +167,7 @@ export function BookDetail() {
             onClick={() => setShowDeleteDialog(true)}
           >
             <Trash2 className="h-4 w-4 mr-1.5" />
-            Delete
+            {t('common.delete')}
           </Button>
         </div>
       </motion.div>
@@ -175,7 +177,7 @@ export function BookDetail() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.05 }}
-        className="rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden"
+        className="rounded-[20px] bg-card shadow-card overflow-hidden"
       >
         <div className="flex flex-col md:flex-row">
           {/* Cover */}
@@ -202,13 +204,13 @@ export function BookDetail() {
                 </Badge>
               )}
               {!book.is_active && (
-                <Badge variant="destructive" className="text-xs">Inactive</Badge>
+                <Badge variant="destructive" className="text-xs">{t('books.inactive')}</Badge>
               )}
             </div>
 
             <h2 className="text-2xl font-bold text-foreground leading-tight">{book.title}</h2>
             {book.author && (
-              <p className="text-base text-muted-foreground mt-1">by {book.author}</p>
+              <p className="text-base text-muted-foreground mt-1">{t('books.byAuthor')} {book.author}</p>
             )}
 
             {book.description && (
@@ -220,22 +222,22 @@ export function BookDetail() {
             {/* Availability bar */}
             <div className="mt-6 max-w-sm">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-foreground">Availability</span>
+                <span className="text-sm font-medium text-foreground">{t('books.availability')}</span>
                 <span className="text-sm text-muted-foreground">
-                  {book.available} of {book.quantity} available
+                  {book.available} {t('common.of')} {book.quantity} {t('books.available').toLowerCase()}
                 </span>
               </div>
               <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${
-                    availPercent > 50 ? 'bg-green-500' : availPercent > 20 ? 'bg-amber-500' : 'bg-red-500'
+                    availPercent > 50 ? 'bg-green-50 dark:bg-green-950/300' : availPercent > 20 ? 'bg-amber-50 dark:bg-amber-950/300' : 'bg-red-50 dark:bg-red-950/300'
                   }`}
                   style={{ width: `${availPercent}%` }}
                 />
               </div>
               <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
-                <span>{borrowed} borrowed</span>
-                <span>{book.available} on shelf</span>
+                <span>{borrowed} {t('books.borrowed').toLowerCase()}</span>
+                <span>{book.available} {t('books.onShelf')}</span>
               </div>
             </div>
           </div>
@@ -247,9 +249,9 @@ export function BookDetail() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className="rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] p-6 md:p-8"
+        className="rounded-[20px] bg-card shadow-card p-6 md:p-8"
       >
-        <h3 className="text-lg font-semibold text-foreground mb-5">Book Information</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-5">{t('books.bookInformation')}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
           {infoItems.map((item, idx) => {
             const Icon = item.icon;
@@ -273,20 +275,20 @@ export function BookDetail() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15 }}
-        className="rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] p-6 md:p-8"
+        className="rounded-[20px] bg-card shadow-card p-6 md:p-8"
       >
-        <h3 className="text-lg font-semibold text-foreground mb-4">Record Details</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">{t('books.recordDetails')}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="p-4 bg-secondary/50 rounded-xl">
-            <p className="text-xs text-muted-foreground mb-1">Book ID</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('books.bookId')}</p>
             <p className="text-sm font-mono font-medium">{book.book_id}</p>
           </div>
           <div className="p-4 bg-secondary/50 rounded-xl">
-            <p className="text-xs text-muted-foreground mb-1">Total Copies</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('books.totalCopies')}</p>
             <p className="text-sm font-medium">{book.quantity}</p>
           </div>
           <div className="p-4 bg-secondary/50 rounded-xl">
-            <p className="text-xs text-muted-foreground mb-1">Added On</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('books.addedOn')}</p>
             <p className="text-sm font-medium">
               {new Date(book.created_at).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric',
@@ -300,20 +302,20 @@ export function BookDetail() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Book</DialogTitle>
+            <DialogTitle>{t('books.deleteBook')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete <span className="font-medium text-foreground">"{book.title}"</span>?
-              This action cannot be undone.
+              {t('books.deleteConfirm')} <span className="font-medium text-foreground">"{book.title}"</span>?
+              {t('books.deleteWarning')}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

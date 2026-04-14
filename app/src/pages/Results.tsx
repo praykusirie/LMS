@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   GraduationCap,
@@ -71,8 +72,8 @@ const generateAvatar = (name: string) => {
 const getGradeColor = (grade: string): string => {
   switch (grade) {
     case 'A*': return 'bg-emerald-500 text-white';
-    case 'A': return 'bg-green-500 text-white';
-    case 'B': return 'bg-blue-500 text-white';
+    case 'A': return 'bg-green-50 dark:bg-green-950/300 text-white';
+    case 'B': return 'bg-blue-50 dark:bg-blue-950/300 text-white';
     case 'C': return 'bg-yellow-500 text-white';
     case 'D': return 'bg-orange-500 text-white';
     case 'E': return 'bg-red-400 text-white';
@@ -88,6 +89,7 @@ const getPositionStyle = (position: number): string => {
 };
 
 export function Results() {
+  const { t } = useTranslation();
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -133,7 +135,7 @@ export function Results() {
       setSummary(data.summary);
     } catch (error) {
       console.error('Error fetching results:', error);
-      toast.error('Failed to fetch results');
+      toast.error(t('results.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +143,7 @@ export function Results() {
 
   const handleExport = async () => {
     if (!selectedClass) {
-      toast.error('Please select a class first');
+      toast.error(t('results.selectClassFirst'));
       return;
     }
 
@@ -162,10 +164,10 @@ export function Results() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success('Results exported successfully');
+      toast.success(t('results.exportSuccess'));
     } catch (error) {
       console.error('Error exporting results:', error);
-      toast.error('Failed to export results');
+      toast.error(t('results.failedToExport'));
     } finally {
       setIsExporting(false);
     }
@@ -176,7 +178,7 @@ export function Results() {
     const baseColumns: DataTableColumn<StudentResult>[] = [
       {
         key: 'position',
-        header: 'Position',
+        header: t('results.position'),
         sortable: true,
         render: (student) => (
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${getPositionStyle(student.position)}`}>
@@ -186,7 +188,7 @@ export function Results() {
       },
       {
         key: 'name',
-        header: 'Student',
+        header: t('results.student'),
         sortable: true,
         render: (student) => (
           <div className="flex items-center gap-3">
@@ -230,7 +232,7 @@ export function Results() {
     const summaryColumns: DataTableColumn<StudentResult>[] = [
       {
         key: 'average',
-        header: 'Average',
+        header: t('results.average'),
         sortable: true,
         render: (student) => (
           <div className="text-right">
@@ -243,7 +245,7 @@ export function Results() {
       },
       {
         key: 'grade',
-        header: 'Grade',
+        header: t('results.grade'),
         sortable: true,
         render: (student) => (
           <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-sm font-bold ${getGradeColor(student.grade)}`}>
@@ -253,7 +255,7 @@ export function Results() {
       },
       {
         key: 'progress',
-        header: 'Progress',
+        header: t('results.progress'),
         render: (student) => (
           <div className="w-20">
             <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -283,9 +285,9 @@ export function Results() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Results</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('results.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            View and export student performance results
+            {t('results.viewAndExport')}
           </p>
         </div>
         <Button 
@@ -294,7 +296,7 @@ export function Results() {
           disabled={isExporting || !selectedClass || students.length === 0}
         >
           {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
-          Export to Excel
+          {t('results.exportToExcel')}
         </Button>
       </motion.div>
 
@@ -303,16 +305,16 @@ export function Results() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="flex items-center gap-4 p-4 bg-white rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+        className="flex items-center gap-4 p-4 bg-card rounded-[20px] shadow-card"
       >
         <div className="h-12 w-12 rounded-xl bg-navy/10 flex items-center justify-center">
           <GraduationCap className="h-6 w-6 text-navy" />
         </div>
         <div className="flex-1">
-          <Label className="text-xs text-muted-foreground">Select Class</Label>
+          <Label className="text-xs text-muted-foreground">{t('results.selectClass')}</Label>
           <Select value={selectedClass} onValueChange={setSelectedClass}>
             <SelectTrigger className="w-[300px] rounded-xl h-11 mt-1">
-              <SelectValue placeholder="Choose a class to view results" />
+              <SelectValue placeholder={t('results.chooseClass')} />
             </SelectTrigger>
             <SelectContent>
               {classes.map(cls => (
@@ -332,49 +334,49 @@ export function Results() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
         >
-          <div className="p-4 bg-white rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+          <div className="p-4 bg-card rounded-[20px] shadow-card">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                 <BookOpen className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Total Activities</p>
+                <p className="text-xs text-muted-foreground">{t('results.totalActivities')}</p>
                 <p className="text-xl font-bold">{summary.totalActivities}</p>
               </div>
             </div>
           </div>
           
-          <div className="p-4 bg-white rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+          <div className="p-4 bg-card rounded-[20px] shadow-card">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                 <Users className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Total Students</p>
+                <p className="text-xs text-muted-foreground">{t('results.totalStudents')}</p>
                 <p className="text-xl font-bold">{summary.totalStudents}</p>
               </div>
             </div>
           </div>
           
-          <div className="p-4 bg-white rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+          <div className="p-4 bg-card rounded-[20px] shadow-card">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-navy/10 flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-navy" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Class Average</p>
+                <p className="text-xs text-muted-foreground">{t('results.classAverage')}</p>
                 <p className="text-xl font-bold">{summary.classAverage}%</p>
               </div>
             </div>
           </div>
           
-          <div className="p-4 bg-white rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+          <div className="p-4 bg-card rounded-[20px] shadow-card">
             <div className="flex items-center gap-3">
               <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${getGradeColor(summary.classGrade)}`}>
                 <Award className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Class Grade</p>
+                <p className="text-xs text-muted-foreground">{t('results.classGrade')}</p>
                 <p className="text-xl font-bold">{summary.classGrade || '-'}</p>
               </div>
             </div>
@@ -388,7 +390,7 @@ export function Results() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+          className="rounded-[20px] bg-card p-6 shadow-card"
         >
           <DataTable
             data={students}
@@ -396,11 +398,11 @@ export function Results() {
             isLoading={isLoading}
             getRowId={(row) => row.id}
             emptyIcon={Trophy}
-            emptyTitle="No results found"
+            emptyTitle={t('results.noResults')}
             emptyDescription={
               activities.length === 0 
-                ? "No activities have been created for this class yet."
-                : "No students have been marked for the activities in this class."
+                ? t('results.noActivitiesDesc')
+                : t('results.noMarksDesc')
             }
           />
         </motion.div>
@@ -414,7 +416,7 @@ export function Results() {
           className="flex flex-col items-center justify-center py-20 text-muted-foreground"
         >
           <GraduationCap className="h-16 w-16 mb-4" />
-          <p className="text-lg">Select a class to view results</p>
+          <p className="text-lg">{t('results.selectClassToView')}</p>
         </motion.div>
       )}
     </div>

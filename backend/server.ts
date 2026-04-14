@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import { toNodeHandler } from "better-auth/node";
 import { auth } from './lib/auth.js';
+import { requireAuth } from './lib/middleware.js';
 import rolesRouter from './routes/roles.js';
 import permissionsRouter from './routes/permissions.js';
 import itemsRouter from './routes/items.js';
@@ -36,24 +37,24 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json())
 
-// API routes
-app.use('/api/roles', rolesRouter);
-app.use('/api/permissions', permissionsRouter);
-app.use('/api/items', itemsRouter);
-app.use('/api/stocks', stocksRouter);
-app.use('/api/classes', classesRouter);
-app.use('/api/teachers', teachersRouter);
-app.use('/api/categories', categoriesRouter);
-app.use('/api/subjects', subjectsRouter);
-app.use('/api/shelf-locations', shelfLocationsRouter);
-app.use('/api/books', booksRouter);
-app.use('/api/students', studentsRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/activities', activitiesRouter);
-app.use('/api/results', resultsRouter);
-app.use('/api/item-distributions', itemDistributionsRouter);
-app.use('/api/borrow-records', borrowRecordsRouter);
+// All API routes require authentication
+app.use('/api/roles', requireAuth, rolesRouter);
+app.use('/api/permissions', requireAuth, permissionsRouter);
+app.use('/api/items', requireAuth, itemsRouter);
+app.use('/api/stocks', requireAuth, stocksRouter);
+app.use('/api/classes', requireAuth, classesRouter);
+app.use('/api/teachers', requireAuth, teachersRouter);
+app.use('/api/categories', requireAuth, categoriesRouter);
+app.use('/api/subjects', requireAuth, subjectsRouter);
+app.use('/api/shelf-locations', requireAuth, shelfLocationsRouter);
+app.use('/api/books', requireAuth, booksRouter);
+app.use('/api/students', requireAuth, studentsRouter);
+app.use('/api/users', requireAuth, usersRouter);
+app.use('/api/dashboard', requireAuth, dashboardRouter);
+app.use('/api/activities', requireAuth, activitiesRouter);
+app.use('/api/results', requireAuth, resultsRouter);
+app.use('/api/item-distributions', requireAuth, itemDistributionsRouter);
+app.use('/api/borrow-records', requireAuth, borrowRecordsRouter);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

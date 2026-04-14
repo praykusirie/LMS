@@ -37,7 +37,7 @@ export function QuickActionCard({
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        'flex flex-col items-center justify-center gap-3 rounded-[20px] p-5 transition-all duration-200 shadow-[0_10px_30px_rgba(0,0,0,0.06)]',
+        'flex flex-col items-center justify-center gap-3 rounded-[20px] p-5 transition-all duration-200 shadow-card',
         colorClasses[color]
       )}
     >

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Bell, ChevronDown, Check } from 'lucide-react';
+import { Search, Bell, ChevronDown, Check, Menu } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -13,13 +14,16 @@ interface TopBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   isCollapsed: boolean;
+  isMobile: boolean;
+  onMobileMenuOpen: () => void;
 }
 
-export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps) {
+export function TopBar({ searchQuery, onSearchChange, isCollapsed, isMobile, onMobileMenuOpen }: TopBarProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
   const { data: session } = useSession();
+  const { t } = useTranslation();
 
   const displayName = session?.user?.name || 'User';
   const displayEmail = session?.user?.email || 'No email';
@@ -40,7 +44,7 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'overdue':
-        return 'bg-red-100 text-red-600';
+        return 'bg-red-100 dark:bg-red-900/30 text-red-600';
       case 'system':
         return 'bg-navy-light text-navy';
       case 'reminder':
@@ -56,17 +60,29 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.25 }}
       className={cn(
-        "fixed right-0 top-0 z-30 h-[72px] bg-white border-b border-border/60 transition-all duration-300",
-        isCollapsed ? "left-[80px]" : "left-[260px]"
+        "fixed right-0 top-0 z-30 h-[72px] bg-card border-b border-border/60 transition-all duration-300",
+        isMobile ? "left-0" : (isCollapsed ? "left-[80px]" : "left-[260px]")
       )}
     >
-      <div className="flex h-full items-center justify-between px-8">
+      <div className="flex h-full items-center justify-between px-4 md:px-8">
+        {/* Mobile hamburger */}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-xl mr-2 shrink-0"
+            onClick={onMobileMenuOpen}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+
         {/* Search */}
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search books, students..."
+            placeholder={t('topbar.search')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="h-10 pl-10 rounded-xl bg-secondary border-0 text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-navy/20"
@@ -96,23 +112,23 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 top-full mt-2 w-80 rounded-2xl bg-white shadow-lg border border-border/60 overflow-hidden"
+                  className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-card shadow-lg border border-border/60 overflow-hidden"
                 >
                   <div className="flex items-center justify-between p-4 border-b border-border/60">
-                    <h3 className="font-semibold text-sm">Notifications</h3>
+                    <h3 className="font-semibold text-sm">{t('topbar.notifications')}</h3>
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
                         className="text-xs text-navy hover:underline"
                       >
-                        Mark all as read
+                        {t('topbar.markAllRead')}
                       </button>
                     )}
                   </div>
                   <div className="max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (
                       <div className="p-4 text-center text-sm text-muted-foreground">
-                        No notifications
+                        {t('topbar.noNotifications')}
                       </div>
                     ) : (
                       notifications.map((notification) => (
@@ -180,7 +196,7 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-white shadow-lg border border-border/60 overflow-hidden"
+                  className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-card shadow-lg border border-border/60 overflow-hidden"
                 >
                   <div className="p-4 border-b border-border/60">
                     <p className="font-medium text-sm">{displayName}</p>
@@ -188,10 +204,10 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed }: TopBarProps
                   </div>
                   <div className="p-2">
                     <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                      Profile Settings
+                      {t('topbar.profileSettings')}
                     </button>
                     <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                      Preferences
+                      {t('topbar.preferences')}
                     </button>
                   </div>
                 </motion.div>

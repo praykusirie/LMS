@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, Save, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ interface Teacher {
 }
 
 export function AddTeacher() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { teacherId } = useParams();
   const [searchParams] = useSearchParams();
@@ -97,11 +99,11 @@ export function AddTeacher() {
       } else {
         await api.post('/teachers', payload);
       }
-      toast.success(isEdit ? 'Teacher updated successfully' : 'Teacher added successfully');
+      toast.success(isEdit ? t('teachers.updateSuccess') : t('teachers.addSuccess'));
       navigate('/teachers');
     } catch (error: any) {
       console.error('Error saving teacher:', error);
-      toast.error(error?.message || 'Failed to save teacher');
+      toast.error(error?.message || t('teachers.failedToSave'));
     } finally {
       setIsSaving(false);
     }
@@ -122,41 +124,41 @@ export function AddTeacher() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{isViewMode ? 'Teacher Details' : isEdit ? 'Edit Teacher' : 'Add Teacher'}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Create and manage teacher details</p>
+          <h1 className="text-2xl font-bold text-foreground">{isViewMode ? t('teachers.teacherDetails') : isEdit ? t('teachers.editTeacher') : t('teachers.addTeacher')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('teachers.manageDetails')}</p>
         </div>
       </div>
 
-      <div className="max-w-2xl rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)] space-y-5">
+      <div className="max-w-2xl rounded-[20px] bg-card p-6 shadow-card-sm space-y-5">
         <div className="space-y-2">
-          <Label>Teacher ID</Label>
+          <Label>{t('teachers.teacherId')}</Label>
           <Input value={nextTeacherId} disabled className="rounded-xl bg-muted font-mono" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Teacher Name</Label>
+            <Label>{t('teachers.teacherName')}</Label>
             <Input
               value={formData.name}
               onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter teacher name"
+              placeholder={t('teachers.enterName')}
               className="rounded-xl"
               disabled={isViewMode}
             />
           </div>
           <div className="space-y-2">
-            <Label>Gender</Label>
+            <Label>{t('teachers.gender')}</Label>
             <Select
               value={formData.gender}
               onValueChange={(value: 'male' | 'female') => setFormData((prev) => ({ ...prev, gender: value }))}
               disabled={isViewMode}
             >
               <SelectTrigger className="rounded-xl">
-                <SelectValue placeholder="Select gender" />
+                <SelectValue placeholder={t('teachers.selectGender')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="male">{t('common.male')}</SelectItem>
+                <SelectItem value="female">{t('common.female')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -175,19 +177,19 @@ export function AddTeacher() {
             }
             disabled={isViewMode}
           />
-          <Label htmlFor="is_homeroom_teacher">Homeroom Teacher</Label>
+          <Label htmlFor="is_homeroom_teacher">{t('teachers.homeroomTeacher')}</Label>
         </div>
 
         {formData.is_homeroom_teacher && (
           <div className="space-y-2">
-            <Label>Class</Label>
+            <Label>{t('students.class')}</Label>
             <Select
               value={formData.homeroom_class_id}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, homeroom_class_id: value }))}
               disabled={isViewMode}
             >
               <SelectTrigger className="rounded-xl">
-                <SelectValue placeholder="Select class" />
+                <SelectValue placeholder={t('teachers.selectClass')} />
               </SelectTrigger>
               <SelectContent>
                 {classes.map((classItem) => (
@@ -201,35 +203,35 @@ export function AddTeacher() {
         )}
 
         <div className="space-y-2">
-          <Label>Level</Label>
+          <Label>{t('teachers.level')}</Label>
           <Select
             value={isAdmin ? formData.level : (userLevel || '')}
             onValueChange={(value) => setFormData((prev) => ({ ...prev, level: value }))}
             disabled={isViewMode || !isAdmin}
           >
             <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+              <SelectValue placeholder={isAdmin ? t('teachers.selectLevel') : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="primary">Primary Level</SelectItem>
-              <SelectItem value="secondary">Secondary Level</SelectItem>
+              <SelectItem value="primary">{t('teachers.primaryLevel')}</SelectItem>
+              <SelectItem value="secondary">{t('teachers.secondaryLevel')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex justify-end gap-3 pt-4">
           <Button variant="outline" onClick={() => navigate('/teachers')} className="rounded-xl">
-            {isViewMode ? 'Back' : 'Cancel'}
+            {isViewMode ? t('common.back') : t('common.cancel')}
           </Button>
           {isViewMode ? (
             <Button onClick={() => navigate(`/teachers/${teacherId}`)} className="bg-navy hover:bg-navy/90 rounded-xl">
               <Edit2 className="h-4 w-4 mr-2" />
-              Edit Teacher
+              {t('teachers.editTeacher')}
             </Button>
           ) : (
             <Button onClick={handleSave} disabled={isSaving} className="bg-navy hover:bg-navy/90 rounded-xl">
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              {isEdit ? 'Save Changes' : 'Create Teacher'}
+              {isEdit ? t('common.save') : t('teachers.createTeacher')}
             </Button>
           )}
         </div>

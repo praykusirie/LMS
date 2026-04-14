@@ -10,7 +10,7 @@ export function LoadingSkeleton({ type = 'card', count = 4 }: LoadingSkeletonPro
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {Array.from({ length: count }).map((_, i) => (
-          <div key={i} className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+          <div key={i} className="rounded-[20px] bg-card p-5 shadow-card">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <Skeleton className="h-4 w-24" />
@@ -26,7 +26,7 @@ export function LoadingSkeleton({ type = 'card', count = 4 }: LoadingSkeletonPro
 
   if (type === 'table') {
     return (
-      <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+      <div className="rounded-[20px] bg-card p-5 shadow-card">
         <Skeleton className="h-6 w-32 mb-4" />
         <div className="space-y-3">
           <div className="flex gap-4">
@@ -48,7 +48,7 @@ export function LoadingSkeleton({ type = 'card', count = 4 }: LoadingSkeletonPro
 
   if (type === 'list') {
     return (
-      <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+      <div className="rounded-[20px] bg-card p-5 shadow-card">
         <Skeleton className="h-6 w-32 mb-4" />
         <div className="space-y-3">
           {Array.from({ length: count }).map((_, i) => (
@@ -66,7 +66,7 @@ export function LoadingSkeleton({ type = 'card', count = 4 }: LoadingSkeletonPro
   }
 
   return (
-    <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+    <div className="rounded-[20px] bg-card p-5 shadow-card">
       <Skeleton className="h-6 w-32 mb-4" />
       <Skeleton className="h-32 w-full" />
     </div>

@@ -6,7 +6,12 @@ import {
   Shield, 
   Database, 
   Mail,
-  Save
+  Save,
+  Palette,
+  Sun,
+  Moon,
+  Monitor,
+  Languages
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useTheme, type Theme } from '@/lib/theme';
+import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '@/lib/i18n';
 
 export function Settings() {
+  const { t, i18n } = useTranslation();
+  const { theme, setTheme } = useTheme();
+
   const [generalSettings, setGeneralSettings] = useState({
     libraryName: 'School Library',
     email: 'library@school.edu',
@@ -49,7 +60,7 @@ export function Settings() {
 
   const handleSave = () => {
     // Simulate saving settings
-    alert('Settings saved successfully!');
+    alert(t('settings.saveSuccess'));
   };
 
   return (
@@ -60,9 +71,9 @@ export function Settings() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t('settings.title')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage your library system preferences
+          {t('settings.subtitle')}
         </p>
       </motion.div>
 
@@ -70,19 +81,23 @@ export function Settings() {
         <TabsList className="rounded-xl">
           <TabsTrigger value="general" className="rounded-lg">
             <SettingsIcon className="h-4 w-4 mr-2" />
-            General
+            {t('settings.general')}
           </TabsTrigger>
           <TabsTrigger value="notifications" className="rounded-lg">
             <Bell className="h-4 w-4 mr-2" />
-            Notifications
+            {t('settings.notifications')}
           </TabsTrigger>
           <TabsTrigger value="security" className="rounded-lg">
             <Shield className="h-4 w-4 mr-2" />
-            Security
+            {t('settings.security')}
           </TabsTrigger>
           <TabsTrigger value="backup" className="rounded-lg">
             <Database className="h-4 w-4 mr-2" />
-            Backup
+            {t('settings.backup')}
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="rounded-lg">
+            <Palette className="h-4 w-4 mr-2" />
+            {t('settings.appearance')}
           </TabsTrigger>
         </TabsList>
 
@@ -92,14 +107,14 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+            <Card className="rounded-[20px] shadow-card border-0">
               <CardHeader>
-                <CardTitle>Library Information</CardTitle>
-                <CardDescription>Basic details about your library</CardDescription>
+                <CardTitle>{t('settings.libraryInfo')}</CardTitle>
+                <CardDescription>{t('settings.libraryInfoDesc')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Library Name</Label>
+                  <Label>{t('settings.libraryName')}</Label>
                   <Input
                     value={generalSettings.libraryName}
                     onChange={(e) => setGeneralSettings({ ...generalSettings, libraryName: e.target.value })}
@@ -108,7 +123,7 @@ export function Settings() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Email</Label>
+                    <Label>{t('settings.email')}</Label>
                     <Input
                       type="email"
                       value={generalSettings.email}
@@ -117,7 +132,7 @@ export function Settings() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Phone</Label>
+                    <Label>{t('settings.phone')}</Label>
                     <Input
                       value={generalSettings.phone}
                       onChange={(e) => setGeneralSettings({ ...generalSettings, phone: e.target.value })}
@@ -126,7 +141,7 @@ export function Settings() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Address</Label>
+                  <Label>{t('settings.address')}</Label>
                   <Input
                     value={generalSettings.address}
                     onChange={(e) => setGeneralSettings({ ...generalSettings, address: e.target.value })}
@@ -142,15 +157,15 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+            <Card className="rounded-[20px] shadow-card border-0">
               <CardHeader>
-                <CardTitle>Borrowing Rules</CardTitle>
-                <CardDescription>Configure borrowing limits and penalties</CardDescription>
+                <CardTitle>{t('settings.borrowingRules')}</CardTitle>
+                <CardDescription>{t('settings.borrowingRulesDesc')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Borrow Limit</Label>
+                    <Label>{t('settings.borrowLimit')}</Label>
                     <Select 
                       value={generalSettings.borrowLimit} 
                       onValueChange={(value) => setGeneralSettings({ ...generalSettings, borrowLimit: value })}
@@ -167,7 +182,7 @@ export function Settings() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Loan Period (days)</Label>
+                    <Label>{t('settings.loanPeriod')}</Label>
                     <Select 
                       value={generalSettings.loanPeriod} 
                       onValueChange={(value) => setGeneralSettings({ ...generalSettings, loanPeriod: value })}
@@ -184,7 +199,7 @@ export function Settings() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Penalty Rate (TSH/day)</Label>
+                    <Label>{t('settings.penaltyRate')}</Label>
                     <Input
                       type="number"
                       value={generalSettings.penaltyRate}
@@ -204,18 +219,18 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+            <Card className="rounded-[20px] shadow-card border-0">
               <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>Choose what notifications you want to receive</CardDescription>
+                <CardTitle>{t('settings.notificationPrefs')}</CardTitle>
+                <CardDescription>{t('settings.notificationPrefsDesc')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {[
-                  { key: 'emailReminders', label: 'Email Reminders', description: 'Send reminder emails for due books' },
-                  { key: 'smsReminders', label: 'SMS Reminders', description: 'Send SMS reminders to students' },
-                  { key: 'overdueAlerts', label: 'Overdue Alerts', description: 'Get notified when books become overdue' },
-                  { key: 'newBookAlerts', label: 'New Book Alerts', description: 'Notify students about new arrivals' },
-                  { key: 'systemUpdates', label: 'System Updates', description: 'Receive system maintenance notifications' }
+                  { key: 'emailReminders', label: t('settings.emailReminders'), description: t('settings.emailRemindersDesc') },
+                  { key: 'smsReminders', label: t('settings.smsReminders'), description: t('settings.smsRemindersDesc') },
+                  { key: 'overdueAlerts', label: t('settings.overdueAlerts'), description: t('settings.overdueAlertsDesc') },
+                  { key: 'newBookAlerts', label: t('settings.newBookAlerts'), description: t('settings.newBookAlertsDesc') },
+                  { key: 'systemUpdates', label: t('settings.systemUpdates'), description: t('settings.systemUpdatesDesc') }
                 ].map((item) => (
                   <div key={item.key} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0">
                     <div>
@@ -241,16 +256,16 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+            <Card className="rounded-[20px] shadow-card border-0">
               <CardHeader>
-                <CardTitle>Security Settings</CardTitle>
-                <CardDescription>Manage your account security</CardDescription>
+                <CardTitle>{t('settings.securitySettings')}</CardTitle>
+                <CardDescription>{t('settings.securitySettingsDesc')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between py-3 border-b border-border/40">
                   <div>
-                    <p className="font-medium text-sm">Auto Logout</p>
-                    <p className="text-xs text-muted-foreground">Automatically log out after inactivity</p>
+                    <p className="font-medium text-sm">{t('settings.autoLogout')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.autoLogoutDesc')}</p>
                   </div>
                   <Switch
                     checked={securitySettings.autoLogout}
@@ -261,7 +276,7 @@ export function Settings() {
                 </div>
                 {securitySettings.autoLogout && (
                   <div className="space-y-2">
-                    <Label>Logout Timeout (minutes)</Label>
+                    <Label>{t('settings.logoutTimeout')}</Label>
                     <Select 
                       value={securitySettings.logoutTimeout} 
                       onValueChange={(value) => setSecuritySettings({ ...securitySettings, logoutTimeout: value })}
@@ -279,8 +294,8 @@ export function Settings() {
                 )}
                 <div className="flex items-center justify-between py-3 border-b border-border/40">
                   <div>
-                    <p className="font-medium text-sm">Two-Factor Authentication</p>
-                    <p className="text-xs text-muted-foreground">Require 2FA for login</p>
+                    <p className="font-medium text-sm">{t('settings.twoFactorAuth')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.twoFactorAuthDesc')}</p>
                   </div>
                   <Switch
                     checked={securitySettings.twoFactorAuth}
@@ -300,26 +315,100 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+            <Card className="rounded-[20px] shadow-card border-0">
               <CardHeader>
-                <CardTitle>Data Backup</CardTitle>
-                <CardDescription>Backup and restore your library data</CardDescription>
+                <CardTitle>{t('settings.dataBackup')}</CardTitle>
+                <CardDescription>{t('settings.dataBackupDesc')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 bg-secondary/50 rounded-xl">
-                  <p className="font-medium text-sm">Last Backup</p>
-                  <p className="text-xs text-muted-foreground">Never</p>
+                  <p className="font-medium text-sm">{t('settings.lastBackup')}</p>
+                  <p className="text-xs text-muted-foreground">{t('settings.never')}</p>
                 </div>
                 <div className="flex gap-3">
                   <Button className="bg-navy hover:bg-navy/90 rounded-xl">
                     <Database className="h-4 w-4 mr-2" />
-                    Create Backup
+                    {t('settings.createBackup')}
                   </Button>
                   <Button variant="outline" className="rounded-xl">
                     <Mail className="h-4 w-4 mr-2" />
-                    Restore from Backup
+                    {t('settings.restoreBackup')}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="appearance" className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Card className="rounded-[20px] shadow-card border-0">
+              <CardHeader>
+                <CardTitle>{t('settings.theme')}</CardTitle>
+                <CardDescription>{t('settings.themeDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3">
+                  {([
+                    { value: 'light' as Theme, icon: Sun, label: t('settings.light') },
+                    { value: 'dark' as Theme, icon: Moon, label: t('settings.dark') },
+                    { value: 'system' as Theme, icon: Monitor, label: t('settings.system') },
+                  ]).map(({ value, icon: Icon, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setTheme(value)}
+                      className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${
+                        theme === value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/40'
+                      }`}
+                    >
+                      <Icon className={`h-6 w-6 ${theme === value ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className={`text-sm font-medium ${theme === value ? 'text-primary' : 'text-muted-foreground'}`}>
+                        {label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <Card className="rounded-[20px] shadow-card border-0">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Languages className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <CardTitle>{t('settings.language')}</CardTitle>
+                    <CardDescription>{t('settings.languageDesc')}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Select
+                  value={i18n.language}
+                  onValueChange={(value) => changeLanguage(value)}
+                >
+                  <SelectTrigger className="rounded-xl w-full max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="sw">Kiswahili</SelectItem>
+                    <SelectItem value="hi">हिन्दी (Hindi)</SelectItem>
+                    <SelectItem value="es">Español (Spanish)</SelectItem>
+                    <SelectItem value="fr">Français (French)</SelectItem>
+                  </SelectContent>
+                </Select>
               </CardContent>
             </Card>
           </motion.div>
@@ -335,7 +424,7 @@ export function Settings() {
       >
         <Button onClick={handleSave} className="bg-navy hover:bg-navy/90 rounded-xl h-11 px-6">
           <Save className="h-4 w-4 mr-2" />
-          Save Changes
+          {t('common.save')}
         </Button>
       </motion.div>
     </div>

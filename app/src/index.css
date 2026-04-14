@@ -50,6 +50,52 @@
     --red: 0 84% 60%;
     --red-light: 0 84% 95%;
   }
+
+  .dark {
+    --background: 222 22% 7%;
+    --foreground: 210 20% 94%;
+    --card: 222 20% 10%;
+    --card-foreground: 210 20% 94%;
+    --popover: 222 20% 10%;
+    --popover-foreground: 210 20% 94%;
+    --primary: 224 70% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 18% 14%;
+    --secondary-foreground: 210 20% 94%;
+    --muted: 222 18% 14%;
+    --muted-foreground: 215 14% 55%;
+    --accent: 142 55% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 68% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 75% 52%;
+    --warning-foreground: 0 0% 100%;
+    --success: 142 55% 42%;
+    --success-foreground: 0 0% 100%;
+    --border: 222 14% 18%;
+    --input: 222 14% 18%;
+    --ring: 224 70% 52%;
+
+    /* Sidebar tokens (dark) */
+    --sidebar-background: 222 22% 9%;
+    --sidebar-foreground: 210 20% 94%;
+    --sidebar-primary: 224 70% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 18% 14%;
+    --sidebar-accent-foreground: 210 20% 94%;
+    --sidebar-border: 222 14% 18%;
+    --sidebar-ring: 224 70% 52%;
+
+    /* Custom colors (dark) */
+    --navy: 224 70% 52%;
+    --navy-light: 224 45% 16%;
+    --green: 142 55% 42%;
+    --green-light: 142 35% 14%;
+    --amber: 38 75% 52%;
+    --amber-light: 38 45% 14%;
+    --red: 0 68% 55%;
+    --red-light: 0 40% 14%;
+  }
 }
 
 @layer base {
@@ -117,6 +163,24 @@
   .card-hover:hover {
     transform: translateY(-4px);
     box-shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .card-hover:hover {
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Card shadow - adapts to dark mode */
+  .shadow-card {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  }
+  .dark .shadow-card {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+  .shadow-card-sm {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  }
+  .dark .shadow-card-sm {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
   }
   
   /* Button hover effect */

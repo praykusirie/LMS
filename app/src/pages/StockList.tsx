@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { 
   PackagePlus, 
@@ -37,6 +38,7 @@ interface Stock {
 }
 
 export function StockList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,9 +78,9 @@ export function StockList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Add Stock</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('stock.addStock')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Create and manage library stock entries
+            {t('stock.manageStockSubtitle')}
           </p>
         </div>
         <Button 
@@ -86,16 +88,16 @@ export function StockList() {
           className="bg-navy hover:bg-navy/90"
         >
           <PackagePlus className="h-4 w-4 mr-2" />
-          Create New Stock
+          {t('stock.createNewStock')}
         </Button>
       </div>
 
-      <div className="rounded-[20px] bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+      <div className="rounded-[20px] bg-card p-6 shadow-card-sm">
         <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by stock ID, creator..."
+              placeholder={t('stock.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 rounded-xl"
@@ -110,19 +112,19 @@ export function StockList() {
         ) : filteredStocks.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <PackagePlus className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">No stocks created yet</p>
-            <p className="text-sm mt-1">Create your first stock entry to get started.</p>
+            <p className="text-lg font-medium">{t('stock.noStocksCreated')}</p>
+            <p className="text-sm mt-1">{t('stock.noStocksDesc')}</p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Stock ID</TableHead>
-                <TableHead>Created Date</TableHead>
-                <TableHead>Created By</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead>{t('stock.stockId')}</TableHead>
+                <TableHead>{t('stock.createdDate')}</TableHead>
+                <TableHead>{t('stock.createdBy')}</TableHead>
+                <TableHead>{t('stock.items')}</TableHead>
+                <TableHead>{t('stock.status')}</TableHead>
+                <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -151,24 +153,24 @@ export function StockList() {
                     <TableCell>
                       <span className="font-medium">{stock.total_items}</span>
                       <span className="text-muted-foreground text-sm ml-1">
-                        ({stock.total_quantity} total qty)
+                        ({stock.total_quantity} {t('stock.totalQty')})
                       </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         {status.available > 0 && (
-                          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 text-xs">
-                            {status.available} OK
+                          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-950/30 text-xs">
+                            {status.available} {t('stock.ok')}
                           </Badge>
                         )}
                         {status.low > 0 && (
-                          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">
-                            {status.low} Low
+                          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-xs">
+                            {status.low} {t('stock.low')}
                           </Badge>
                         )}
                         {status.out > 0 && (
                           <Badge variant="destructive" className="text-xs">
-                            {status.out} Out
+                            {status.out} {t('stock.out')}
                           </Badge>
                         )}
                       </div>
@@ -180,7 +182,7 @@ export function StockList() {
                         onClick={() => navigate(`/library-inventory/add-stock/${stock.id}`)}
                       >
                         <Eye className="h-4 w-4 mr-1" />
-                        Details
+                        {t('stock.details')}
                       </Button>
                     </TableCell>
                   </TableRow>

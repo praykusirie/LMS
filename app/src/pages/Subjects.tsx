@@ -32,6 +32,7 @@ import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { useTranslation } from 'react-i18next';
 
 interface Subject {
   id: string;
@@ -48,6 +49,7 @@ export function Subjects() {
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
+  const { t } = useTranslation();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,7 +77,7 @@ export function Subjects() {
       setSubjects(data);
     } catch (error) {
       console.error('Error fetching subjects:', error);
-      toast.error('Failed to fetch subjects');
+      toast.error(t('subjects.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +93,7 @@ export function Subjects() {
 
   const handleAdd = async () => {
     if (!formData.name.trim()) {
-      toast.error('Subject name is required');
+      toast.error(t('subjects.nameRequired'));
       return;
     }
 
@@ -105,16 +107,16 @@ export function Subjects() {
       await fetchSubjects();
       setShowAddDialog(false);
       setFormData({ name: '', code: '', description: '', level: '' });
-      toast.success('Subject added successfully');
+      toast.success(t('subjects.addSuccess'));
     } catch (error: any) {
       console.error('Error adding subject:', error);
-      toast.error(error?.message || 'Failed to add subject');
+      toast.error(error?.message || t('subjects.failedToAdd'));
     }
   };
 
   const handleEdit = async () => {
     if (!selectedSubject || !formData.name.trim()) {
-      toast.error('Subject name is required');
+      toast.error(t('subjects.nameRequired'));
       return;
     }
 
@@ -128,10 +130,10 @@ export function Subjects() {
       setShowEditDialog(false);
       setSelectedSubject(null);
       setFormData({ name: '', code: '', description: '', level: '' });
-      toast.success('Subject updated successfully');
+      toast.success(t('subjects.updateSuccess'));
     } catch (error) {
       console.error('Error updating subject:', error);
-      toast.error('Failed to update subject');
+      toast.error(t('subjects.failedToUpdate'));
     }
   };
 
@@ -143,10 +145,10 @@ export function Subjects() {
       await fetchSubjects();
       setShowDeleteDialog(false);
       setSelectedSubject(null);
-      toast.success('Subject deleted successfully');
+      toast.success(t('subjects.deleteSuccess'));
     } catch (error) {
       console.error('Error deleting subject:', error);
-      toast.error('Failed to delete subject');
+      toast.error(t('subjects.failedToDelete'));
     }
   };
 
@@ -164,7 +166,7 @@ export function Subjects() {
   const columns: DataTableColumn<Subject>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Subject',
+      header: t('subjects.subject'),
       sortable: true,
       getValue: (row) => row.name,
       render: (subject) => (
@@ -178,7 +180,7 @@ export function Subjects() {
     },
     {
       key: 'code',
-      header: 'Code',
+      header: t('subjects.code'),
       sortable: true,
       render: (subject) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
@@ -188,7 +190,7 @@ export function Subjects() {
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('common.description'),
       sortable: true,
       getValue: (row) => row.description,
       render: (subject) => (
@@ -197,7 +199,7 @@ export function Subjects() {
     },
     {
       key: 'book_count',
-      header: 'Books',
+      header: t('subjects.books'),
       sortable: true,
       getValue: (row) => row.book_count || 0,
       render: (subject) => (
@@ -206,22 +208,22 @@ export function Subjects() {
     },
     {
       key: 'is_active',
-      header: 'Status',
+      header: t('common.status'),
       sortable: true,
       getValue: (row) => row.is_active ? 'Active' : 'Inactive',
       render: (subject) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           subject.is_active 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-gray-100 text-gray-700'
+            ? 'bg-green-100 dark:bg-green-900/30 text-green-700' 
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-700'
         }`}>
-          {subject.is_active ? 'Active' : 'Inactive'}
+          {subject.is_active ? t('subjects.active') : t('subjects.inactive')}
         </span>
       ),
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('common.actions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (subject) => (
@@ -257,9 +259,9 @@ export function Subjects() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Subjects</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('subjects.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage academic subjects for book classification
+            {t('subjects.subtitle')}
           </p>
         </div>
         <Button 
@@ -270,7 +272,7 @@ export function Subjects() {
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Subject
+          {t('subjects.addSubject')}
         </Button>
       </motion.div>
 
@@ -284,7 +286,7 @@ export function Subjects() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search subjects..."
+            placeholder={t('subjects.searchSubjects')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -299,36 +301,36 @@ export function Subjects() {
         transition={{ duration: 0.5, delay: 0.15 }}
         className="grid grid-cols-1 sm:grid-cols-3 gap-4"
       >
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
               <BookMarked className="h-5 w-5 text-navy" />
             </div>
             <div>
               <p className="text-2xl font-bold">{subjects.length}</p>
-              <p className="text-sm text-muted-foreground">Total Subjects</p>
+              <p className="text-sm text-muted-foreground">{t('subjects.totalSubjects')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-green-light flex items-center justify-center">
               <CheckCircle2 className="h-5 w-5 text-green" />
             </div>
             <div>
               <p className="text-2xl font-bold">{subjects.filter(s => s.is_active).length}</p>
-              <p className="text-sm text-muted-foreground">Active Subjects</p>
+              <p className="text-sm text-muted-foreground">{t('subjects.activeSubjects')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-amber-light flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-amber" />
             </div>
             <div>
               <p className="text-2xl font-bold">{subjects.reduce((sum, s) => sum + (s.book_count || 0), 0)}</p>
-              <p className="text-sm text-muted-foreground">Total Books</p>
+              <p className="text-sm text-muted-foreground">{t('subjects.totalBooks')}</p>
             </div>
           </div>
         </div>
@@ -346,8 +348,8 @@ export function Subjects() {
           isLoading={isLoading}
           getRowId={(row) => row.id}
           emptyIcon={BookMarked}
-          emptyTitle="No subjects found"
-          emptyDescription="Add your first subject to get started."
+          emptyTitle={t('subjects.noSubjects')}
+          emptyDescription={t('subjects.noSubjectsDesc')}
         />
       </motion.div>
 
@@ -355,59 +357,59 @@ export function Subjects() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Subject</DialogTitle>
+            <DialogTitle>{t('subjects.addNewSubject')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Subject Name *</Label>
+              <Label>{t('subjects.subjectName')} *</Label>
               <Input
-                placeholder="e.g., Mathematics"
+                placeholder={t('subjects.enterSubjectName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Subject Code</Label>
+              <Label>{t('subjects.subjectCode')}</Label>
               <Input
-                placeholder="e.g., MATH"
+                placeholder={t('subjects.enterSubjectCode')}
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{t('common.description')}</Label>
               <Input
-                placeholder="e.g., Mathematical studies"
+                placeholder={t('subjects.enterDescription')}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('classes.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('subjects.selectLevel') : (userLevel ? (userLevel === 'primary' ? t('subjects.primaryLevel') : t('subjects.secondaryLevel')) : t('subjects.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('subjects.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('subjects.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleAdd} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Add Subject
+              {t('subjects.addSubject')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -417,59 +419,59 @@ export function Subjects() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Subject</DialogTitle>
+            <DialogTitle>{t('subjects.editSubject')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Subject Name *</Label>
+              <Label>{t('subjects.subjectName')} *</Label>
               <Input
-                placeholder="e.g., Mathematics"
+                placeholder={t('subjects.enterSubjectName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Subject Code</Label>
+              <Label>{t('subjects.subjectCode')}</Label>
               <Input
-                placeholder="e.g., MATH"
+                placeholder={t('subjects.enterSubjectCode')}
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{t('common.description')}</Label>
               <Input
-                placeholder="e.g., Mathematical studies"
+                placeholder={t('subjects.enterDescription')}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('classes.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('subjects.selectLevel') : (userLevel ? (userLevel === 'primary' ? t('subjects.primaryLevel') : t('subjects.secondaryLevel')) : t('subjects.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('subjects.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('subjects.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleEdit} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -479,28 +481,27 @@ export function Subjects() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Subject</DialogTitle>
+            <DialogTitle>{t('subjects.deleteSubject')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete <span className="font-medium text-foreground">{selectedSubject?.name}</span>? 
-              This action cannot be undone.
+              {t('subjects.deleteConfirmMessage', { name: selectedSubject?.name })}
             </p>
             {selectedSubject && (selectedSubject.book_count || 0) > 0 && (
-              <div className="mt-3 p-3 bg-amber-50 rounded-xl">
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
                 <p className="text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
-                  This subject has {selectedSubject.book_count} books assigned.
+                  {t('subjects.hasBooks', { count: selectedSubject.book_count })}
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

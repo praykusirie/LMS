@@ -32,6 +32,7 @@ import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { useTranslation } from 'react-i18next';
 
 interface ShelfLocation {
   id: string;
@@ -49,6 +50,7 @@ export function ShelfLocations() {
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
+  const { t } = useTranslation();
 
   const [locations, setLocations] = useState<ShelfLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,7 +79,7 @@ export function ShelfLocations() {
       setLocations(data);
     } catch (error) {
       console.error('Error fetching locations:', error);
-      toast.error('Failed to fetch locations');
+      toast.error(t('shelfLocations.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +95,7 @@ export function ShelfLocations() {
 
   const handleAdd = async () => {
     if (!formData.code.trim() || !formData.name.trim()) {
-      toast.error('Code and name are required');
+      toast.error(t('shelfLocations.codeNameRequired'));
       return;
     }
 
@@ -108,16 +110,16 @@ export function ShelfLocations() {
       await fetchLocations();
       setShowAddDialog(false);
       setFormData({ code: '', name: '', section: '', capacity: 100, level: '' });
-      toast.success('Shelf location added successfully');
+      toast.success(t('shelfLocations.addSuccess'));
     } catch (error: any) {
       console.error('Error adding location:', error);
-      toast.error(error?.message || 'Failed to add location');
+      toast.error(error?.message || t('shelfLocations.failedToAdd'));
     }
   };
 
   const handleEdit = async () => {
     if (!selectedLocation || !formData.code.trim() || !formData.name.trim()) {
-      toast.error('Code and name are required');
+      toast.error(t('shelfLocations.codeNameRequired'));
       return;
     }
 
@@ -132,10 +134,10 @@ export function ShelfLocations() {
       setShowEditDialog(false);
       setSelectedLocation(null);
       setFormData({ code: '', name: '', section: '', capacity: 100, level: '' });
-      toast.success('Shelf location updated successfully');
+      toast.success(t('shelfLocations.updateSuccess'));
     } catch (error) {
       console.error('Error updating location:', error);
-      toast.error('Failed to update location');
+      toast.error(t('shelfLocations.failedToUpdate'));
     }
   };
 
@@ -147,10 +149,10 @@ export function ShelfLocations() {
       await fetchLocations();
       setShowDeleteDialog(false);
       setSelectedLocation(null);
-      toast.success('Shelf location deleted successfully');
+      toast.success(t('shelfLocations.deleteSuccess'));
     } catch (error) {
       console.error('Error deleting location:', error);
-      toast.error('Failed to delete location');
+      toast.error(t('shelfLocations.failedToDelete'));
     }
   };
 
@@ -173,15 +175,15 @@ export function ShelfLocations() {
 
   const getCapacityColor = (book_count: number, capacity: number) => {
     const percentage = ((book_count || 0) / (capacity || 1)) * 100;
-    if (percentage >= 90) return 'bg-red-500';
-    if (percentage >= 70) return 'bg-amber-500';
-    return 'bg-green-500';
+    if (percentage >= 90) return 'bg-red-50 dark:bg-red-950/300';
+    if (percentage >= 70) return 'bg-amber-50 dark:bg-amber-950/300';
+    return 'bg-green-50 dark:bg-green-950/300';
   };
 
   const columns: DataTableColumn<ShelfLocation>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Location',
+      header: t('shelfLocations.location'),
       sortable: true,
       getValue: (row) => row.name,
       render: (location) => (
@@ -195,7 +197,7 @@ export function ShelfLocations() {
     },
     {
       key: 'code',
-      header: 'Code',
+      header: t('shelfLocations.code'),
       sortable: true,
       render: (location) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
@@ -205,7 +207,7 @@ export function ShelfLocations() {
     },
     {
       key: 'section',
-      header: 'Section',
+      header: t('shelfLocations.section'),
       sortable: true,
       render: (location) => (
         <span className="font-medium">{location.section}</span>
@@ -213,7 +215,7 @@ export function ShelfLocations() {
     },
     {
       key: 'capacity',
-      header: 'Capacity',
+      header: t('shelfLocations.capacity'),
       sortable: true,
       getValue: (row) => row.book_count || 0,
       render: (location) => (
@@ -232,22 +234,22 @@ export function ShelfLocations() {
     },
     {
       key: 'is_active',
-      header: 'Status',
+      header: t('common.status'),
       sortable: true,
       getValue: (row) => row.is_active ? 'Active' : 'Inactive',
       render: (location) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           location.is_active 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-gray-100 text-gray-700'
+            ? 'bg-green-100 dark:bg-green-900/30 text-green-700' 
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-700'
         }`}>
-          {location.is_active ? 'Active' : 'Inactive'}
+          {location.is_active ? t('shelfLocations.active') : t('shelfLocations.inactive')}
         </span>
       ),
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('common.actions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (location) => (
@@ -283,9 +285,9 @@ export function ShelfLocations() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Shelf Locations</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('shelfLocations.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage library shelf locations and sections
+            {t('shelfLocations.subtitle')}
           </p>
         </div>
         <Button 
@@ -296,7 +298,7 @@ export function ShelfLocations() {
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Location
+          {t('shelfLocations.addLocation')}
         </Button>
       </motion.div>
 
@@ -310,7 +312,7 @@ export function ShelfLocations() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search locations..."
+            placeholder={t('shelfLocations.searchLocations')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -325,47 +327,47 @@ export function ShelfLocations() {
         transition={{ duration: 0.5, delay: 0.15 }}
         className="grid grid-cols-1 sm:grid-cols-4 gap-4"
       >
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
               <MapPin className="h-5 w-5 text-navy" />
             </div>
             <div>
               <p className="text-2xl font-bold">{locations.length}</p>
-              <p className="text-sm text-muted-foreground">Total Locations</p>
+              <p className="text-sm text-muted-foreground">{t('shelfLocations.totalLocations')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-green-light flex items-center justify-center">
               <CheckCircle2 className="h-5 w-5 text-green" />
             </div>
             <div>
               <p className="text-2xl font-bold">{new Set(locations.map(l => l.section)).size}</p>
-              <p className="text-sm text-muted-foreground">Sections</p>
+              <p className="text-sm text-muted-foreground">{t('shelfLocations.sections')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-amber-light flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-amber" />
             </div>
             <div>
               <p className="text-2xl font-bold">{locations.reduce((sum, l) => sum + (l.book_count || 0), 0)}</p>
-              <p className="text-sm text-muted-foreground">Books Stored</p>
+              <p className="text-sm text-muted-foreground">{t('shelfLocations.booksStored')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
               <MapPin className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
               <p className="text-2xl font-bold">{locations.reduce((sum, l) => sum + l.capacity, 0)}</p>
-              <p className="text-sm text-muted-foreground">Total Capacity</p>
+              <p className="text-sm text-muted-foreground">{t('shelfLocations.totalCapacity')}</p>
             </div>
           </div>
         </div>
@@ -383,8 +385,8 @@ export function ShelfLocations() {
           isLoading={isLoading}
           getRowId={(row) => row.id}
           emptyIcon={MapPin}
-          emptyTitle="No shelf locations found"
-          emptyDescription="Add your first shelf location to get started."
+          emptyTitle={t('shelfLocations.noLocations')}
+          emptyDescription={t('shelfLocations.noLocationsDesc')}
         />
       </motion.div>
 
@@ -392,23 +394,23 @@ export function ShelfLocations() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Shelf Location</DialogTitle>
+            <DialogTitle>{t('shelfLocations.addNewLocation')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Location Code *</Label>
+                <Label>{t('shelfLocations.locationCode')} *</Label>
                 <Input
-                  placeholder="e.g., A-01"
+                  placeholder={t('shelfLocations.enterLocationCode')}
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   className="rounded-xl h-11"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Section</Label>
+                <Label>{t('shelfLocations.section')}</Label>
                 <Input
-                  placeholder="e.g., A"
+                  placeholder={t('shelfLocations.enterSection')}
                   value={formData.section}
                   onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                   className="rounded-xl h-11"
@@ -416,47 +418,47 @@ export function ShelfLocations() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Location Name *</Label>
+              <Label>{t('shelfLocations.locationName')} *</Label>
               <Input
-                placeholder="e.g., Fiction Section A"
+                placeholder={t('shelfLocations.enterLocationName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Capacity</Label>
+              <Label>{t('shelfLocations.capacity')}</Label>
               <Input
                 type="number"
-                placeholder="e.g., 200"
+                placeholder={t('shelfLocations.enterCapacity')}
                 value={formData.capacity}
                 onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('classes.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('shelfLocations.selectLevel') : (userLevel ? (userLevel === 'primary' ? t('shelfLocations.primaryLevel') : t('shelfLocations.secondaryLevel')) : t('shelfLocations.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('shelfLocations.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('shelfLocations.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleAdd} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Add Location
+              {t('shelfLocations.addLocation')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -466,23 +468,23 @@ export function ShelfLocations() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Shelf Location</DialogTitle>
+            <DialogTitle>{t('shelfLocations.editLocationTitle')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Location Code *</Label>
+                <Label>{t('shelfLocations.locationCode')} *</Label>
                 <Input
-                  placeholder="e.g., A-01"
+                  placeholder={t('shelfLocations.enterLocationCode')}
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   className="rounded-xl h-11"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Section</Label>
+                <Label>{t('shelfLocations.section')}</Label>
                 <Input
-                  placeholder="e.g., A"
+                  placeholder={t('shelfLocations.enterSection')}
                   value={formData.section}
                   onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                   className="rounded-xl h-11"
@@ -490,47 +492,47 @@ export function ShelfLocations() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Location Name *</Label>
+              <Label>{t('shelfLocations.locationName')} *</Label>
               <Input
-                placeholder="e.g., Fiction Section A"
+                placeholder={t('shelfLocations.enterLocationName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Capacity</Label>
+              <Label>{t('shelfLocations.capacity')}</Label>
               <Input
                 type="number"
-                placeholder="e.g., 200"
+                placeholder={t('shelfLocations.enterCapacity')}
                 value={formData.capacity}
                 onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
                 className="rounded-xl h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('classes.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('shelfLocations.selectLevel') : (userLevel ? (userLevel === 'primary' ? t('shelfLocations.primaryLevel') : t('shelfLocations.secondaryLevel')) : t('shelfLocations.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('shelfLocations.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('shelfLocations.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleEdit} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -540,28 +542,27 @@ export function ShelfLocations() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Shelf Location</DialogTitle>
+            <DialogTitle>{t('shelfLocations.deleteLocationTitle')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete <span className="font-medium text-foreground">{selectedLocation?.name}</span>? 
-              This action cannot be undone.
+              {t('shelfLocations.deleteConfirmMessage', { name: selectedLocation?.name })}
             </p>
             {selectedLocation && (selectedLocation.book_count || 0) > 0 && (
-              <div className="mt-3 p-3 bg-amber-50 rounded-xl">
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
                 <p className="text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4 inline mr-1" />
-                  This location has {selectedLocation.book_count} books stored.
+                  {t('shelfLocations.hasBooks', { count: selectedLocation.book_count })}
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

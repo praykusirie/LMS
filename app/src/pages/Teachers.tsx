@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Search, School, BadgeCheck, Edit2, Trash2, Eye } from 'lucide-react';
@@ -24,6 +25,7 @@ interface Teacher {
 }
 
 export function Teachers() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -41,7 +43,7 @@ export function Teachers() {
       setTeachers(data);
     } catch (error) {
       console.error('Error fetching teachers:', error);
-      toast.error('Failed to fetch teachers');
+      toast.error(t('teachers.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -51,10 +53,10 @@ export function Teachers() {
     try {
       await api.delete(`/teachers/${teacherId}`);
       await fetchTeachers();
-      toast.success('Teacher deleted successfully');
+      toast.success(t('teachers.deleteSuccess'));
     } catch (error: any) {
       console.error('Error deleting teacher:', error);
-      toast.error(error?.message || 'Failed to delete teacher');
+      toast.error(error?.message || t('teachers.failedToDelete'));
     }
   };
 
@@ -69,7 +71,7 @@ export function Teachers() {
   const columns: DataTableColumn<Teacher>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Teacher',
+      header: t('teachers.teacher'),
       sortable: true,
       getValue: (row) => row.name,
       render: (teacher) => (
@@ -81,7 +83,7 @@ export function Teachers() {
     },
     {
       key: 'teacher_id',
-      header: 'Teacher ID',
+      header: t('teachers.teacherId'),
       sortable: true,
       render: (teacher) => (
         <span className="font-mono text-xs text-muted-foreground">{teacher.teacher_id}</span>
@@ -89,22 +91,22 @@ export function Teachers() {
     },
     {
       key: 'homeroom',
-      header: 'Homeroom',
+      header: t('teachers.homeroom'),
       sortable: true,
       getValue: (row) => row.homeroom_class_name || '',
       render: (teacher) =>
         teacher.is_homeroom_teacher ? (
-          <Badge variant="outline" className="border-green-300 bg-green-50 text-green-700">
+          <Badge variant="outline" className="border-green-300 bg-green-50 dark:bg-green-950/30 text-green-700">
             <BadgeCheck className="mr-1 h-3 w-3" />
-            {teacher.homeroom_class_name || 'Assigned'}
+            {teacher.homeroom_class_name || t('teachers.assigned')}
           </Badge>
         ) : (
-          <span className="text-muted-foreground">No</span>
+          <span className="text-muted-foreground">{t('common.no')}</span>
         ),
     },
     {
       key: 'created_at',
-      header: 'Created',
+      header: t('teachers.created'),
       sortable: true,
       getValue: (row) => row.created_at,
       render: (teacher) => (
@@ -115,7 +117,7 @@ export function Teachers() {
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('common.actions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (teacher) => (
@@ -163,13 +165,13 @@ export function Teachers() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Teachers</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage teachers and homeroom assignments</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('teachers.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('teachers.manageSubtitle')}</p>
         </div>
         {hasPermission('teachers:create') && (
           <Button onClick={() => navigate('/add-teacher')} className="bg-navy hover:bg-navy/90 rounded-xl h-11">
             <Plus className="h-4 w-4 mr-2" />
-            Add New Teacher
+            {t('teachers.addNewTeacher')}
           </Button>
         )}
       </motion.div>
@@ -184,7 +186,7 @@ export function Teachers() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search teachers..."
+            placeholder={t('teachers.searchTeachers')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -205,8 +207,8 @@ export function Teachers() {
           getRowId={(row) => row.id}
           onRowClick={(row) => navigate(`/teachers/${row.id}?mode=view`)}
           emptyIcon={School}
-          emptyTitle="No teachers found"
-          emptyDescription="Add your first teacher to get started."
+          emptyTitle={t('teachers.noTeachers')}
+          emptyDescription={t('teachers.noTeachersDesc')}
         />
       </motion.div>
     </div>

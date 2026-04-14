@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Package, Search, Send, Printer, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -50,6 +51,7 @@ interface DistributionRecord {
 }
 
 export function ItemsDistribution() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [allItems, setAllItems] = useState<ItemOption[]>([]);
@@ -91,11 +93,11 @@ export function ItemsDistribution() {
       setAllItems((itemsRes.data || []).map((item: any) => ({ id: item.id, name: item.name, unit: item.unit || 'pcs' })));
       const inStock = (stockRes.data || []).filter((item: StockReportItem) => Number(item.total_current_stock) > 0);
       if (inStock.length === 0) {
-        toast.info('No items currently available in stock for distribution');
+        toast.info(t('itemsDistribution.noItemsInStock'));
       }
     } catch (error) {
       console.error('Error fetching items distribution data:', error);
-      toast.error('Failed to load items distribution data');
+      toast.error(t('itemsDistribution.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +110,7 @@ export function ItemsDistribution() {
       setRecords(data || []);
     } catch (error) {
       console.error('Error fetching distribution history:', error);
-      toast.error('Failed to load distribution history');
+      toast.error(t('itemsDistribution.failedToLoadHistory'));
     } finally {
       setIsLoading(false);
     }
@@ -147,14 +149,14 @@ export function ItemsDistribution() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting distribution report:', error);
-      toast.error('Failed to export report');
+      toast.error(t('itemsDistribution.failedToExport'));
     }
   };
 
   const handlePrintReport = () => {
     const printWindow = window.open('', '_blank', 'width=1100,height=800');
     if (!printWindow) {
-      toast.error('Unable to open print window');
+      toast.error(t('itemsDistribution.failedToPrint'));
       return;
     }
 
@@ -221,7 +223,7 @@ export function ItemsDistribution() {
   const columns: DataTableColumn<DistributionRecord>[] = useMemo(() => [
     {
       key: 'teacher_name',
-      header: 'Teacher',
+      header: t('itemsDistribution.teacher'),
       sortable: true,
       getValue: (row) => row.teacher_name,
       render: (row) => (
@@ -233,25 +235,25 @@ export function ItemsDistribution() {
     },
     {
       key: 'item_name',
-      header: 'Item',
+      header: t('itemsDistribution.item'),
       sortable: true,
       getValue: (row) => row.item_name,
       render: (row) => (
         <div>
           <p className="font-medium text-foreground">{row.item_name}</p>
-          <p className="text-xs text-muted-foreground">Unit: {row.item_unit}</p>
+          <p className="text-xs text-muted-foreground">{t('itemsDistribution.unit')}: {row.item_unit}</p>
         </div>
       ),
     },
     {
       key: 'quantity',
-      header: 'Quantity',
+      header: t('itemsDistribution.quantity'),
       sortable: true,
       render: (row) => <span className="font-medium">{Number(row.quantity).toLocaleString()}</span>,
     },
     {
       key: 'distribution_date',
-      header: 'Distributed On',
+      header: t('itemsDistribution.distributedOn'),
       sortable: true,
       getValue: (row) => row.distribution_date,
       render: (row) => (
@@ -262,7 +264,7 @@ export function ItemsDistribution() {
     },
     {
       key: 'issued_by_name',
-      header: 'Issued By',
+      header: t('itemsDistribution.issuedBy'),
       sortable: true,
       getValue: (row) => row.issued_by_name || '',
       render: (row) => <span>{row.issued_by_name || '-'}</span>,
@@ -278,21 +280,21 @@ export function ItemsDistribution() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Items Distribution</h1>
-          <p className="text-sm text-muted-foreground mt-1">Issue inventory items to teachers from available stock</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('itemsDistribution.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('itemsDistribution.subtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={handlePrintReport} className="rounded-xl h-11">
             <Printer className="h-4 w-4 mr-2" />
-            Print Report
+            {t('itemsDistribution.printReport')}
           </Button>
           <Button variant="outline" onClick={handleExportReport} className="rounded-xl h-11">
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            {t('itemsDistribution.exportCsv')}
           </Button>
           <Button onClick={() => navigate('/books-items-management/items-distribution/new')} className="bg-navy hover:bg-navy/90 rounded-xl h-11">
             <Send className="h-4 w-4 mr-2" />
-            Distribute Item
+            {t('itemsDistribution.distributeItem')}
           </Button>
         </div>
       </motion.div>
@@ -307,7 +309,7 @@ export function ItemsDistribution() {
           <div className="relative flex-1 min-w-[240px] max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by teacher or item..."
+              placeholder={t('itemsDistribution.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 rounded-xl h-11"
@@ -315,13 +317,13 @@ export function ItemsDistribution() {
           </div>
 
           <div className="min-w-[220px]">
-            <Label className="mb-2 block">Teacher</Label>
+            <Label className="mb-2 block">{t('itemsDistribution.teacher')}</Label>
             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
               <SelectTrigger className="rounded-xl h-11">
-                <SelectValue placeholder="All teachers" />
+                <SelectValue placeholder={t('itemsDistribution.allTeachers')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All teachers</SelectItem>
+                <SelectItem value="all">{t('itemsDistribution.allTeachers')}</SelectItem>
                 {teachers.map((teacher) => (
                   <SelectItem key={teacher.id} value={teacher.id}>
                     {teacher.name}
@@ -332,13 +334,13 @@ export function ItemsDistribution() {
           </div>
 
           <div className="min-w-[220px]">
-            <Label className="mb-2 block">Item</Label>
+            <Label className="mb-2 block">{t('itemsDistribution.item')}</Label>
             <Select value={itemFilter} onValueChange={setItemFilter}>
               <SelectTrigger className="rounded-xl h-11">
-                <SelectValue placeholder="All items" />
+                <SelectValue placeholder={t('itemsDistribution.allItems')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All items</SelectItem>
+                <SelectItem value="all">{t('itemsDistribution.allItems')}</SelectItem>
                 {allItems.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.name}
@@ -349,17 +351,17 @@ export function ItemsDistribution() {
           </div>
 
           <div>
-            <Label className="mb-2 block">From</Label>
+            <Label className="mb-2 block">{t('itemsDistribution.from')}</Label>
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="rounded-xl h-11" />
           </div>
 
           <div>
-            <Label className="mb-2 block">To</Label>
+            <Label className="mb-2 block">{t('itemsDistribution.to')}</Label>
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="rounded-xl h-11" />
           </div>
 
           <Button variant="outline" onClick={clearFilters} className="rounded-xl h-11">
-            Clear Filters
+            {t('itemsDistribution.clearFilters')}
           </Button>
         </div>
       </motion.div>
@@ -375,8 +377,8 @@ export function ItemsDistribution() {
           isLoading={isLoading}
           getRowId={(row) => row.id}
           emptyIcon={Package}
-          emptyTitle="No distributions found"
-          emptyDescription="Start by issuing an item to a teacher."
+          emptyTitle={t('itemsDistribution.noDistributions')}
+          emptyDescription={t('itemsDistribution.noDistributionsDesc')}
         />
       </motion.div>
     </div>

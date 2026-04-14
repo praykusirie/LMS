@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
+import { requirePermission, clearPermissionCache } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -36,13 +37,14 @@ router.get('/role/:roleId', async (req: Request, res: Response) => {
 });
 
 // Assign permission to role
-router.post('/assign', async (req: Request, res: Response) => {
+router.post('/assign', requirePermission('permissions', 'manage'), async (req: Request, res: Response) => {
     try {
         const { roleId, permissionId } = req.body;
         await pool.query(
             'INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
             [roleId, permissionId]
         );
+        clearPermissionCache();
         res.status(201).json({ message: 'Permission assigned successfully' });
     } catch (error) {
         console.error('Error assigning permission:', error);
@@ -51,13 +53,14 @@ router.post('/assign', async (req: Request, res: Response) => {
 });
 
 // Remove permission from role
-router.post('/revoke', async (req: Request, res: Response) => {
+router.post('/revoke', requirePermission('permissions', 'manage'), async (req: Request, res: Response) => {
     try {
         const { roleId, permissionId } = req.body;
         await pool.query(
             'DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2',
             [roleId, permissionId]
         );
+        clearPermissionCache();
         res.json({ message: 'Permission revoked successfully' });
     } catch (error) {
         console.error('Error revoking permission:', error);
@@ -66,7 +69,7 @@ router.post('/revoke', async (req: Request, res: Response) => {
 });
 
 // Bulk update role permissions
-router.put('/role/:roleId', async (req: Request, res: Response) => {
+router.put('/role/:roleId', requirePermission('permissions', 'manage'), async (req: Request, res: Response) => {
     try {
         const { roleId } = req.params;
         const { permissionIds } = req.body;
@@ -83,6 +86,7 @@ router.put('/role/:roleId', async (req: Request, res: Response) => {
             );
         }
         
+        clearPermissionCache();
         res.json({ message: 'Permissions updated successfully' });
     } catch (error) {
         console.error('Error updating permissions:', error);

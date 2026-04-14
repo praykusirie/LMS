@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { ArrowLeft, PackagePlus, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -38,6 +39,7 @@ interface DraftItem {
 }
 
 export function ItemsDistributionCreate() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [stockItems, setStockItems] = useState<StockReportItem[]>([]);
@@ -66,7 +68,7 @@ export function ItemsDistributionCreate() {
       setStockItems((stockRes.data || []).filter((item: StockReportItem) => Number(item.total_current_stock) > 0));
     } catch (error) {
       console.error('Error fetching distribution references:', error);
-      toast.error('Failed to load teachers and items');
+      toast.error(t('itemsDistribution.failedToLoadTeachersItems'));
     } finally {
       setIsLoading(false);
     }
@@ -87,13 +89,13 @@ export function ItemsDistributionCreate() {
 
   const addDraftItem = () => {
     if (!selectedStockItem) {
-      toast.error('Select an item');
+      toast.error(t('itemsDistribution.selectItemError'));
       return;
     }
 
     const qty = Number(selectedQuantity);
     if (!Number.isFinite(qty) || qty <= 0) {
-      toast.error('Quantity must be greater than zero');
+      toast.error(t('itemsDistribution.quantityError'));
       return;
     }
 
@@ -101,7 +103,7 @@ export function ItemsDistributionCreate() {
     const available = Number(selectedStockItem.total_current_stock || 0);
 
     if (usedQty + qty > available) {
-      toast.error(`Quantity exceeds available stock (${available})`);
+      toast.error(t('itemsDistribution.quantityExceedsStock', { available }));
       return;
     }
 
@@ -138,7 +140,7 @@ export function ItemsDistributionCreate() {
         .reduce((sum, row) => sum + row.quantity, 0);
 
       if (sameItemTotalWithoutCurrent + qty > current.available) {
-        toast.error(`Quantity exceeds available stock (${current.available})`);
+        toast.error(t('itemsDistribution.quantityExceedsStock', { available: current.available }));
         return prev;
       }
 
@@ -151,12 +153,12 @@ export function ItemsDistributionCreate() {
 
   const handleSave = async () => {
     if (!teacherId) {
-      toast.error('Select a teacher');
+      toast.error(t('itemsDistribution.selectTeacherError'));
       return;
     }
 
     if (draftItems.length === 0) {
-      toast.error('Add at least one item');
+      toast.error(t('itemsDistribution.addItemError'));
       return;
     }
 
@@ -168,11 +170,11 @@ export function ItemsDistributionCreate() {
         items: draftItems.map((row) => ({ item_id: row.item_id, quantity: row.quantity })),
       });
 
-      toast.success('Items distributed successfully');
+      toast.success(t('itemsDistribution.itemsDistributedSuccess'));
       navigate('/books-items-management/items-distribution');
     } catch (error: any) {
       console.error('Error saving distribution:', error);
-      toast.error(error?.message || 'Failed to save distribution');
+      toast.error(error?.message || t('itemsDistribution.failedToSave'));
     } finally {
       setIsSubmitting(false);
     }
@@ -187,12 +189,12 @@ export function ItemsDistributionCreate() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">New Items Distribution</h1>
-          <p className="text-sm text-muted-foreground mt-1">Assign multiple items to one teacher in a single transaction</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('itemsDistribution.newDistributionTitle')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('itemsDistribution.newDistributionSubtitle')}</p>
         </div>
         <Button variant="outline" className="rounded-xl" onClick={() => navigate('/books-items-management/items-distribution')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to History
+          {t('itemsDistribution.backToHistory')}
         </Button>
       </motion.div>
 
@@ -200,14 +202,14 @@ export function ItemsDistributionCreate() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.05 }}
-        className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)] space-y-4"
+        className="rounded-[20px] bg-card p-6 shadow-card space-y-4"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Teacher</Label>
+            <Label>{t('itemsDistribution.teacher')}</Label>
             <Select value={teacherId} onValueChange={setTeacherId} disabled={isLoading}>
               <SelectTrigger className="rounded-xl h-11">
-                <SelectValue placeholder="Select teacher" />
+                <SelectValue placeholder={t('itemsDistribution.selectTeacher')} />
               </SelectTrigger>
               <SelectContent>
                 {teachers.map((teacher) => (
@@ -220,7 +222,7 @@ export function ItemsDistributionCreate() {
           </div>
 
           <div className="space-y-2">
-            <Label>Distribution Date</Label>
+            <Label>{t('itemsDistribution.distributionDate')}</Label>
             <Input
               type="date"
               value={distributionDate}
@@ -235,15 +237,15 @@ export function ItemsDistributionCreate() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)] space-y-4"
+        className="rounded-[20px] bg-card p-6 shadow-card space-y-4"
       >
-        <h2 className="text-lg font-semibold">Add Items</h2>
+        <h2 className="text-lg font-semibold">{t('itemsDistribution.addItems')}</h2>
         <div className="grid grid-cols-1 md:grid-cols-[1fr_160px_auto] gap-3 items-end">
           <div className="space-y-2">
-            <Label>Item</Label>
+            <Label>{t('itemsDistribution.item')}</Label>
             <Select value={selectedItemId} onValueChange={setSelectedItemId} disabled={isLoading}>
               <SelectTrigger className="rounded-xl h-11">
-                <SelectValue placeholder="Select item from available stock" />
+                <SelectValue placeholder={t('itemsDistribution.selectItemFromStock')} />
               </SelectTrigger>
               <SelectContent>
                 {stockItems.map((item) => (
@@ -256,7 +258,7 @@ export function ItemsDistributionCreate() {
           </div>
 
           <div className="space-y-2">
-            <Label>Quantity</Label>
+            <Label>{t('itemsDistribution.quantity')}</Label>
             <Input
               type="number"
               min={1}
@@ -268,7 +270,7 @@ export function ItemsDistributionCreate() {
 
           <Button onClick={addDraftItem} className="bg-navy hover:bg-navy/90 rounded-xl h-11" disabled={isLoading}>
             <Plus className="h-4 w-4 mr-2" />
-            Add
+            {t('itemsDistribution.add')}
           </Button>
         </div>
       </motion.div>
@@ -277,27 +279,27 @@ export function ItemsDistributionCreate() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15 }}
-        className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+        className="rounded-[20px] bg-card p-6 shadow-card"
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Distribution Items</h2>
-          <div className="text-sm text-muted-foreground">{totalLines} lines • {totalUnits} total units</div>
+          <h2 className="text-lg font-semibold">{t('itemsDistribution.distributionItems')}</h2>
+          <div className="text-sm text-muted-foreground">{totalLines} {t('itemsDistribution.lines')} • {totalUnits} {t('itemsDistribution.totalUnits')}</div>
         </div>
 
         {draftItems.length === 0 ? (
           <div className="border border-dashed rounded-xl p-8 text-center text-sm text-muted-foreground">
-            No items added yet.
+            {t('itemsDistribution.noItemsAdded')}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left border-b">
-                  <th className="py-3 pr-3">Item</th>
-                  <th className="py-3 pr-3">Available</th>
-                  <th className="py-3 pr-3">Quantity</th>
-                  <th className="py-3 pr-3">Unit</th>
-                  <th className="py-3 text-right">Action</th>
+                  <th className="py-3 pr-3">{t('itemsDistribution.item')}</th>
+                  <th className="py-3 pr-3">{t('itemsDistribution.available')}</th>
+                  <th className="py-3 pr-3">{t('itemsDistribution.quantity')}</th>
+                  <th className="py-3 pr-3">{t('itemsDistribution.unit')}</th>
+                  <th className="py-3 text-right">{t('itemsDistribution.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -329,11 +331,11 @@ export function ItemsDistributionCreate() {
 
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="outline" className="rounded-xl" onClick={() => navigate('/books-items-management/items-distribution')}>
-            Cancel
+            {t('itemsDistribution.cancel')}
           </Button>
           <Button className="bg-navy hover:bg-navy/90 rounded-xl" onClick={handleSave} disabled={isSubmitting || draftItems.length === 0}>
             <PackagePlus className="h-4 w-4 mr-2" />
-            {isSubmitting ? 'Saving...' : 'Save Distribution'}
+            {isSubmitting ? t('itemsDistribution.saving') : t('itemsDistribution.saveDistribution')}
           </Button>
         </div>
       </motion.div>

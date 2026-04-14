@@ -47,6 +47,7 @@ import {
   Legend
 } from 'recharts';
 import { dashboardStats, books, students, borrowRecords } from '@/data/mockData';
+import { useTranslation } from 'react-i18next';
 
 // Mock data for reports
 const monthlyData = [
@@ -94,6 +95,7 @@ const COLORS = ['#1E3A8A', '#22C55E', '#F59E0B', '#EF4444', '#6B7280'];
 type ReportTab = 'overview' | 'borrowing' | 'inventory' | 'students' | 'overdue';
 
 export function Reports() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ReportTab>('overview');
   const [dateRange, setDateRange] = useState('this-month');
   const [classFilter, setClassFilter] = useState('all');
@@ -160,25 +162,25 @@ export function Reports() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('reports.reportsAndAnalytics')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Comprehensive library statistics and insights
+            {t('reports.comprehensiveStats')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" className="rounded-xl h-10" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
-            Print
+            {t('common.print')}
           </Button>
           <Select defaultValue="pdf" onValueChange={(v) => handleExport(v as 'pdf' | 'csv' | 'excel')}>
             <SelectTrigger className="rounded-xl h-10 w-[140px]">
               <Download className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Export" />
+              <SelectValue placeholder={t('common.export')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="pdf">Export PDF</SelectItem>
-              <SelectItem value="csv">Export CSV</SelectItem>
-              <SelectItem value="excel">Export Excel</SelectItem>
+              <SelectItem value="pdf">{t('reports.exportPdf')}</SelectItem>
+              <SelectItem value="csv">{t('reports.exportCsv')}</SelectItem>
+              <SelectItem value="excel">{t('reports.exportExcel')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -191,9 +193,9 @@ export function Reports() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
       >
-        <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+        <Card className="rounded-[20px] shadow-card border-0">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Books</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('reports.totalBooks')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -210,9 +212,9 @@ export function Reports() {
             </div>
           </CardContent>
         </Card>
-        <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+        <Card className="rounded-[20px] shadow-card border-0">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Borrows</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('reports.activeBorrows')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -229,9 +231,9 @@ export function Reports() {
             </div>
           </CardContent>
         </Card>
-        <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+        <Card className="rounded-[20px] shadow-card border-0">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Overdue Books</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('reports.overdueBooks')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -248,9 +250,9 @@ export function Reports() {
             </div>
           </CardContent>
         </Card>
-        <Card className="rounded-[20px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] border-0">
+        <Card className="rounded-[20px] shadow-card border-0">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Penalties</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('reports.totalPenalties')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -270,25 +272,25 @@ export function Reports() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="rounded-[20px] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+        className="rounded-[20px] bg-card p-6 shadow-card"
       >
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ReportTab)} className="w-full">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
             <TabsList className="grid grid-cols-5 rounded-xl h-11 w-full lg:w-auto">
               <TabsTrigger value="overview" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-navy data-[state=active]:text-white">
-                Overview
+                {t('reports.overview')}
               </TabsTrigger>
               <TabsTrigger value="borrowing" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-navy data-[state=active]:text-white">
-                Borrowing
+                {t('reports.borrowing')}
               </TabsTrigger>
               <TabsTrigger value="inventory" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-navy data-[state=active]:text-white">
-                Inventory
+                {t('reports.inventory')}
               </TabsTrigger>
               <TabsTrigger value="students" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-navy data-[state=active]:text-white">
-                Students
+                {t('reports.students')}
               </TabsTrigger>
               <TabsTrigger value="overdue" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-navy data-[state=active]:text-white">
-                Overdue
+                {t('reports.overdue')}
               </TabsTrigger>
             </TabsList>
 
@@ -300,11 +302,11 @@ export function Reports() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="this-week">This Week</SelectItem>
-                  <SelectItem value="this-month">This Month</SelectItem>
-                  <SelectItem value="this-year">This Year</SelectItem>
-                  <SelectItem value="all-time">All Time</SelectItem>
+                  <SelectItem value="today">{t('reports.today')}</SelectItem>
+                  <SelectItem value="this-week">{t('reports.thisWeek')}</SelectItem>
+                  <SelectItem value="this-month">{t('reports.thisMonth')}</SelectItem>
+                  <SelectItem value="this-year">{t('reports.thisYear')}</SelectItem>
+                  <SelectItem value="all-time">{t('reports.allTime')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -315,7 +317,7 @@ export function Reports() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Monthly Activity Chart */}
               <div className="rounded-xl border border-border/60 p-5">
-                <h3 className="text-base font-semibold text-foreground mb-4">Monthly Borrowing Activity</h3>
+                <h3 className="text-base font-semibold text-foreground mb-4">{t('reports.monthlyBorrowingActivity')}</h3>
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyData}>
@@ -348,7 +350,7 @@ export function Reports() {
 
               {/* Category Distribution */}
               <div className="rounded-xl border border-border/60 p-5">
-                <h3 className="text-base font-semibold text-foreground mb-4">Book Categories Distribution</h3>
+                <h3 className="text-base font-semibold text-foreground mb-4">{t('reports.bookCategoriesDistribution')}</h3>
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -392,16 +394,16 @@ export function Reports() {
 
             {/* Class-wise Borrowing */}
             <div className="rounded-xl border border-border/60 p-5">
-              <h3 className="text-base font-semibold text-foreground mb-4">Class-wise Borrowing Statistics</h3>
+              <h3 className="text-base font-semibold text-foreground mb-4">{t('reports.classWiseBorrowing')}</h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border/60">
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Class</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Borrowed</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Returned</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Overdue</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Return Rate</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.class')}</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.borrowed')}</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.returned')}</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.overdue')}</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.returnRate')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -437,7 +439,7 @@ export function Reports() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top Borrowed Books */}
               <div className="rounded-xl border border-border/60 p-5">
-                <h3 className="text-base font-semibold text-foreground mb-4">Most Borrowed Books</h3>
+                <h3 className="text-base font-semibold text-foreground mb-4">{t('reports.mostBorrowedBooks')}</h3>
                 <div className="space-y-3">
                   {topBorrowedBooks.map((book, index) => (
                     <div key={book.title} className="flex items-center gap-3 p-3 bg-secondary/30 rounded-xl">
@@ -450,7 +452,7 @@ export function Reports() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold text-navy">{book.borrowCount}</p>
-                        <p className="text-xs text-muted-foreground">borrows</p>
+                        <p className="text-xs text-muted-foreground">{t('reports.borrows')}</p>
                       </div>
                     </div>
                   ))}
@@ -459,7 +461,7 @@ export function Reports() {
 
               {/* Top Borrowers */}
               <div className="rounded-xl border border-border/60 p-5">
-                <h3 className="text-base font-semibold text-foreground mb-4">Top Borrowers</h3>
+                <h3 className="text-base font-semibold text-foreground mb-4">{t('reports.topBorrowers')}</h3>
                 <div className="space-y-3">
                   {topBorrowers.map((student, index) => (
                     <div key={student.name} className="flex items-center gap-3 p-3 bg-secondary/30 rounded-xl">
@@ -476,7 +478,7 @@ export function Reports() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold text-navy">{student.borrowCount}</p>
-                        <p className="text-xs text-muted-foreground">{student.returnRate}% return</p>
+                        <p className="text-xs text-muted-foreground">{student.returnRate}% {t('reports.returnPct')}</p>
                       </div>
                     </div>
                   ))}
@@ -491,7 +493,7 @@ export function Reports() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search by book or student..."
+                  placeholder={t('reports.searchByBookOrStudent')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="rounded-xl h-10 pl-10"
@@ -503,10 +505,10 @@ export function Reports() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="date">Sort by Date</SelectItem>
-                  <SelectItem value="student">Sort by Student</SelectItem>
-                  <SelectItem value="book">Sort by Book</SelectItem>
-                  <SelectItem value="status">Sort by Status</SelectItem>
+                  <SelectItem value="date">{t('reports.sortByDate')}</SelectItem>
+                  <SelectItem value="student">{t('reports.sortByStudent')}</SelectItem>
+                  <SelectItem value="book">{t('reports.sortByBook')}</SelectItem>
+                  <SelectItem value="status">{t('reports.sortByStatus')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -515,12 +517,12 @@ export function Reports() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border/60 bg-secondary/30">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Book</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Student</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Borrow Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Due Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Return Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.book')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.student')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.borrowDate')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.dueDate')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.returnDate')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -542,9 +544,9 @@ export function Reports() {
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
                           record.status === 'returned' 
-                            ? 'bg-green-100 text-green-700'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700'
                             : record.status === 'overdue'
-                            ? 'bg-red-100 text-red-700'
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700'
                             : 'bg-navy-light text-navy'
                         }`}>
                           {record.status === 'returned' && <CheckCircle2 className="h-3 w-3" />}
@@ -566,7 +568,7 @@ export function Reports() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search books..."
+                  placeholder={t('reports.searchBooks')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="rounded-xl h-10 pl-10"
@@ -578,7 +580,7 @@ export function Reports() {
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all">{t('reports.allCategories')}</SelectItem>
                   <SelectItem value="Fiction">Fiction</SelectItem>
                   <SelectItem value="Textbook">Textbook</SelectItem>
                   <SelectItem value="Science">Science</SelectItem>
@@ -588,19 +590,19 @@ export function Reports() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div className="p-4 rounded-xl bg-secondary/30">
-                <p className="text-xs text-muted-foreground">Total Titles</p>
+                <p className="text-xs text-muted-foreground">{t('reports.totalTitles')}</p>
                 <p className="text-xl font-bold mt-1">{books.length}</p>
               </div>
               <div className="p-4 rounded-xl bg-secondary/30">
-                <p className="text-xs text-muted-foreground">Total Copies</p>
+                <p className="text-xs text-muted-foreground">{t('reports.totalCopies')}</p>
                 <p className="text-xl font-bold mt-1">{books.reduce((sum, b) => sum + b.quantity, 0)}</p>
               </div>
-              <div className="p-4 rounded-xl bg-green-50">
-                <p className="text-xs text-green-700">Available</p>
+              <div className="p-4 rounded-xl bg-green-50 dark:bg-green-950/30">
+                <p className="text-xs text-green-700">{t('reports.available')}</p>
                 <p className="text-xl font-bold mt-1 text-green-700">{books.reduce((sum, b) => sum + b.available, 0)}</p>
               </div>
-              <div className="p-4 rounded-xl bg-red-50">
-                <p className="text-xs text-red-700">Borrowed Out</p>
+              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30">
+                <p className="text-xs text-red-700">{t('reports.borrowedOut')}</p>
                 <p className="text-xl font-bold mt-1 text-red-700">
                   {books.reduce((sum, b) => sum + (b.quantity - b.available), 0)}
                 </p>
@@ -611,12 +613,12 @@ export function Reports() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border/60 bg-secondary/30">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Book</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Category</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Subject</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Total</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Available</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.book')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.category')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.subject')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.total')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.available')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -633,10 +635,10 @@ export function Reports() {
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                           book.available > 0 
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700'
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-700'
                         }`}>
-                          {book.available > 0 ? 'In Stock' : 'Out of Stock'}
+                          {book.available > 0 ? t('reports.inStock') : t('reports.outOfStock')}
                         </span>
                       </td>
                     </tr>
@@ -652,7 +654,7 @@ export function Reports() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search students..."
+                  placeholder={t('reports.searchStudents')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="rounded-xl h-10 pl-10"
@@ -664,7 +666,7 @@ export function Reports() {
                   <SelectValue placeholder="Class" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Classes</SelectItem>
+                  <SelectItem value="all">{t('reports.allClasses')}</SelectItem>
                   <SelectItem value="Grade 9">Grade 9</SelectItem>
                   <SelectItem value="Grade 10">Grade 10</SelectItem>
                   <SelectItem value="Grade 11">Grade 11</SelectItem>
@@ -675,21 +677,21 @@ export function Reports() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div className="p-4 rounded-xl bg-secondary/30">
-                <p className="text-xs text-muted-foreground">Total Students</p>
+                <p className="text-xs text-muted-foreground">{t('reports.totalStudents')}</p>
                 <p className="text-xl font-bold mt-1">{students.length}</p>
               </div>
-              <div className="p-4 rounded-xl bg-green-50">
-                <p className="text-xs text-green-700">Active</p>
+              <div className="p-4 rounded-xl bg-green-50 dark:bg-green-950/30">
+                <p className="text-xs text-green-700">{t('reports.active')}</p>
                 <p className="text-xl font-bold mt-1 text-green-700">{students.filter(s => s.isActive).length}</p>
               </div>
               <div className="p-4 rounded-xl bg-navy-light">
-                <p className="text-xs text-navy">With Borrows</p>
+                <p className="text-xs text-navy">{t('reports.withBorrows')}</p>
                 <p className="text-xl font-bold mt-1 text-navy">
                   {new Set(borrowRecords.filter(r => r.status === 'borrowed').map(r => r.studentId)).size}
                 </p>
               </div>
-              <div className="p-4 rounded-xl bg-red-50">
-                <p className="text-xs text-red-700">With Overdue</p>
+              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30">
+                <p className="text-xs text-red-700">{t('reports.withOverdue')}</p>
                 <p className="text-xl font-bold mt-1 text-red-700">{students.filter(s => s.overdueCount > 0).length}</p>
               </div>
             </div>
@@ -698,11 +700,11 @@ export function Reports() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border/60 bg-secondary/30">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Student</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Admission No.</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Class</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Overdue</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.student')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.admissionNo')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.class')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.status')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.overdue')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -725,10 +727,10 @@ export function Reports() {
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                           student.isActive 
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-700'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700'
                         }`}>
-                          {student.isActive ? 'Active' : 'Inactive'}
+                          {student.isActive ? t('reports.active') : t('reports.inactive')}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -751,16 +753,16 @@ export function Reports() {
           {/* Overdue Tab */}
           <TabsContent value="overdue" className="mt-0 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <div className="p-4 rounded-xl bg-red-50">
-                <p className="text-xs text-red-700">Total Overdue</p>
+              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30">
+                <p className="text-xs text-red-700">{t('reports.totalOverdue')}</p>
                 <p className="text-xl font-bold mt-1 text-red-700">{totalOverdue}</p>
               </div>
-              <div className="p-4 rounded-xl bg-amber-50">
-                <p className="text-xs text-amber-700">Total Penalties</p>
+              <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30">
+                <p className="text-xs text-amber-700">{t('reports.totalPenalties')}</p>
                 <p className="text-xl font-bold mt-1 text-amber-700">TSH {totalPenalties.toLocaleString()}</p>
               </div>
               <div className="p-4 rounded-xl bg-secondary/30">
-                <p className="text-xs text-muted-foreground">Avg. Days Overdue</p>
+                <p className="text-xs text-muted-foreground">{t('reports.avgDaysOverdue')}</p>
                 <p className="text-xl font-bold mt-1">
                   {borrowRecords.filter(r => r.status === 'overdue').length > 0
                     ? Math.round(
@@ -769,7 +771,7 @@ export function Reports() {
                           .reduce((sum, r) => sum + (r.lateDays || 0), 0) /
                         borrowRecords.filter(r => r.status === 'overdue').length
                       )
-                    : 0} days
+                    : 0} {t('reports.days')}
                 </p>
               </div>
             </div>
@@ -778,11 +780,11 @@ export function Reports() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border/60 bg-secondary/30">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Book</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Student</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Due Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Days Overdue</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Penalty</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.book')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.student')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.dueDate')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.daysOverdue')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">{t('reports.penalty')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -801,8 +803,8 @@ export function Reports() {
                           {new Date(record.dueDate).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                            {daysOverdue} days
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700">
+                            {daysOverdue} {t('reports.days')}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -814,7 +816,7 @@ export function Reports() {
                   {borrowRecords.filter(r => r.status === 'overdue').length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                        No overdue books found
+                        {t('reports.noOverdueBooks')}
                       </td>
                     </tr>
                   )}

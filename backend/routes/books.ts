@@ -70,6 +70,42 @@ router.get('/duplicate-count', async (_req: Request, res: Response) => {
     }
 });
 
+router.get('/isbn/:isbn', async (req: Request, res: Response) => {
+    try {
+        const isbn = String(req.params.isbn || '').trim();
+        if (!isbn) {
+            res.status(400).json({ error: 'ISBN is required' });
+            return;
+        }
+        const user = await getSessionUser(req);
+        const { clause, params } = getLevelFilter(user, 'b');
+        const result = await pool.query(
+            `SELECT b.*, 
+                    c.name AS category_name,
+                    s.name AS subject_name,
+                    cl.name AS class_name,
+                    sl.code AS shelf_location_code,
+                    sl.name AS shelf_location_name
+             FROM books b
+             LEFT JOIN categories c ON c.id = b.category_id
+             LEFT JOIN subjects s ON s.id = b.subject_id
+             LEFT JOIN classes cl ON cl.id = b.class_id
+             LEFT JOIN shelf_locations sl ON sl.id = b.shelf_location_id
+             WHERE b.isbn = $${params.length + 1} AND b.is_active = true ${clause}
+             ORDER BY b.created_at DESC`,
+            [...params, isbn]
+        );
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'No book found with this ISBN' });
+            return;
+        }
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching book by ISBN:', error);
+        res.status(500).json({ error: 'Failed to fetch book by ISBN' });
+    }
+});
+
 router.get('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;

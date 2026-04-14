@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   AlertCircle, 
@@ -24,6 +25,7 @@ import { borrowRecords as mockBorrowRecords, students } from '@/data/mockData';
 import type { BorrowRecord } from '@/types';
 
 export function Overdue() {
+  const { t } = useTranslation();
   const [borrowRecords, setBorrowRecords] = useState<BorrowRecord[]>(mockBorrowRecords);
   const [searchQuery, setSearchQuery] = useState('');
   const [showReminderDialog, setShowReminderDialog] = useState(false);
@@ -82,15 +84,15 @@ export function Overdue() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Overdue Books</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('overdue.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage overdue books and send reminders
+            {t('overdue.manageSubtitle')}
           </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
             <p className="text-2xl font-bold text-red">{overdueRecords.length}</p>
-            <p className="text-xs text-muted-foreground">Total Overdue</p>
+            <p className="text-xs text-muted-foreground">{t('overdue.totalOverdue')}</p>
           </div>
         </div>
       </motion.div>
@@ -102,18 +104,18 @@ export function Overdue() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="grid grid-cols-1 sm:grid-cols-3 gap-5"
       >
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-red-light flex items-center justify-center">
               <AlertCircle className="h-5 w-5 text-red" />
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{overdueRecords.length}</p>
-              <p className="text-sm text-muted-foreground">Overdue Books</p>
+              <p className="text-sm text-muted-foreground">{t('overdue.overdueBooks')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-amber-light flex items-center justify-center">
               <User className="h-5 w-5 text-amber" />
@@ -122,11 +124,11 @@ export function Overdue() {
               <p className="text-2xl font-bold text-foreground">
                 {new Set(overdueRecords.map(r => r.studentId)).size}
               </p>
-              <p className="text-sm text-muted-foreground">Students Affected</p>
+              <p className="text-sm text-muted-foreground">{t('overdue.studentsAffected')}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-navy-light flex items-center justify-center">
               <Clock className="h-5 w-5 text-navy" />
@@ -135,7 +137,7 @@ export function Overdue() {
               <p className="text-2xl font-bold text-foreground">
                 TSH {overdueRecords.reduce((sum, r) => sum + getTotalPenalty(r.dueDate), 0).toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">Total Penalties</p>
+              <p className="text-sm text-muted-foreground">{t('overdue.totalPenalties')}</p>
             </div>
           </div>
         </div>
@@ -150,7 +152,7 @@ export function Overdue() {
       >
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search by student or book..."
+          placeholder={t('overdue.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="h-11 pl-10 rounded-xl"
@@ -162,13 +164,13 @@ export function Overdue() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
-        className="rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden"
+        className="rounded-[20px] bg-card shadow-card overflow-hidden"
       >
         {filteredOverdue.length === 0 ? (
           <EmptyState
             icon={CheckCircle2}
-            title="No overdue books"
-            description="All books are returned on time. Great job!"
+            title={t('overdue.noOverdue')}
+            description={t('overdue.noOverdueDesc')}
           />
         ) : (
           <div className="overflow-x-auto">
@@ -176,22 +178,22 @@ export function Overdue() {
               <thead>
                 <tr className="border-b border-border/60">
                   <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Student
+                    {t('overdue.student')}
                   </th>
                   <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Book
+                    {t('overdue.book')}
                   </th>
                   <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Due Date
+                    {t('overdue.dueDate')}
                   </th>
                   <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Days Overdue
+                    {t('overdue.daysOverdue')}
                   </th>
                   <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Penalty
+                    {t('overdue.penalty')}
                   </th>
                   <th className="text-right px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
+                    {t('overdue.actions')}
                   </th>
                 </tr>
               </thead>
@@ -227,7 +229,7 @@ export function Overdue() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-light text-red">
-                          {daysOverdue} days
+                          {daysOverdue} {t('overdue.days')}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -242,14 +244,14 @@ export function Overdue() {
                             className="rounded-lg"
                           >
                             <Mail className="h-4 w-4 mr-1" />
-                            Remind
+                            {t('overdue.remind')}
                           </Button>
                           <Button 
                             size="sm" 
                             onClick={() => handleClearOverdue(record.id)}
                             className="rounded-lg bg-green hover:bg-green/90"
                           >
-                            Clear
+                            {t('overdue.clear')}
                           </Button>
                         </div>
                       </td>
@@ -266,7 +268,7 @@ export function Overdue() {
       <Dialog open={showReminderDialog} onOpenChange={setShowReminderDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Send Reminder</DialogTitle>
+            <DialogTitle>{t('overdue.sendReminder')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             {selectedOverdue && (
@@ -275,12 +277,12 @@ export function Overdue() {
                   <p className="font-medium text-sm">{selectedOverdue.studentName}</p>
                   <p className="text-xs text-muted-foreground mt-1">{selectedOverdue.bookTitle}</p>
                   <p className="text-xs text-red mt-1">
-                    {getDaysOverdue(selectedOverdue.dueDate)} days overdue
+                    {getDaysOverdue(selectedOverdue.dueDate)} {t('overdue.daysOverdueText')}
                   </p>
                 </div>
                 
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Reminder Method</p>
+                  <p className="text-sm font-medium">{t('overdue.reminderMethod')}</p>
                   <div className="flex gap-3">
                     <button
                       onClick={() => setReminderType('email')}
@@ -291,7 +293,7 @@ export function Overdue() {
                       }`}
                     >
                       <Mail className="h-4 w-4" />
-                      Email
+                      {t('overdue.email')}
                     </button>
                     <button
                       onClick={() => setReminderType('sms')}
@@ -302,14 +304,14 @@ export function Overdue() {
                       }`}
                     >
                       <MessageSquare className="h-4 w-4" />
-                      SMS
+                      {t('overdue.sms')}
                     </button>
                   </div>
                 </div>
 
                 <div className="p-3 bg-amber-light rounded-xl">
                   <p className="text-xs text-amber">
-                    This will send a reminder to the student about their overdue book and any applicable penalties.
+                    {t('overdue.reminderNote')}
                   </p>
                 </div>
               </div>
@@ -317,10 +319,10 @@ export function Overdue() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReminderDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={confirmSendReminder} className="bg-navy hover:bg-navy/90 rounded-xl">
-              Send Reminder
+              {t('overdue.sendReminder')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -333,14 +335,14 @@ export function Overdue() {
             <div className="h-16 w-16 rounded-full bg-green-light flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="h-8 w-8 text-green" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground">Reminder Sent!</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t('overdue.reminderSent')}</h3>
             <p className="text-sm text-muted-foreground mt-2">
-              The reminder has been sent successfully.
+              {t('overdue.reminderSentDesc')}
             </p>
           </div>
           <DialogFooter>
             <Button onClick={() => setShowSuccessDialog(false)} className="w-full bg-navy hover:bg-navy/90 rounded-xl">
-              Done
+              {t('overdue.done')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create role
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('roles', 'manage'), async (req: Request, res: Response) => {
     try {
         const { name, description } = req.body;
 
@@ -62,7 +63,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Update role
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('roles', 'manage'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { name, description } = req.body;
@@ -82,7 +83,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // Delete role
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('roles', 'manage'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const result = await pool.query(

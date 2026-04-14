@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -73,6 +74,7 @@ const generateAvatar = (name: string, gender: string) => {
 };
 
 export function Students() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: session } = useSession();
   const userRole = session?.user?.role ?? null;
@@ -124,7 +126,7 @@ export function Students() {
       setStudents(data);
     } catch (error) {
       console.error('Error fetching students:', error);
-      toast.error('Failed to fetch students');
+      toast.error(t('students.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -181,9 +183,9 @@ export function Students() {
       await fetchStudents();
       setShowEditDialog(false);
       setSelectedStudent(null);
-      toast.success('Student updated successfully');
+      toast.success(t('students.updateSuccess'));
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to update student');
+      toast.error(error?.response?.data?.message || t('students.failedToUpdate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -197,9 +199,9 @@ export function Students() {
       await fetchStudents();
       setShowDeleteDialog(false);
       setSelectedStudent(null);
-      toast.success('Student deleted successfully');
+      toast.success(t('students.deleteSuccess'));
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to delete student');
+      toast.error(error?.response?.data?.message || t('students.failedToDelete'));
     } finally {
       setIsSubmitting(false);
     }
@@ -213,9 +215,9 @@ export function Students() {
       );
       await fetchStudents();
       setSelectedRows(new Set());
-      toast.success(`Deleted ${selectedRows.size} students`);
+      toast.success(t('students.bulkDeleteSuccess', { count: selectedRows.size }));
     } catch (error: any) {
-      toast.error('Failed to delete some students');
+      toast.error(t('students.failedToDeleteSome'));
     }
   };
 
@@ -249,7 +251,7 @@ export function Students() {
   const columns: DataTableColumn<StudentRecord>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Student',
+      header: t('students.student'),
       sortable: true,
       getValue: (row) => row.name,
       render: (student) => (
@@ -269,7 +271,7 @@ export function Students() {
     },
     {
       key: 'student_id',
-      header: 'ID',
+      header: t('students.id'),
       sortable: true,
       render: (student) => (
         <span className="text-muted-foreground font-mono text-xs">{student.student_id || student.admission_number}</span>
@@ -277,7 +279,7 @@ export function Students() {
     },
     {
       key: 'class_name',
-      header: 'Class',
+      header: t('students.class'),
       sortable: true,
       getValue: (row) => row.class_name,
       render: (student) => (
@@ -286,7 +288,7 @@ export function Students() {
     },
     {
       key: 'gender',
-      header: 'Gender',
+      header: t('students.gender'),
       sortable: true,
       render: (student) => (
         <span className="text-muted-foreground capitalize">{student.gender}</span>
@@ -294,7 +296,7 @@ export function Students() {
     },
     {
       key: 'active_borrows',
-      header: 'Active Borrows',
+      header: t('students.activeBorrows'),
       sortable: true,
       render: (student) => (
         <Badge variant={student.active_borrows > 0 ? 'default' : 'secondary'} className="rounded-lg">
@@ -304,17 +306,17 @@ export function Students() {
     },
     {
       key: 'is_active',
-      header: 'Status',
+      header: t('common.status'),
       sortable: true,
       render: (student) => (
         <StatusBadge status={student.is_active ? 'active' : 'inactive'}>
-          {student.is_active ? 'Active' : 'Inactive'}
+          {student.is_active ? t('common.active') : t('common.inactive')}
         </StatusBadge>
       ),
     },
     {
       key: 'level',
-      header: 'Level',
+      header: t('students.level'),
       sortable: true,
       render: (student) => (
         student.level ? (
@@ -328,7 +330,7 @@ export function Students() {
     },
     {
       key: 'actions',
-      header: 'Action',
+      header: t('students.action'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (student) => (
@@ -366,33 +368,33 @@ export function Students() {
     <div className="space-y-4 py-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>First Name</Label>
+          <Label>{t('students.firstName')}</Label>
           <Input
             value={formData.first_name}
             onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-            placeholder="Enter first name"
+            placeholder={t('students.enterFirstName')}
             className="rounded-xl h-11"
           />
         </div>
         <div className="space-y-2">
-          <Label>Last Name</Label>
+          <Label>{t('students.lastName')}</Label>
           <Input
             value={formData.last_name}
             onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-            placeholder="Enter last name"
+            placeholder={t('students.enterLastName')}
             className="rounded-xl h-11"
           />
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Class</Label>
+          <Label>{t('students.class')}</Label>
           <Select
             value={formData.class_id}
             onValueChange={(value) => setFormData({ ...formData, class_id: value })}
           >
             <SelectTrigger className="rounded-xl h-11">
-              <SelectValue placeholder="Select class" />
+              <SelectValue placeholder={t('students.selectClass')} />
             </SelectTrigger>
             <SelectContent>
               {classes.map((cls) => (
@@ -402,7 +404,7 @@ export function Students() {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Gender</Label>
+          <Label>{t('students.gender')}</Label>
           <Select
             value={formData.gender}
             onValueChange={(value) => setFormData({ ...formData, gender: value })}
@@ -411,16 +413,16 @@ export function Students() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="male">{t('common.male')}</SelectItem>
+              <SelectItem value="female">{t('common.female')}</SelectItem>
+              <SelectItem value="other">{t('common.other')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Date of Birth</Label>
+          <Label>{t('students.dateOfBirth')}</Label>
           <Input
             type="date"
             value={formData.dob}
@@ -429,7 +431,7 @@ export function Students() {
           />
         </div>
         <div className="space-y-2">
-          <Label>Nationality</Label>
+          <Label>{t('students.nationality')}</Label>
           <Input
             value={formData.nationality}
             onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
@@ -440,52 +442,52 @@ export function Students() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Email</Label>
+          <Label>{t('students.email')}</Label>
           <Input
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="Enter email"
+            placeholder={t('students.enterEmail')}
             className="rounded-xl h-11"
           />
         </div>
         <div className="space-y-2">
-          <Label>Phone</Label>
+          <Label>{t('students.phone')}</Label>
           <Input
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            placeholder="Enter phone"
+            placeholder={t('students.enterPhone')}
             className="rounded-xl h-11"
           />
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Parent Email</Label>
+          <Label>{t('students.parentEmail')}</Label>
           <Input
             type="email"
             value={formData.parent_email}
             onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
-            placeholder="Enter parent email"
+            placeholder={t('students.enterParentEmail')}
             className="rounded-xl h-11"
           />
         </div>
         <div className="space-y-2">
-          <Label>Parent Phone</Label>
+          <Label>{t('students.parentPhoneLabel')}</Label>
           <Input
             value={formData.parent_phone}
             onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
-            placeholder="Enter parent phone"
+            placeholder={t('students.enterParentPhone')}
             className="rounded-xl h-11"
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Address</Label>
+        <Label>{t('students.address')}</Label>
         <Input
           value={formData.address}
           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-          placeholder="Enter address"
+          placeholder={t('students.enterAddress')}
           className="rounded-xl h-11"
         />
       </div>
@@ -502,9 +504,9 @@ export function Students() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Students</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('students.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage student registrations ({filteredStudents.length} students)
+            {t('students.manageRegistrations', { count: filteredStudents.length })}
           </p>
         </div>
         <div className="flex gap-3">
@@ -523,7 +525,7 @@ export function Students() {
             className="bg-navy hover:bg-navy/90 rounded-xl h-11"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Register Student
+            {t('students.registerStudent')}
           </Button>
         </div>
       </motion.div>
@@ -538,7 +540,7 @@ export function Students() {
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by name or ID..."
+            placeholder={t('students.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-11 pl-10 rounded-xl"
@@ -550,7 +552,7 @@ export function Students() {
             <SelectValue placeholder="Class" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Classes</SelectItem>
+            <SelectItem value="all">{t('students.allClasses')}</SelectItem>
             {classNames.map(cls => (
               <SelectItem key={cls} value={cls}>{cls}</SelectItem>
             ))}
@@ -561,10 +563,10 @@ export function Students() {
             <SelectValue placeholder="Gender" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Genders</SelectItem>
-            <SelectItem value="male">Male</SelectItem>
-            <SelectItem value="female">Female</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
+            <SelectItem value="all">{t('students.allGenders')}</SelectItem>
+            <SelectItem value="male">{t('common.male')}</SelectItem>
+            <SelectItem value="female">{t('common.female')}</SelectItem>
+            <SelectItem value="other">{t('common.other')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -572,9 +574,9 @@ export function Students() {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="all">{t('students.allStatus')}</SelectItem>
+            <SelectItem value="active">{t('common.active')}</SelectItem>
+            <SelectItem value="inactive">{t('common.inactive')}</SelectItem>
           </SelectContent>
         </Select>
         {isAdmin && (
@@ -583,16 +585,16 @@ export function Students() {
               <SelectValue placeholder="Level" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Levels</SelectItem>
-              <SelectItem value="primary">Primary</SelectItem>
-              <SelectItem value="secondary">Secondary</SelectItem>
+              <SelectItem value="all">{t('students.allLevels')}</SelectItem>
+              <SelectItem value="primary">{t('students.primary')}</SelectItem>
+              <SelectItem value="secondary">{t('students.secondary')}</SelectItem>
             </SelectContent>
           </Select>
         )}
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-xl text-muted-foreground">
             <X className="h-4 w-4 mr-1" />
-            Clear
+            {t('common.clear')}
           </Button>
         )}
       </motion.div>
@@ -613,8 +615,8 @@ export function Students() {
           getRowId={(row) => row.id}
           onRowClick={(row) => navigate(`/students/${row.id}`)}
           emptyIcon={Users}
-          emptyTitle="No students found"
-          emptyDescription="Try adjusting your search or filters, or register a new student."
+          emptyTitle={t('students.noStudents')}
+          emptyDescription={t('students.noStudentsDesc')}
         />
       </motion.div>
 
@@ -622,12 +624,12 @@ export function Students() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="rounded-[20px] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Student</DialogTitle>
+            <DialogTitle>{t('students.editStudent')}</DialogTitle>
           </DialogHeader>
           {renderStudentForm()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleEditStudent} 
@@ -635,7 +637,7 @@ export function Students() {
               disabled={isSubmitting}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -645,19 +647,19 @@ export function Students() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Student</DialogTitle>
+            <DialogTitle>{t('students.deleteStudent')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete "{selectedStudent?.name}"? This action cannot be undone.
+              {t('students.deleteConfirmMessage', { name: selectedStudent?.name })}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDeleteStudent} variant="destructive" className="rounded-xl">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

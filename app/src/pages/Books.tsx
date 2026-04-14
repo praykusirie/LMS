@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -93,6 +94,7 @@ const generateBookCover = (title: string) => {
 
 export function Books() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
@@ -161,7 +163,7 @@ export function Books() {
       setBooks(data);
     } catch (error) {
       console.error('Error fetching books:', error);
-      toast.error('Failed to fetch books');
+      toast.error(t('books.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -214,11 +216,11 @@ export function Books() {
 
   const handleAddBook = async () => {
     if (!formData.title.trim()) {
-      toast.error('Title is required');
+      toast.error(t('books.titleRequired'));
       return;
     }
     if (isAdmin && !formData.level) {
-      toast.error('Level is required');
+      toast.error(t('books.levelRequired'));
       return;
     }
     setIsSubmitting(true);
@@ -240,9 +242,9 @@ export function Books() {
       await fetchBooks();
       setShowAddDialog(false);
       resetForm();
-      toast.success('Book added successfully');
+      toast.success(t('books.bookAddedSuccess'));
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to add book');
+      toast.error(error?.message || t('books.failedToAdd'));
     } finally {
       setIsSubmitting(false);
     }
@@ -269,9 +271,9 @@ export function Books() {
       setShowEditDialog(false);
       setSelectedBook(null);
       resetForm();
-      toast.success('Book updated successfully');
+      toast.success(t('books.bookUpdatedSuccess'));
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update book');
+      toast.error(error?.message || t('books.failedToUpdate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -285,9 +287,9 @@ export function Books() {
       await fetchBooks();
       setShowDeleteDialog(false);
       setSelectedBook(null);
-      toast.success('Book deleted successfully');
+      toast.success(t('books.bookDeletedSuccess'));
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to delete book');
+      toast.error(error?.message || t('books.failedToDelete'));
     } finally {
       setIsSubmitting(false);
     }
@@ -301,9 +303,9 @@ export function Books() {
       );
       await fetchBooks();
       setSelectedRows(new Set());
-      toast.success(`Deleted ${selectedRows.size} books`);
+      toast.success(`${t('common.delete')}: ${selectedRows.size}`);
     } catch (error: any) {
-      toast.error('Failed to delete some books');
+      toast.error(t('books.failedToDeleteSome'));
     }
   };
 
@@ -315,11 +317,11 @@ export function Books() {
         toast.success(data.message);
         await fetchBooks();
       } else {
-        toast.info('No duplicates found in the database.');
+        toast.info(t('books.noDuplicatesFound'));
       }
       await fetchDuplicateCount();
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to merge duplicates');
+      toast.error(error?.message || t('books.failedToMerge'));
     } finally {
       setIsMerging(false);
     }
@@ -366,7 +368,7 @@ export function Books() {
   const columns: DataTableColumn<BookRecord>[] = useMemo(() => [
     {
       key: 'title',
-      header: 'Book',
+      header: t('books.book'),
       sortable: true,
       getValue: (row) => row.title,
       render: (book) => (
@@ -386,7 +388,7 @@ export function Books() {
     },
     {
       key: 'book_id',
-      header: 'ID',
+      header: t('books.id'),
       sortable: true,
       render: (book) => (
         <span className="text-muted-foreground font-mono text-xs">{book.book_id}</span>
@@ -394,7 +396,7 @@ export function Books() {
     },
     {
       key: 'category_name',
-      header: 'Category',
+      header: t('books.category'),
       sortable: true,
       getValue: (row) => row.category_name,
       render: (book) => (
@@ -403,7 +405,7 @@ export function Books() {
     },
     {
       key: 'subject_name',
-      header: 'Subject',
+      header: t('books.subject'),
       sortable: true,
       getValue: (row) => row.subject_name,
       render: (book) => (
@@ -412,7 +414,7 @@ export function Books() {
     },
     {
       key: 'class_name',
-      header: 'Class',
+      header: t('books.class'),
       sortable: true,
       getValue: (row) => row.class_name,
       render: (book) => (
@@ -421,7 +423,7 @@ export function Books() {
     },
     {
       key: 'available',
-      header: 'Availability',
+      header: t('books.availability'),
       sortable: true,
       render: (book) => (
         <StatusBadge status={book.available > 0 ? 'available' : 'unavailable'}>
@@ -431,7 +433,7 @@ export function Books() {
     },
     {
       key: 'created_at',
-      header: 'Added',
+      header: t('books.added'),
       sortable: true,
       getValue: (row) => row.created_at,
       render: (book) => (
@@ -442,7 +444,7 @@ export function Books() {
     },
     {
       key: 'actions',
-      header: 'Action',
+      header: t('books.action'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (book) => (
@@ -478,18 +480,18 @@ export function Books() {
 
   const renderLevelSelect = (disabled = false) => (
     <div className="space-y-2">
-      <Label>Level <span className="text-red-500">*</span></Label>
+      <Label>{t('books.level')} <span className="text-red-500">*</span></Label>
       <Select
         value={isAdmin ? formData.level : (userLevel || '')}
         onValueChange={(value) => setFormData({ ...formData, level: value })}
         disabled={!isAdmin || disabled}
       >
         <SelectTrigger className="rounded-xl h-11">
-          <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+          <SelectValue placeholder={isAdmin ? t('books.selectLevel') : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} ${t('books.level')}` : t('books.noLevel'))} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="primary">Primary Level</SelectItem>
-          <SelectItem value="secondary">Secondary Level</SelectItem>
+          <SelectItem value="primary">{t('books.primaryLevel')}</SelectItem>
+          <SelectItem value="secondary">{t('books.secondaryLevel')}</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -499,42 +501,42 @@ export function Books() {
     <div className="space-y-4 py-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Title <span className="text-red-500">*</span></Label>
+          <Label>{t('books.bookTitle')} <span className="text-red-500">*</span></Label>
           <Input
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            placeholder="Enter book title"
+            placeholder={t('books.enterTitle')}
             className="rounded-xl h-11"
           />
         </div>
         <div className="space-y-2">
-          <Label>Author</Label>
+          <Label>{t('books.author')}</Label>
           <Input
             value={formData.author}
             onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-            placeholder="Enter author name"
+            placeholder={t('books.enterAuthor')}
             className="rounded-xl h-11"
           />
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>ISBN</Label>
+          <Label>{t('books.isbn')}</Label>
           <Input
             value={formData.isbn}
             onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
-            placeholder="Enter ISBN"
+            placeholder={t('books.enterISBN')}
             className="rounded-xl h-11"
           />
         </div>
         <div className="space-y-2">
-          <Label>Category</Label>
+          <Label>{t('books.category')}</Label>
           <Select
             value={formData.category_id}
             onValueChange={(value) => setFormData({ ...formData, category_id: value })}
           >
             <SelectTrigger className="rounded-xl h-11">
-              <SelectValue placeholder="Select category" />
+              <SelectValue placeholder={t('books.selectCategory')} />
             </SelectTrigger>
             <SelectContent>
               {categories.map((cat) => (
@@ -546,13 +548,13 @@ export function Books() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Subject</Label>
+          <Label>{t('books.subject')}</Label>
           <Select
             value={formData.subject_id}
             onValueChange={(value) => setFormData({ ...formData, subject_id: value })}
           >
             <SelectTrigger className="rounded-xl h-11">
-              <SelectValue placeholder="Select subject" />
+              <SelectValue placeholder={t('books.selectSubject')} />
             </SelectTrigger>
             <SelectContent>
               {subjects.map((sub) => (
@@ -562,13 +564,13 @@ export function Books() {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Class</Label>
+          <Label>{t('books.class')}</Label>
           <Select
             value={formData.class_id}
             onValueChange={(value) => setFormData({ ...formData, class_id: value })}
           >
             <SelectTrigger className="rounded-xl h-11">
-              <SelectValue placeholder="Select class" />
+              <SelectValue placeholder={t('books.selectClass')} />
             </SelectTrigger>
             <SelectContent>
               {classes.map((cls) => (
@@ -580,7 +582,7 @@ export function Books() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Quantity</Label>
+          <Label>{t('books.quantity')}</Label>
           <Input
             type="number"
             min="1"
@@ -590,13 +592,13 @@ export function Books() {
           />
         </div>
         <div className="space-y-2">
-          <Label>Shelf Location</Label>
+          <Label>{t('books.shelfLocation')}</Label>
           <Select
             value={formData.shelf_location_id}
             onValueChange={(value) => setFormData({ ...formData, shelf_location_id: value })}
           >
             <SelectTrigger className="rounded-xl h-11">
-              <SelectValue placeholder="Select shelf location" />
+              <SelectValue placeholder={t('books.selectShelf')} />
             </SelectTrigger>
             <SelectContent>
               {shelfLocations.map((loc) => (
@@ -610,16 +612,16 @@ export function Books() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Publisher</Label>
+          <Label>{t('books.publisher')}</Label>
           <Input
             value={formData.publisher}
             onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
-            placeholder="Enter publisher"
+            placeholder={t('books.enterPublisher')}
             className="rounded-xl h-11"
           />
         </div>
         <div className="space-y-2">
-          <Label>Published Year</Label>
+          <Label>{t('books.publishedYear')}</Label>
           <Input
             value={formData.published_year}
             onChange={(e) => setFormData({ ...formData, published_year: e.target.value })}
@@ -642,9 +644,9 @@ export function Books() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">All Books</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('books.allBooks')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage your library catalog ({filteredBooks.length} books)
+            {t('books.manageCatalog')} ({filteredBooks.length})
           </p>
         </div>
         <div className="flex gap-3">
@@ -655,7 +657,7 @@ export function Books() {
               onClick={handleBulkDelete}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete ({selectedRows.size})
+              {t('common.delete')} ({selectedRows.size})
             </Button>
           )}
           {duplicateCount > 0 && (
@@ -666,7 +668,7 @@ export function Books() {
               disabled={isMerging}
             >
               {isMerging ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Merge className="h-4 w-4 mr-2" />}
-              Merge Duplicates ({duplicateCount})
+              {t('books.mergeDuplicates')} ({duplicateCount})
             </Button>
           )}
           <Button 
@@ -675,7 +677,7 @@ export function Books() {
             className="rounded-xl h-11"
           >
             <Upload className="h-4 w-4 mr-2" />
-            Bulk Import
+            {t('books.bulkImport')}
           </Button>
           <Button 
             onClick={() => {
@@ -685,7 +687,7 @@ export function Books() {
             className="bg-navy hover:bg-navy/90 rounded-xl h-11"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Book
+            {t('books.addBook')}
           </Button>
         </div>
       </motion.div>
@@ -700,7 +702,7 @@ export function Books() {
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by name or ID..."
+            placeholder={t('books.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-11 pl-10 rounded-xl"
@@ -708,10 +710,10 @@ export function Books() {
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[150px] h-11 rounded-xl">
-            <SelectValue placeholder="Category" />
+            <SelectValue placeholder={t('books.category')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">{t('books.allCategories')}</SelectItem>
             {categoryNames.map(cat => (
               <SelectItem key={cat} value={cat}>{cat}</SelectItem>
             ))}
@@ -719,10 +721,10 @@ export function Books() {
         </Select>
         <Select value={subjectFilter} onValueChange={setSubjectFilter}>
           <SelectTrigger className="w-[150px] h-11 rounded-xl">
-            <SelectValue placeholder="Subject" />
+            <SelectValue placeholder={t('books.subject')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Subjects</SelectItem>
+            <SelectItem value="all">{t('books.allSubjects')}</SelectItem>
             {subjectNames.map(sub => (
               <SelectItem key={sub} value={sub}>{sub}</SelectItem>
             ))}
@@ -730,10 +732,10 @@ export function Books() {
         </Select>
         <Select value={classFilter} onValueChange={setClassFilter}>
           <SelectTrigger className="w-[130px] h-11 rounded-xl">
-            <SelectValue placeholder="Class" />
+            <SelectValue placeholder={t('books.class')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Classes</SelectItem>
+            <SelectItem value="all">{t('books.allClasses')}</SelectItem>
             {classNames.map(cls => (
               <SelectItem key={cls} value={cls}>{cls}</SelectItem>
             ))}
@@ -741,18 +743,18 @@ export function Books() {
         </Select>
         <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
           <SelectTrigger className="w-[140px] h-11 rounded-xl">
-            <SelectValue placeholder="Availability" />
+            <SelectValue placeholder={t('books.availability')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="available">In Stock</SelectItem>
-            <SelectItem value="unavailable">Out of Stock</SelectItem>
+            <SelectItem value="all">{t('common.all')}</SelectItem>
+            <SelectItem value="available">{t('books.inStock')}</SelectItem>
+            <SelectItem value="unavailable">{t('books.outOfStock')}</SelectItem>
           </SelectContent>
         </Select>
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-xl text-muted-foreground">
             <X className="h-4 w-4 mr-1" />
-            Clear
+            {t('common.clearAll')}
           </Button>
         )}
       </motion.div>
@@ -773,8 +775,8 @@ export function Books() {
           getRowId={(row) => row.id}
           onRowClick={(row) => navigate(`/books/${row.id}`)}
           emptyIcon={BookOpen}
-          emptyTitle="No books found"
-          emptyDescription="Try adjusting your search or filters, or add a new book."
+          emptyTitle={t('books.noBooks')}
+          emptyDescription={t('books.noBooksDesc')}
         />
       </motion.div>
 
@@ -782,12 +784,12 @@ export function Books() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="rounded-[20px] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Book</DialogTitle>
+            <DialogTitle>{t('books.addBookTitle')}</DialogTitle>
           </DialogHeader>
           {renderBookForm()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleAddBook} 
@@ -795,7 +797,7 @@ export function Books() {
               disabled={isSubmitting || !formData.title.trim() || (isAdmin && !formData.level)}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Add Book
+              {t('books.addBook')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -805,12 +807,12 @@ export function Books() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="rounded-[20px] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Book</DialogTitle>
+            <DialogTitle>{t('books.editBook')}</DialogTitle>
           </DialogHeader>
           {renderBookForm()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleEditBook} 
@@ -818,7 +820,7 @@ export function Books() {
               disabled={isSubmitting}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -828,19 +830,19 @@ export function Books() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[20px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Book</DialogTitle>
+            <DialogTitle>{t('books.deleteBook')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete "{selectedBook?.title}"? This action cannot be undone.
+              {t('books.deleteConfirm', { title: selectedBook?.title })} {t('books.deleteWarning')}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDeleteBook} variant="destructive" className="rounded-xl">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -164,7 +164,7 @@ export function DataTable<T>({
 
   if (isLoading) {
     return (
-      <div className={cn("rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden", className)}>
+      <div className={cn("rounded-[20px] bg-card shadow-card overflow-hidden", className)}>
         <div className="p-6 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4">
@@ -185,7 +185,7 @@ export function DataTable<T>({
 
   if (sortedData.length === 0) {
     return (
-      <div className={cn("rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden", className)}>
+      <div className={cn("rounded-[20px] bg-card shadow-card overflow-hidden", className)}>
         <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
           {EmptyIcon && <EmptyIcon className="h-12 w-12 text-muted-foreground/40 mb-4" />}
           <h3 className="text-lg font-medium text-foreground">{emptyTitle}</h3>
@@ -198,7 +198,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("rounded-[20px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden", className)}>
+    <div className={cn("rounded-[20px] bg-card shadow-card overflow-hidden", className)}>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>

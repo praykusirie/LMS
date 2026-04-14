@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { signIn } from '@/lib/auth-client';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -64,35 +66,34 @@ export function Login() {
           transition={{ duration: 0.5 }}
           className="w-full max-w-md"
         >
-          <div className="rounded-[20px] bg-white p-8 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+          <div className="rounded-[20px] bg-card p-8 shadow-card">
             <button
               onClick={() => setShowForgotPassword(false)}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to login
+              {t('auth.backToLogin')}
             </button>
 
             <div className="text-center mb-8">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-navy mx-auto mb-4">
                 <Library className="h-8 w-8 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-foreground">Reset Password</h1>
+              <h1 className="text-2xl font-bold text-foreground">{t('auth.resetPassword')}</h1>
               <p className="text-sm text-muted-foreground mt-2">
-                Enter your email and we'll send you a link to reset your password.
+                {t('auth.resetPasswordDescription')}
               </p>
             </div>
 
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="forgot-email">Email</Label>
+                <Label htmlFor="forgot-email">{t('auth.email')}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="forgot-email"
                     type="email"
-                    placeholder="Enter your email"
-                    value={forgotEmail}
+                    placeholder={t('auth.enterEmail')}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     className="h-12 pl-10 rounded-xl"
                     required
@@ -105,7 +106,7 @@ export function Login() {
                 className="w-full h-12 bg-navy hover:bg-navy/90 rounded-xl"
                 disabled={isLoading}
               >
-                {isLoading ? 'Sending...' : 'Send Reset Link'}
+                {isLoading ? t('auth.sending') : t('auth.sendResetLink')}
               </Button>
             </form>
           </div>
@@ -122,32 +123,32 @@ export function Login() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="rounded-[20px] bg-white p-8 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-[20px] bg-card p-8 shadow-card">
           <div className="text-center mb-8">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-navy mx-auto mb-4">
               <Library className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Library Management System</h1>
+            <h1 className="text-2xl font-bold text-foreground">{t('auth.title')}</h1>
             <p className="text-sm text-muted-foreground mt-2">
-              Sign in to access your dashboard
+              {t('auth.subtitle')}
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
-              <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-xl">
+              <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/30 rounded-xl">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 {error}
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('auth.email')}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder={t('auth.enterEmail')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-12 pl-10 rounded-xl"
@@ -157,13 +158,13 @@ export function Login() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('auth.password')}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  placeholder={t('auth.enterPassword')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-12 pl-10 pr-10 rounded-xl"
@@ -187,7 +188,7 @@ export function Login() {
                   onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                 />
                 <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
-                  Remember me
+                  {t('auth.rememberMe')}
                 </Label>
               </div>
               <button
@@ -195,7 +196,7 @@ export function Login() {
                 onClick={() => setShowForgotPassword(true)}
                 className="text-sm text-navy hover:underline"
               >
-                Forgot password?
+                {t('auth.forgotPassword')}
               </button>
             </div>
 
@@ -204,7 +205,7 @@ export function Login() {
               className="w-full h-12 bg-navy hover:bg-navy/90 rounded-xl"
               disabled={isLoading}
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? t('auth.signingIn') : t('auth.signIn')}
             </Button>
           </form>
         </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   Shield, 
@@ -35,6 +36,7 @@ interface Role {
 }
 
 export function RoleMaster() {
+  const { t } = useTranslation();
   const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +61,7 @@ export function RoleMaster() {
       setRoles(data);
     } catch (error) {
       console.error('Error fetching roles:', error);
-      toast.error('Failed to fetch roles');
+      toast.error(t('roles.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -74,10 +76,10 @@ export function RoleMaster() {
       await fetchRoles();
       setIsCreateDialogOpen(false);
       resetForm();
-      toast.success('Role created successfully');
+      toast.success(t('roles.createSuccess'));
     } catch (error: any) {
       console.error('Error creating role:', error);
-      toast.error(error?.message || 'Failed to create role');
+      toast.error(error?.message || t('roles.failedToCreate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -93,10 +95,10 @@ export function RoleMaster() {
       setIsEditDialogOpen(false);
       setSelectedRole(null);
       resetForm();
-      toast.success('Role updated successfully');
+      toast.success(t('roles.updateSuccess'));
     } catch (error) {
       console.error('Error updating role:', error);
-      toast.error('Failed to update role');
+      toast.error(t('roles.failedToUpdate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -111,10 +113,10 @@ export function RoleMaster() {
       await fetchRoles();
       setIsDeleteDialogOpen(false);
       setSelectedRole(null);
-      toast.success('Role deleted successfully');
+      toast.success(t('roles.deleteSuccess'));
     } catch (error) {
       console.error('Error deleting role:', error);
-      toast.error('Failed to delete role');
+      toast.error(t('roles.failedToDelete'));
     } finally {
       setIsSubmitting(false);
     }
@@ -156,7 +158,7 @@ export function RoleMaster() {
   const columns: DataTableColumn<Role>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Role Name',
+      header: t('roles.roleName'),
       sortable: true,
       getValue: (row) => row.name,
       render: (role) => (
@@ -170,7 +172,7 @@ export function RoleMaster() {
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('roles.description'),
       sortable: true,
       getValue: (row) => row.description,
       render: (role) => (
@@ -179,18 +181,18 @@ export function RoleMaster() {
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('roles.type'),
       sortable: true,
-      getValue: (row) => isSystemRole(row.name) ? 'System' : 'Custom',
+      getValue: (row) => isSystemRole(row.name) ? t('roles.system') : t('roles.custom'),
       render: (role) => (
         <Badge variant={isSystemRole(role.name) ? 'secondary' : 'outline'}>
-          {isSystemRole(role.name) ? 'System' : 'Custom'}
+          {isSystemRole(role.name) ? t('roles.system') : t('roles.custom')}
         </Badge>
       ),
     },
     {
       key: 'created_at',
-      header: 'Created',
+      header: t('roles.created'),
       sortable: true,
       getValue: (row) => row.created_at,
       render: (role) => (
@@ -201,7 +203,7 @@ export function RoleMaster() {
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('common.actions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (role) => (
@@ -227,7 +229,7 @@ export function RoleMaster() {
         </div>
       ),
     },
-  ], []);
+  ], [t]);
 
   return (
     <div className="space-y-6">
@@ -239,9 +241,9 @@ export function RoleMaster() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Role Master</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('roles.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Define and manage user roles in the system
+            {t('roles.subtitle')}
           </p>
         </div>
         <Button 
@@ -249,7 +251,7 @@ export function RoleMaster() {
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Role
+          {t('roles.addRole')}
         </Button>
       </motion.div>
 
@@ -263,7 +265,7 @@ export function RoleMaster() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search roles..."
+            placeholder={t('roles.searchRoles')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -283,8 +285,8 @@ export function RoleMaster() {
           isLoading={isLoading}
           getRowId={(row) => row.id}
           emptyIcon={Shield}
-          emptyTitle="No roles found"
-          emptyDescription="Add your first role to get started."
+          emptyTitle={t('roles.noRoles')}
+          emptyDescription={t('roles.noRolesDesc')}
         />
       </motion.div>
 
@@ -292,29 +294,29 @@ export function RoleMaster() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Create New Role</DialogTitle>
+            <DialogTitle>{t('roles.createNewRole')}</DialogTitle>
             <DialogDescription>
-              Define a new role that can be assigned to users.
+              {t('roles.createRoleDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Role Name</Label>
+              <Label htmlFor="name">{t('roles.roleName')}</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                placeholder="e.g., librarian, teacher"
+                placeholder={t('roles.roleNamePlaceholder')}
                 className="rounded-xl"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('roles.description')}</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe what this role can do..."
+                placeholder={t('roles.descriptionPlaceholder')}
                 className="rounded-xl resize-none"
                 rows={3}
               />
@@ -322,7 +324,7 @@ export function RoleMaster() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleCreateRole} 
@@ -334,7 +336,7 @@ export function RoleMaster() {
               ) : (
                 <Plus className="h-4 w-4 mr-2" />
               )}
-              Create Role
+              {t('roles.createRole')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -344,30 +346,30 @@ export function RoleMaster() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Edit Role</DialogTitle>
+            <DialogTitle>{t('roles.editRole')}</DialogTitle>
             <DialogDescription>
-              Update the role details.
+              {t('roles.editRoleDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-name">Role Name</Label>
+              <Label htmlFor="edit-name">{t('roles.roleName')}</Label>
               <Input
                 id="edit-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                placeholder="e.g., librarian, teacher"
+                placeholder={t('roles.roleNamePlaceholder')}
                 className="rounded-xl"
                 disabled={!!(selectedRole && isSystemRole(selectedRole.name))}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="edit-description">{t('roles.description')}</Label>
               <Textarea
                 id="edit-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe what this role can do..."
+                placeholder={t('roles.descriptionPlaceholder')}
                 className="rounded-xl resize-none"
                 rows={3}
               />
@@ -375,7 +377,7 @@ export function RoleMaster() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleEditRole} 
@@ -383,7 +385,7 @@ export function RoleMaster() {
               className="bg-navy hover:bg-navy/90"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -393,15 +395,14 @@ export function RoleMaster() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Delete Role</DialogTitle>
+            <DialogTitle>{t('roles.deleteRole')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the "{selectedRole?.name}" role? 
-              Users with this role will need to be reassigned.
+              {t('roles.deleteConfirmMessage', { name: selectedRole?.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               variant="destructive" 
@@ -409,7 +410,7 @@ export function RoleMaster() {
               disabled={isSubmitting}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Delete Role
+              {t('roles.deleteRole')}
             </Button>
           </DialogFooter>
         </DialogContent>

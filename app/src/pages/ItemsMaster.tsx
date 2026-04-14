@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   Package, 
@@ -43,6 +44,7 @@ interface Item {
 }
 
 export function ItemsMaster() {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
@@ -69,7 +71,7 @@ export function ItemsMaster() {
       setItems(data);
     } catch (error) {
       console.error('Error fetching items:', error);
-      toast.error('Failed to fetch items');
+      toast.error(t('items.failedToFetch'));
     } finally {
       setIsLoading(false);
     }
@@ -88,10 +90,10 @@ export function ItemsMaster() {
       await fetchItems();
       setIsCreateDialogOpen(false);
       resetForm();
-      toast.success('Item created successfully');
+      toast.success(t('items.createSuccess'));
     } catch (error: any) {
       console.error('Error creating item:', error);
-      toast.error(error?.message || 'Failed to create item');
+      toast.error(error?.message || t('items.failedToCreate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -106,10 +108,10 @@ export function ItemsMaster() {
       setIsEditDialogOpen(false);
       setSelectedItem(null);
       resetForm();
-      toast.success('Item updated successfully');
+      toast.success(t('items.updateSuccess'));
     } catch (error) {
       console.error('Error updating item:', error);
-      toast.error('Failed to update item');
+      toast.error(t('items.failedToUpdate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -123,10 +125,10 @@ export function ItemsMaster() {
       await fetchItems();
       setIsDeleteDialogOpen(false);
       setSelectedItem(null);
-      toast.success('Item deleted successfully');
+      toast.success(t('items.deleteSuccess'));
     } catch (error) {
       console.error('Error deleting item:', error);
-      toast.error('Failed to delete item');
+      toast.error(t('items.failedToDelete'));
     } finally {
       setIsSubmitting(false);
     }
@@ -158,7 +160,7 @@ export function ItemsMaster() {
   const columns: DataTableColumn<Item>[] = useMemo(() => [
     {
       key: 'name',
-      header: 'Item Name',
+      header: t('items.itemName'),
       sortable: true,
       getValue: (row) => row.name,
       render: (item) => (
@@ -172,7 +174,7 @@ export function ItemsMaster() {
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('items.description'),
       sortable: true,
       getValue: (row) => row.description,
       render: (item) => (
@@ -181,7 +183,7 @@ export function ItemsMaster() {
     },
     {
       key: 'unit',
-      header: 'Unit',
+      header: t('items.unit'),
       sortable: true,
       render: (item) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
@@ -191,7 +193,7 @@ export function ItemsMaster() {
     },
     {
       key: 'created_at',
-      header: 'Created',
+      header: t('items.created'),
       sortable: true,
       getValue: (row) => row.created_at,
       render: (item) => (
@@ -202,7 +204,7 @@ export function ItemsMaster() {
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('items.actions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (item) => (
@@ -238,14 +240,14 @@ export function ItemsMaster() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Items Master</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('items.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage library inventory items
+            {t('items.subtitle')}
           </p>
         </div>
         <Button onClick={() => { resetForm(); if (!isAdmin && userLevel) setFormData(prev => ({ ...prev, level: userLevel })); setIsCreateDialogOpen(true); }} className="bg-navy hover:bg-navy/90 rounded-xl h-11">
           <Plus className="h-4 w-4 mr-2" />
-          Add Item
+          {t('items.addItem')}
         </Button>
       </motion.div>
 
@@ -259,7 +261,7 @@ export function ItemsMaster() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search items..."
+            placeholder={t('items.searchItems')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 rounded-xl h-11"
@@ -279,8 +281,8 @@ export function ItemsMaster() {
           isLoading={isLoading}
           getRowId={(row) => row.id}
           emptyIcon={Package}
-          emptyTitle="No items found"
-          emptyDescription="Add your first item to get started."
+          emptyTitle={t('items.noItems')}
+          emptyDescription={t('items.noItemsDesc')}
         />
       </motion.div>
 
@@ -288,44 +290,44 @@ export function ItemsMaster() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Create New Item</DialogTitle>
-            <DialogDescription>Add a new item to the inventory catalog.</DialogDescription>
+            <DialogTitle>{t('items.createItemTitle')}</DialogTitle>
+            <DialogDescription>{t('items.createItemDesc')}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Item Name</Label>
-              <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., Textbook - Mathematics" className="rounded-xl" />
+              <Label htmlFor="name">{t('items.itemName')}</Label>
+              <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={t('items.namePlaceholder')} className="rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Item description..." className="rounded-xl resize-none" rows={3} />
+              <Label htmlFor="description">{t('items.description')}</Label>
+              <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder={t('items.descriptionPlaceholder')} className="rounded-xl resize-none" rows={3} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unit">Unit</Label>
-              <Input id="unit" value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value })} placeholder="e.g., pcs, box" className="rounded-xl" />
+              <Label htmlFor="unit">{t('items.unit')}</Label>
+              <Input id="unit" value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value })} placeholder={t('items.unitPlaceholder')} className="rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('items.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('items.selectLevel') : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : t('items.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('items.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('items.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button onClick={handleCreate} disabled={isSubmitting || !formData.name} className="bg-navy hover:bg-navy/90">
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-              Create Item
+              {t('items.createItem')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -335,44 +337,44 @@ export function ItemsMaster() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Edit Item</DialogTitle>
-            <DialogDescription>Update item details.</DialogDescription>
+            <DialogTitle>{t('items.editItemTitle')}</DialogTitle>
+            <DialogDescription>{t('items.editItemDesc')}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-name">Item Name</Label>
+              <Label htmlFor="edit-name">{t('items.itemName')}</Label>
               <Input id="edit-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="edit-description">{t('items.description')}</Label>
               <Textarea id="edit-description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="rounded-xl resize-none" rows={3} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-unit">Unit</Label>
+              <Label htmlFor="edit-unit">{t('items.unit')}</Label>
               <Input id="edit-unit" value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value })} className="rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label>Level</Label>
+              <Label>{t('items.level')}</Label>
               <Select
                 value={isAdmin ? formData.level : (userLevel || '')}
                 onValueChange={(value) => setFormData({ ...formData, level: value })}
                 disabled={!isAdmin}
               >
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder={isAdmin ? 'Select level' : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
+                  <SelectValue placeholder={isAdmin ? t('items.selectLevel') : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : t('items.noLevel'))} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="primary">Primary Level</SelectItem>
-                  <SelectItem value="secondary">Secondary Level</SelectItem>
+                  <SelectItem value="primary">{t('items.primaryLevel')}</SelectItem>
+                  <SelectItem value="secondary">{t('items.secondaryLevel')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button onClick={handleEdit} disabled={isSubmitting || !formData.name} className="bg-navy hover:bg-navy/90">
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save Changes
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -382,16 +384,16 @@ export function ItemsMaster() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Delete Item</DialogTitle>
+            <DialogTitle>{t('items.deleteItemTitle')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{selectedItem?.name}"? This cannot be undone.
+              {t('items.deleteConfirm', { name: selectedItem?.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Delete Item
+              {t('items.deleteItem')}
             </Button>
           </DialogFooter>
         </DialogContent>

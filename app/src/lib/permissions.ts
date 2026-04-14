@@ -24,6 +24,8 @@ const routePermissionMap: Array<{ path: string; permission: string }> = [
   { path: '/items', permission: 'items:view' },
   { path: '/teachers', permission: 'teachers:view' },
   { path: '/add-teacher', permission: 'teachers:create' },
+  { path: '/class-activities', permission: 'class_activities:view' },
+  { path: '/results', permission: 'results:view' },
   { path: '/books-items-management/issue-book', permission: 'borrow:view' },
   { path: '/books-items-management/return-book', permission: 'borrow:view' },
   { path: '/books-items-management/items-distribution', permission: 'items:view' },

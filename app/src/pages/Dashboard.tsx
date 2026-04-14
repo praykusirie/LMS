@@ -24,6 +24,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { Activity, ChartDataPoint } from '@/types';
 import api from '@/lib/api';
 
@@ -38,6 +39,7 @@ interface DashboardStatsData {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [stats, setStats] = useState<DashboardStatsData | null>(null);
   const [trends, setTrends] = useState<ChartDataPoint[]>([]);
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
@@ -74,25 +76,25 @@ export function Dashboard() {
 
   const statCards = [
     { 
-      title: 'Total Books', 
+      title: t('dashboard.totalBooks'), 
       value: stats ? Number(stats.total_copies).toLocaleString() : '—', 
       icon: BookOpen, 
       color: 'navy' as const
     },
     { 
-      title: 'Borrowed', 
+      title: t('dashboard.borrowed'), 
       value: stats ? Number(stats.borrowed_books).toLocaleString() : '—', 
       icon: Clock, 
       color: 'amber' as const
     },
     { 
-      title: 'Overdue', 
+      title: t('dashboard.overdueBooks'), 
       value: stats ? Number(stats.overdue_books).toLocaleString() : '—', 
       icon: TrendingUp, 
       color: 'red' as const 
     },
     { 
-      title: 'Registered Students', 
+      title: t('dashboard.totalStudents'), 
       value: stats ? Number(stats.registered_students).toLocaleString() : '—', 
       icon: GraduationCap, 
       color: 'green' as const
@@ -101,25 +103,25 @@ export function Dashboard() {
 
   const quickActions = [
     { 
-      title: 'Add Book', 
+      title: t('dashboard.addBook'), 
       icon: Plus, 
       color: 'navy' as const,
       onClick: () => navigate('/books')
     },
     { 
-      title: 'Register Student', 
+      title: t('dashboard.addStudent'), 
       icon: UserPlus, 
       color: 'green' as const,
       onClick: () => navigate('/students')
     },
     { 
-      title: 'Borrow / Return', 
+      title: t('dashboard.borrowReturn'), 
       icon: ArrowLeftRight, 
       color: 'amber' as const,
       onClick: () => navigate('/books-items-management/issue-book')
     },
     { 
-      title: 'Add Teacher', 
+      title: t('dashboard.addTeacher'), 
       icon: School, 
       color: 'navy' as const,
       onClick: () => navigate('/add-teacher')
@@ -136,9 +138,9 @@ export function Dashboard() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('dashboard.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Overview of your library at a glance.
+            {t('dashboard.subtitle')}
           </p>
         </div>
         <Button 
@@ -146,7 +148,7 @@ export function Dashboard() {
           className="bg-navy hover:bg-navy/90 rounded-xl h-11 px-5"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Issue Book
+          {t('dashboard.issueBook')}
         </Button>
       </motion.div>
 
@@ -176,7 +178,7 @@ export function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
       >
-        <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-4">{t('dashboard.quickActions')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
           {quickActions.map((action, index) => (
             <QuickActionCard
@@ -198,11 +200,11 @@ export function Dashboard() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className="lg:col-span-2 rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+          className="lg:col-span-2 rounded-[20px] bg-card p-5 shadow-card"
         >
           <div className="mb-4">
-            <h3 className="text-lg font-semibold text-foreground">Borrowing Trends</h3>
-            <p className="text-sm text-muted-foreground">Last 6 months</p>
+            <h3 className="text-lg font-semibold text-foreground">{t('dashboard.borrowingTrends')}</h3>
+            <p className="text-sm text-muted-foreground">{t('dashboard.last6Months')}</p>
           </div>
           <div className="h-[300px]">
             {trends.length > 0 ? (
@@ -270,10 +272,10 @@ export function Dashboard() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.7 }}
-          className="rounded-[20px] bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+          className="rounded-[20px] bg-card p-5 shadow-card"
         >
           <div className="mb-4">
-            <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t('dashboard.recentActivity')}</h3>
           </div>
           <div className="space-y-1">
             {recentActivity.length > 0 ? (
@@ -286,7 +288,7 @@ export function Dashboard() {
               ))
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">
-                No recent activity
+                {t('dashboard.noActivity')}
               </p>
             )}
           </div>

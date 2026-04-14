@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get('/', async (_req: Request, res: Response) => {
 });
 
 // Update user details (name, gender, role)
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('users', 'manage'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { name, gender, role, level } = req.body;
