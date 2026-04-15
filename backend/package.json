@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsc && node --env-file=.env dist/server.js",
-    "dev": "nodemon --watch server.ts --watch routes --watch lib --watch scripts --ext ts --exec \"tsc --noCheck && node --env-file=.env dist/server.js\"",
+    "dev": "tsx watch -r dotenv/config server.ts",
     "migrate": "tsc --noCheck && node --env-file=.env dist/scripts/run-migration.js",
     "create-admin": "tsc --noCheck && node --env-file=.env dist/scripts/create-admin.js"
   },
@@ -32,7 +32,6 @@
     "@types/multer": "^2.1.0",
     "@types/pg": "^8.20.0",
     "morgan": "^1.10.1",
-    "nodemon": "^3.1.14",
     "tsx": "^4.21.0"
   }
 }
