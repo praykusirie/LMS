@@ -107,7 +107,11 @@
     "stockList": "स्टॉक सूची",
     "masterManagement": "मास्टर प्रबंधन",
     "classManagement": "कक्षा प्रबंधन",
-    "distribution": "वितरण"
+    "distribution": "वितरण",
+    "finance": "वित्त",
+    "createInvoice": "चालान बनाएं",
+    "financeReport": "वित्तीय रिपोर्ट",
+    "feeStructure": "शुल्क संरचना"
   },
   "topbar": {
     "search": "पुस्तकें, छात्र खोजें...",

@@ -107,7 +107,11 @@
     "stockList": "Orodha ya Stoki",
     "masterManagement": "Usimamizi Mkuu",
     "classManagement": "Usimamizi wa Darasa",
-    "distribution": "Ugawaji"
+    "distribution": "Ugawaji",
+    "finance": "Fedha",
+    "createInvoice": "Tengeneza Ankara",
+    "financeReport": "Ripoti ya Fedha",
+    "feeStructure": "Muundo wa Ada"
   },
   "topbar": {
     "search": "Tafuta vitabu, wanafunzi...",

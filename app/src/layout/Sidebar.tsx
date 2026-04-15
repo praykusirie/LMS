@@ -30,7 +30,9 @@ import {
   CalendarDays,
   Trophy,
   ArrowRightLeft,
-  RotateCcw
+  RotateCcw,
+  Banknote,
+  BarChart3
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -125,6 +127,17 @@ const navItems: NavItem[] = [
       { id: 'permissions', path: '/user-management/permissions', label: 'nav.permissions', icon: Key, permission: 'permissions:manage' },
     ]
   },
+  {
+    id: 'finance',
+    path: '/finance',
+    label: 'nav.finance',
+    icon: Banknote,
+    subItems: [
+      { id: 'create-invoice', path: '/finance/create-invoice', label: 'nav.createInvoice', icon: FileText, permission: 'finance:create' },
+      { id: 'finance-report', path: '/finance/report', label: 'nav.financeReport', icon: BarChart3, permission: 'finance:view' },
+      { id: 'fee-structure', path: '/finance/fee-structure', label: 'nav.feeStructure', icon: Settings, permission: 'finance:manage_fees' },
+    ]
+  },
   { id: 'overdue', path: '/overdue', label: 'nav.overdue', icon: AlertCircle, permission: 'overdue:view' },
   { id: 'reports', path: '/reports', label: 'nav.reports', icon: FileText, permission: 'reports:view' },
   { id: 'settings', path: '/settings', label: 'nav.settings', icon: Settings, permission: 'settings:view' }
@@ -135,6 +148,7 @@ const parentPaths: Record<string, string[]> = {
   'books-items-management': ['/books-items-management'],
   'library-inventory': ['/library-inventory'],
   'user-management': ['/user-management'],
+  'finance': ['/finance'],
 };
 
 export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, isMobileMenuOpen, onMobileMenuClose }: SidebarProps) {

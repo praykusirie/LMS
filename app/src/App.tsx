@@ -30,7 +30,10 @@ import {
   Teachers,
   AddTeacher,
   ClassActivities,
-  Results
+  Results,
+  CreateInvoice,
+  FinanceReport,
+  FeeStructureEditor
 } from '@/pages';
 import { NotFound } from '@/pages/NotFound';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -134,6 +137,12 @@ function App() {
         <Route path="/books-items-management/items-distribution/new" element={<G p="items:view"><ItemsDistributionCreate /></G>} />
         <Route path="/overdue" element={<G p="overdue:view"><Overdue /></G>} />
         <Route path="/reports" element={<G p="reports:view"><Reports /></G>} />
+
+        {/* Finance */}
+        <Route path="/finance/create-invoice" element={<G p="finance:create"><CreateInvoice /></G>} />
+        <Route path="/finance/report" element={<G p="finance:view"><FinanceReport /></G>} />
+        <Route path="/finance/fee-structure" element={<G p="finance:manage_fees"><FeeStructureEditor /></G>} />
+
         <Route path="/settings" element={<G p="settings:view"><Settings /></G>} />
       </Route>
 

@@ -37,6 +37,9 @@ const routePermissionMap: Array<{ path: string; permission: string }> = [
   { path: '/user-management/permissions', permission: 'permissions:manage' },
   { path: '/library-inventory/stock-details', permission: 'stock:view' },
   { path: '/library-inventory/add-stock', permission: 'stock:view' },
+  { path: '/finance/create-invoice', permission: 'finance:create' },
+  { path: '/finance/report', permission: 'finance:view' },
+  { path: '/finance/fee-structure', permission: 'finance:manage_fees' },
 ];
 
 export function getRequiredPermission(pathname: string) {

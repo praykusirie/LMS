@@ -24,7 +24,7 @@ async function createAdmin() {
     const result = await auth.api.signUpEmail({
       body: {
         name: 'Pray Jonas',
-        email: 'prayjonas27@gmail.com',
+        email: 'prayjonas@arushameru.sc.tz',
         password: '123456789',
         gender: 'male',
         level: null,

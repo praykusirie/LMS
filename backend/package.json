@@ -5,10 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsx -r dotenv/config server.ts",
-    "dev": "nodemon --exec \"tsx -r dotenv/config server.ts\"",
-    "migrate": "tsx -r dotenv/config scripts/run-migration.ts",
-    "create-admin": "tsx -r dotenv/config scripts/create-admin.ts"
+    "start": "tsc && node --env-file=.env dist/server.js",
+    "dev": "nodemon --watch server.ts --watch routes --watch lib --watch scripts --ext ts --exec \"tsc --noCheck && node --env-file=.env dist/server.js\"",
+    "migrate": "tsc --noCheck && node --env-file=.env dist/scripts/run-migration.js",
+    "create-admin": "tsc --noCheck && node --env-file=.env dist/scripts/create-admin.js"
   },
   "keywords": [],
   "author": "",

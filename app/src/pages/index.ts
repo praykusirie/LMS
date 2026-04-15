@@ -29,3 +29,6 @@ export { StockDetails } from './StockDetails';
 export { StockView } from './StockView';
 export { Teachers } from './Teachers';
 export { AddTeacher } from './AddTeacher';
+export { CreateInvoice } from './CreateInvoice';
+export { FinanceReport } from './FinanceReport';
+export { FeeStructureEditor } from './FeeStructureEditor';

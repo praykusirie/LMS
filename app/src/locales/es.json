@@ -107,7 +107,11 @@
     "stockList": "Lista de Stock",
     "masterManagement": "Gestión Maestra",
     "classManagement": "Gestión de Clases",
-    "distribution": "Distribución"
+    "distribution": "Distribución",
+    "finance": "Finanzas",
+    "createInvoice": "Crear Factura",
+    "financeReport": "Informe Financiero",
+    "feeStructure": "Estructura de Tarifas"
   },
   "topbar": {
     "search": "Buscar libros, estudiantes...",

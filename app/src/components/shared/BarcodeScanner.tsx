@@ -80,8 +80,19 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current.clear();
+        try {
+          const state = scannerRef.current.getState();
+          if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
+            scannerRef.current.stop().catch(() => {});
+          }
+        } catch {
+          // ignore – scanner was never started or already stopped
+        }
+        try {
+          scannerRef.current.clear();
+        } catch {
+          // ignore
+        }
         scannerRef.current = null;
       }
     };

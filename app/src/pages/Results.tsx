@@ -58,6 +58,7 @@ interface StudentResult {
   totalObtained: number;
   totalPossible: number;
   average: number;
+  percentage: number;
   grade: string;
   completedActivities: number;
   totalActivities: number;
@@ -236,7 +237,7 @@ export function Results() {
         sortable: true,
         render: (student) => (
           <div className="text-right">
-            <span className="font-bold text-navy">{student.average}%</span>
+            <span className="font-bold text-navy">{student.percentage}%</span>
             <div className="text-xs text-muted-foreground">
               {student.totalObtained}/{student.totalPossible}
             </div>
