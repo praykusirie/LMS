@@ -119,4 +119,152 @@ router.get('/recent-activity', async (req: Request, res: Response) => {
     }
 });
 
+// Teacher dashboard stats
+router.get('/teacher-stats', async (req: Request, res: Response) => {
+    try {
+        const user = await getSessionUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const teacherRes = await pool.query(`SELECT id FROM teachers WHERE name = $1 LIMIT 1`, [user.name]);
+        const teacherId = teacherRes.rows[0]?.id;
+
+        if (!teacherId) {
+            return res.json({
+                my_classes: 0, my_students: 0, activities_count: 0,
+                avg_score: 0, pass_rate: 0, recent_activities: [], recent_results: []
+            });
+        }
+
+        const statsRes = await pool.query(`
+            SELECT
+                (SELECT COUNT(DISTINCT ct.class_id) FROM class_teachers ct WHERE ct.teacher_id = $1) AS my_classes,
+                (SELECT COUNT(*) FROM students s
+                 JOIN class_teachers ct ON ct.class_id = s.class_id
+                 WHERE ct.teacher_id = $1 AND s.is_active = true) AS my_students,
+                (SELECT COUNT(*) FROM class_activities ca
+                 JOIN class_teachers ct ON ct.class_id = ca.class_id
+                 WHERE ct.teacher_id = $1) AS activities_count
+        `, [teacherId]);
+
+        const perfRes = await pool.query(`
+            SELECT
+                COALESCE(AVG(cam.marks), 0)::numeric(5,1) AS avg_score,
+                COALESCE(
+                    ROUND(COUNT(*) FILTER (WHERE cam.marks >= ca.total_marks * 0.4)::numeric /
+                    NULLIF(COUNT(*), 0) * 100, 1), 0
+                ) AS pass_rate
+            FROM class_activity_marks cam
+            JOIN class_activities ca ON ca.id = cam.activity_id
+            JOIN class_teachers ct ON ct.class_id = ca.class_id
+            WHERE ct.teacher_id = $1
+        `, [teacherId]);
+
+        const activitiesRes = await pool.query(`
+            SELECT ca.id, ca.name, ca.date, ca.total_marks, c.name AS class_name,
+                   COUNT(cam.id) AS marks_entered
+            FROM class_activities ca
+            JOIN classes c ON c.id = ca.class_id
+            JOIN class_teachers ct ON ct.class_id = ca.class_id
+            LEFT JOIN class_activity_marks cam ON cam.activity_id = ca.id
+            WHERE ct.teacher_id = $1
+            GROUP BY ca.id, ca.name, ca.date, ca.total_marks, c.name
+            ORDER BY ca.date DESC
+            LIMIT 10
+        `, [teacherId]);
+
+        const resultsRes = await pool.query(`
+            SELECT ca.name AS activity_name, c.name AS class_name, ca.date,
+                   ca.total_marks,
+                   COALESCE(AVG(cam.marks), 0)::numeric(5,1) AS avg_marks,
+                   COUNT(cam.id) AS student_count
+            FROM class_activities ca
+            JOIN classes c ON c.id = ca.class_id
+            JOIN class_teachers ct ON ct.class_id = ca.class_id
+            LEFT JOIN class_activity_marks cam ON cam.activity_id = ca.id
+            WHERE ct.teacher_id = $1
+            GROUP BY ca.id, ca.name, c.name, ca.date, ca.total_marks
+            ORDER BY ca.date DESC
+            LIMIT 10
+        `, [teacherId]);
+
+        res.json({
+            ...statsRes.rows[0],
+            ...perfRes.rows[0],
+            recent_activities: activitiesRes.rows,
+            recent_results: resultsRes.rows,
+        });
+    } catch (error) {
+        console.error('Error fetching teacher stats:', error);
+        res.status(500).json({ error: 'Failed to fetch teacher stats' });
+    }
+});
+
+// Finance dashboard stats
+router.get('/finance-stats', async (req: Request, res: Response) => {
+    try {
+        const user = await getSessionUser(req);
+        if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const summaryRes = await pool.query(`
+            SELECT
+                COALESCE(SUM(total_amount), 0)::numeric AS total_invoiced,
+                COALESCE(SUM(total_paid), 0)::numeric AS total_paid,
+                COALESCE(SUM(balance), 0)::numeric AS total_outstanding,
+                COUNT(*) AS total_invoices,
+                COUNT(*) FILTER (WHERE status = 'paid') AS paid_count,
+                COUNT(*) FILTER (WHERE status = 'partial') AS partial_count,
+                COUNT(*) FILTER (WHERE status = 'unpaid') AS unpaid_count
+            FROM invoices
+        `);
+
+        const monthlyRes = await pool.query(`
+            WITH months AS (
+                SELECT generate_series(
+                    date_trunc('month', NOW()) - interval '5 months',
+                    date_trunc('month', NOW()),
+                    interval '1 month'
+                ) AS month
+            )
+            SELECT
+                to_char(m.month, 'Mon') AS month,
+                COALESCE(SUM(ip.amount), 0)::numeric AS revenue
+            FROM months m
+            LEFT JOIN invoice_payments ip ON date_trunc('month', ip.payment_date) = m.month
+            GROUP BY m.month
+            ORDER BY m.month ASC
+        `);
+
+        const recentPaymentsRes = await pool.query(`
+            SELECT ip.id, ip.amount, ip.payment_date, ip.payment_method,
+                   s.name AS student_name, i.invoice_number
+            FROM invoice_payments ip
+            JOIN invoices i ON i.id = ip.invoice_id
+            JOIN students s ON s.id = i.student_id
+            ORDER BY ip.payment_date DESC
+            LIMIT 10
+        `);
+
+        const outstandingRes = await pool.query(`
+            SELECT i.id, i.invoice_number, i.total_amount, i.total_paid,
+                   i.balance,
+                   s.name AS student_name, i.created_at
+            FROM invoices i
+            JOIN students s ON s.id = i.student_id
+            WHERE i.status != 'paid'
+            ORDER BY i.balance DESC
+            LIMIT 10
+        `);
+
+        res.json({
+            ...summaryRes.rows[0],
+            monthly_revenue: monthlyRes.rows,
+            recent_payments: recentPaymentsRes.rows,
+            outstanding_invoices: outstandingRes.rows,
+        });
+    } catch (error) {
+        console.error('Error fetching finance stats:', error);
+        res.status(500).json({ error: 'Failed to fetch finance stats' });
+    }
+});
+
 export default router;

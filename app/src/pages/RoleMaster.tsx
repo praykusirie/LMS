@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
+import { usePermissions } from '@/lib/permissions';
 
 interface Role {
   id: string;
@@ -37,6 +38,7 @@ interface Role {
 
 export function RoleMaster() {
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
   const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -208,6 +210,7 @@ export function RoleMaster() {
       className: 'text-right',
       render: (role) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {hasPermission('roles:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -216,7 +219,8 @@ export function RoleMaster() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
-          {!isSystemRole(role.name) && (
+          )}
+          {!isSystemRole(role.name) && hasPermission('roles:manage') && (
             <Button
               variant="ghost"
               size="icon"
@@ -246,6 +250,7 @@ export function RoleMaster() {
             {t('roles.subtitle')}
           </p>
         </div>
+        {hasPermission('roles:manage') && (
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
@@ -253,6 +258,7 @@ export function RoleMaster() {
           <Plus className="h-4 w-4 mr-2" />
           {t('roles.addRole')}
         </Button>
+        )}
       </motion.div>
 
       {/* Search */}

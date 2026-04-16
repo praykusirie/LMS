@@ -46,6 +46,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '@/lib/permissions';
 import { LazyBookCover } from '@/components/shared/LazyBookCover';
 
 interface BookRecord {
@@ -96,6 +97,7 @@ export function Books() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { data: session } = useSession();
+  const { hasPermission } = usePermissions();
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
@@ -457,6 +459,7 @@ export function Books() {
           >
             <Eye className="h-4 w-4" />
           </Button>
+          {hasPermission('books:edit') && (
           <Button
             variant="ghost"
             size="icon"
@@ -465,6 +468,8 @@ export function Books() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
+          )}
+          {hasPermission('books:delete') && (
           <Button
             variant="ghost"
             size="icon"
@@ -473,6 +478,7 @@ export function Books() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          )}
         </div>
       ),
     },
@@ -650,7 +656,7 @@ export function Books() {
           </p>
         </div>
         <div className="flex gap-3">
-          {selectedRows.size > 0 && (
+          {selectedRows.size > 0 && hasPermission('books:delete') && (
             <Button 
               variant="destructive"
               className="rounded-xl h-11"
@@ -671,6 +677,7 @@ export function Books() {
               {t('books.mergeDuplicates')} ({duplicateCount})
             </Button>
           )}
+          {hasPermission('books:create') && (
           <Button 
             onClick={() => navigate('/add-book')}
             variant="outline"
@@ -679,6 +686,8 @@ export function Books() {
             <Upload className="h-4 w-4 mr-2" />
             {t('books.bulkImport')}
           </Button>
+          )}
+          {hasPermission('books:create') && (
           <Button 
             onClick={() => {
               resetForm();
@@ -689,6 +698,7 @@ export function Books() {
             <Plus className="h-4 w-4 mr-2" />
             {t('books.addBook')}
           </Button>
+          )}
         </div>
       </motion.div>
 

@@ -47,6 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
+import { usePermissions } from '@/lib/permissions';
 
 interface BorrowReturnProps {
   mode?: 'borrow' | 'return' | 'both';
@@ -88,6 +89,7 @@ interface BorrowRecord {
 
 export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
   const [books, setBooks] = useState<BookRecord[]>([]);
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [borrowRecords, setBorrowRecords] = useState<BorrowRecord[]>([]);
@@ -624,12 +626,14 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                 </p>
               </div>
 
+              {hasPermission('borrow:manage') && (
               <Button 
                 onClick={handleIssueBook}
                 className="w-full bg-navy hover:bg-navy/90 rounded-xl h-11"
               >
                 {t('borrowReturn.issueBook')}
               </Button>
+              )}
             </div>
           </TabsContent>
           )}
@@ -681,6 +685,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                             {isOverdue && ` (${t('borrowReturn.overdue')})`}
                           </p>
                         </div>
+                        {hasPermission('borrow:manage') && (
                         <Button 
                           size="sm" 
                           onClick={() => handleReturnBook(borrow)}
@@ -689,6 +694,7 @@ export function BorrowReturn({ mode = 'both' }: BorrowReturnProps) {
                           <RotateCcw className="h-4 w-4 mr-2" />
                           {t('borrowReturn.return')}
                         </Button>
+                        )}
                       </div>
                     );
                   })

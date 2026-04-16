@@ -552,7 +552,7 @@ export function StudentDetail() {
                         <p className="text-xs text-muted-foreground">{borrow.book_code}</p>
                         <p className="text-xs text-red-600">{t('students.due')}: {formatDate(borrow.due_date)}</p>
                         {borrow.fine_amount > 0 && (
-                          <p className="text-xs text-red-600 font-medium">{t('students.fine')}: ${borrow.fine_amount.toFixed(2)}</p>
+                          <p className="text-xs text-red-600 font-medium">{t('students.fine')}: TZS {Number(borrow.fine_amount).toLocaleString()}</p>
                         )}
                       </div>
                     </div>

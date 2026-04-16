@@ -37,6 +37,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useSession } from '@/lib/auth-client';
 import api from '@/lib/api';
+import { usePermissions } from '@/lib/permissions';
 import { toast } from 'sonner';
 
 interface AvailableItem {
@@ -70,6 +71,7 @@ export function StockView() {
   const { stockId } = useParams();
   const navigate = useNavigate();
   const { data: session } = useSession();
+  const { hasPermission } = usePermissions();
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
@@ -281,6 +283,7 @@ export function StockView() {
             {isNew ? t('stock.createStockSubtitle') : t('stock.viewManageSubtitle')}
           </p>
         </div>
+        {(isNew ? hasPermission('stock:create') : hasPermission('stock:edit')) && (
         <Button 
           onClick={handleSave}
           disabled={isSaving || items.filter(i => i.item_id && i.quantity > 0).length === 0}
@@ -293,6 +296,7 @@ export function StockView() {
           )}
           {isNew ? t('stock.createStock') : t('stock.saveChanges')}
         </Button>
+        )}
       </div>
 
       {/* Stock Info */}

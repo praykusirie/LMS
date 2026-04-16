@@ -33,6 +33,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useTranslation } from 'react-i18next';
+import { usePermissions } from '@/lib/permissions';
 
 interface Subject {
   id: string;
@@ -50,6 +51,7 @@ export function Subjects() {
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -228,6 +230,7 @@ export function Subjects() {
       className: 'text-right',
       render: (subject) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {hasPermission('subjects:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -236,6 +239,8 @@ export function Subjects() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
+          )}
+          {hasPermission('subjects:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -244,6 +249,7 @@ export function Subjects() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          )}
         </div>
       ),
     },
@@ -264,6 +270,7 @@ export function Subjects() {
             {t('subjects.subtitle')}
           </p>
         </div>
+        {hasPermission('subjects:manage') && (
         <Button 
           onClick={() => {
             setFormData({ name: '', code: '', description: '', level: !isAdmin && userLevel ? userLevel : '' });
@@ -274,6 +281,7 @@ export function Subjects() {
           <Plus className="h-4 w-4 mr-2" />
           {t('subjects.addSubject')}
         </Button>
+        )}
       </motion.div>
 
       {/* Search */}

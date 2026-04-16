@@ -37,6 +37,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '@/lib/permissions';
 import { LazyBookCover } from '@/components/shared/LazyBookCover';
 
 interface StudentRecord {
@@ -77,6 +78,7 @@ export function Students() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: session } = useSession();
+  const { hasPermission } = usePermissions();
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
@@ -343,6 +345,7 @@ export function Students() {
           >
             <Eye className="h-4 w-4" />
           </Button>
+          {hasPermission('students:edit') && (
           <Button
             variant="ghost"
             size="icon"
@@ -351,6 +354,8 @@ export function Students() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
+          )}
+          {hasPermission('students:delete') && (
           <Button
             variant="ghost"
             size="icon"
@@ -359,6 +364,7 @@ export function Students() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          )}
         </div>
       ),
     },
@@ -510,7 +516,7 @@ export function Students() {
           </p>
         </div>
         <div className="flex gap-3">
-          {selectedRows.size > 0 && (
+          {selectedRows.size > 0 && hasPermission('students:delete') && (
             <Button 
               variant="destructive"
               className="rounded-xl h-11"
@@ -520,6 +526,7 @@ export function Students() {
               Delete ({selectedRows.size})
             </Button>
           )}
+          {hasPermission('students:create') && (
           <Button 
             onClick={() => navigate('/add-student')}
             className="bg-navy hover:bg-navy/90 rounded-xl h-11"
@@ -527,6 +534,7 @@ export function Students() {
             <Plus className="h-4 w-4 mr-2" />
             {t('students.registerStudent')}
           </Button>
+          )}
         </div>
       </motion.div>
 

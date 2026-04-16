@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
+import { usePermissions } from '@/lib/permissions';
 
 interface Stock {
   id: string;
@@ -40,6 +41,7 @@ interface Stock {
 export function StockList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +85,7 @@ export function StockList() {
             {t('stock.manageStockSubtitle')}
           </p>
         </div>
+        {hasPermission('stock:create') && (
         <Button 
           onClick={() => navigate('/library-inventory/add-stock/new')}
           className="bg-navy hover:bg-navy/90"
@@ -90,6 +93,7 @@ export function StockList() {
           <PackagePlus className="h-4 w-4 mr-2" />
           {t('stock.createNewStock')}
         </Button>
+        )}
       </div>
 
       <div className="rounded-[20px] bg-card p-6 shadow-card-sm">

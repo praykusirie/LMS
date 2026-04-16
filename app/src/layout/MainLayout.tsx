@@ -11,7 +11,6 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -35,11 +34,10 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* Top Bar */}
       <TopBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         isCollapsed={isSidebarCollapsed}
         isMobile={isMobile}
         onMobileMenuOpen={() => setIsMobileMenuOpen(true)}
+        onExpandSidebar={() => setIsSidebarCollapsed(false)}
       />
 
       {/* Main Content */}

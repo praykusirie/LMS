@@ -33,6 +33,7 @@ import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { usePermissions } from '@/lib/permissions';
 
 interface Item {
   id: string;
@@ -46,6 +47,7 @@ interface Item {
 export function ItemsMaster() {
   const { t } = useTranslation();
   const { data: session } = useSession();
+  const { hasPermission } = usePermissions();
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
@@ -209,6 +211,7 @@ export function ItemsMaster() {
       className: 'text-right',
       render: (item) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {hasPermission('items:edit') && (
           <Button
             variant="ghost"
             size="icon"
@@ -217,6 +220,8 @@ export function ItemsMaster() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
+          )}
+          {hasPermission('items:delete') && (
           <Button
             variant="ghost"
             size="icon"
@@ -225,6 +230,7 @@ export function ItemsMaster() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          )}
         </div>
       ),
     },
@@ -245,10 +251,12 @@ export function ItemsMaster() {
             {t('items.subtitle')}
           </p>
         </div>
+        {hasPermission('items:create') && (
         <Button onClick={() => { resetForm(); if (!isAdmin && userLevel) setFormData(prev => ({ ...prev, level: userLevel })); setIsCreateDialogOpen(true); }} className="bg-navy hover:bg-navy/90 rounded-xl h-11">
           <Plus className="h-4 w-4 mr-2" />
           {t('items.addItem')}
         </Button>
+        )}
       </motion.div>
 
       {/* Search */}

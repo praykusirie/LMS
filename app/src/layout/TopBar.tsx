@@ -1,33 +1,78 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Bell, ChevronDown, Check, Menu } from 'lucide-react';
+import { useLocation, Link } from 'react-router-dom';
+import { Bell, ChevronDown, Check, Menu, PanelLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { cn } from '@/lib/utils';
 import { notifications as mockNotifications } from '@/data/mockData';
 import type { Notification } from '@/types';
 import { useSession } from '@/lib/auth-client';
 import { IdentityAvatar } from '@/components/shared/IdentityAvatar';
+import { navItems } from './Sidebar';
 
 interface TopBarProps {
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
   isCollapsed: boolean;
   isMobile: boolean;
   onMobileMenuOpen: () => void;
+  onExpandSidebar: () => void;
 }
 
-export function TopBar({ searchQuery, onSearchChange, isCollapsed, isMobile, onMobileMenuOpen }: TopBarProps) {
+export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSidebar }: TopBarProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
   const { data: session } = useSession();
   const { t } = useTranslation();
+  const location = useLocation();
 
   const displayName = session?.user?.name || 'User';
   const displayEmail = session?.user?.email || 'No email';
   const displayRole = session?.user?.role || 'user';
+
+  // Resolve breadcrumb from pathname
+  const getBreadcrumb = () => {
+    const pathname = location.pathname;
+    for (const item of navItems) {
+      if (item.subItems) {
+        for (const sub of item.subItems) {
+          if (pathname.startsWith(sub.path)) {
+            return { parent: { label: t(item.label), path: item.path }, current: t(sub.label) };
+          }
+        }
+      }
+      if (pathname === item.path) {
+        return { parent: null, current: t(item.label) };
+      }
+    }
+    // Fallback for detail pages like /books/:id, /students/:id etc.
+    const seg = pathname.split('/').filter(Boolean);
+    if (seg.length >= 1) {
+      for (const item of navItems) {
+        if (item.subItems) {
+          for (const sub of item.subItems) {
+            if (pathname.startsWith(sub.path.split('/').slice(0, 2).join('/'))) {
+              return { parent: { label: t(item.label), path: item.path }, current: t(sub.label) };
+            }
+          }
+        }
+        if (pathname.startsWith(item.path)) {
+          return { parent: null, current: t(item.label) };
+        }
+      }
+    }
+    return null;
+  };
+
+  const breadcrumb = getBreadcrumb();
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -64,29 +109,50 @@ export function TopBar({ searchQuery, onSearchChange, isCollapsed, isMobile, onM
         isMobile ? "left-0" : (isCollapsed ? "left-[80px]" : "left-[260px]")
       )}
     >
-      <div className="flex h-full items-center justify-between px-4 md:px-8">
-        {/* Mobile hamburger */}
-        {isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-xl mr-2 shrink-0"
-            onClick={onMobileMenuOpen}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
+      <div className="flex h-full items-center justify-between px-4 md:px-6">
+        {/* Left: hamburger/expand + breadcrumb */}
+        <div className="flex items-center gap-2 min-w-0">
+          {isMobile ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-xl shrink-0"
+              onClick={onMobileMenuOpen}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          ) : isCollapsed ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-xl shrink-0"
+              onClick={onExpandSidebar}
+            >
+              <PanelLeft className="h-5 w-5 text-muted-foreground" />
+            </Button>
+          ) : null}
 
-        {/* Search */}
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder={t('topbar.search')}
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="h-10 pl-10 rounded-xl bg-secondary border-0 text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-navy/20"
-          />
+          {breadcrumb && (
+            <Breadcrumb>
+              <BreadcrumbList>
+                {breadcrumb.parent && (
+                  <>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to={breadcrumb.parent.path} className="text-muted-foreground hover:text-foreground">
+                          {breadcrumb.parent.label}
+                        </Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                  </>
+                )}
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{breadcrumb.current}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          )}
         </div>
 
         {/* Right Side */}

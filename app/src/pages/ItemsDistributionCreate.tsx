@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import api from '@/lib/api';
+import { usePermissions } from '@/lib/permissions';
 
 interface Teacher {
   id: string;
@@ -41,6 +42,7 @@ interface DraftItem {
 export function ItemsDistributionCreate() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [stockItems, setStockItems] = useState<StockReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -333,10 +335,12 @@ export function ItemsDistributionCreate() {
           <Button variant="outline" className="rounded-xl" onClick={() => navigate('/books-items-management/items-distribution')}>
             {t('itemsDistribution.cancel')}
           </Button>
+          {hasPermission('items:create') && (
           <Button className="bg-navy hover:bg-navy/90 rounded-xl" onClick={handleSave} disabled={isSubmitting || draftItems.length === 0}>
             <PackagePlus className="h-4 w-4 mr-2" />
             {isSubmitting ? t('itemsDistribution.saving') : t('itemsDistribution.saveDistribution')}
           </Button>
+          )}
         </div>
       </motion.div>
     </div>

@@ -195,6 +195,13 @@ router.post('/', async (req: Request, res: Response) => {
         );
         const otherCharges = chargesResult.rows;
 
+        // Level hierarchy for min_level filtering
+        const LEVEL_ORDER: Record<string, number> = { pre_primary: 0, primary: 1, secondary: 2, advanced: 3 };
+        const meetsMinLevel = (studentLevel: string, minLevel: string | null) => {
+            if (!minLevel) return true;
+            return (LEVEL_ORDER[studentLevel] ?? 0) >= (LEVEL_ORDER[minLevel] ?? 0);
+        };
+
         // ── Build line items ──
         const lineItems: Array<{ fee_name: string; amount: number; sort_order: number }> = [];
         let sortOrder = 0;
@@ -232,8 +239,8 @@ router.post('/', async (req: Request, res: Response) => {
             }
         }
 
-        // Annual fees (Development etc.)
-        for (const charge of otherCharges.filter((c: any) => c.fee_type === 'annual')) {
+        // Annual fees (Development etc.) — filtered by min_level
+        for (const charge of otherCharges.filter((c: any) => c.fee_type === 'annual' && meetsMinLevel(fee.level, c.min_level))) {
             lineItems.push({
                 fee_name: charge.fee_name,
                 amount: getAmount(charge.fee_name, Number(charge.amount)),

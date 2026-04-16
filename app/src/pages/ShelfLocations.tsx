@@ -33,6 +33,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useTranslation } from 'react-i18next';
+import { usePermissions } from '@/lib/permissions';
 
 interface ShelfLocation {
   id: string;
@@ -51,6 +52,7 @@ export function ShelfLocations() {
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
 
   const [locations, setLocations] = useState<ShelfLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -254,6 +256,7 @@ export function ShelfLocations() {
       className: 'text-right',
       render: (location) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {hasPermission('shelf_locations:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -262,6 +265,8 @@ export function ShelfLocations() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
+          )}
+          {hasPermission('shelf_locations:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -270,6 +275,7 @@ export function ShelfLocations() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          )}
         </div>
       ),
     },
@@ -290,6 +296,7 @@ export function ShelfLocations() {
             {t('shelfLocations.subtitle')}
           </p>
         </div>
+        {hasPermission('shelf_locations:manage') && (
         <Button 
           onClick={() => {
             setFormData({ code: '', name: '', section: '', capacity: 100, level: !isAdmin && userLevel ? userLevel : '' });
@@ -300,6 +307,7 @@ export function ShelfLocations() {
           <Plus className="h-4 w-4 mr-2" />
           {t('shelfLocations.addLocation')}
         </Button>
+        )}
       </motion.div>
 
       {/* Search */}

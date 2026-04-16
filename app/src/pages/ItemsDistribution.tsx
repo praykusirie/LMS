@@ -17,6 +17,7 @@ import {
 import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
+import { usePermissions } from '@/lib/permissions';
 
 interface Teacher {
   id: string;
@@ -53,6 +54,7 @@ interface DistributionRecord {
 export function ItemsDistribution() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [allItems, setAllItems] = useState<ItemOption[]>([]);
   const [records, setRecords] = useState<DistributionRecord[]>([]);
@@ -292,10 +294,12 @@ export function ItemsDistribution() {
             <Download className="h-4 w-4 mr-2" />
             {t('itemsDistribution.exportCsv')}
           </Button>
+          {hasPermission('items:create') && (
           <Button onClick={() => navigate('/books-items-management/items-distribution/new')} className="bg-navy hover:bg-navy/90 rounded-xl h-11">
             <Send className="h-4 w-4 mr-2" />
             {t('itemsDistribution.distributeItem')}
           </Button>
+          )}
         </div>
       </motion.div>
 

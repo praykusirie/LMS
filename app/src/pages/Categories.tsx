@@ -33,6 +33,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useTranslation } from 'react-i18next';
+import { usePermissions } from '@/lib/permissions';
 
 interface Category {
   id: string;
@@ -49,6 +50,7 @@ export function Categories() {
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -213,6 +215,7 @@ export function Categories() {
       className: 'text-right',
       render: (category) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {hasPermission('categories:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -221,6 +224,8 @@ export function Categories() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
+          )}
+          {hasPermission('categories:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -229,6 +234,7 @@ export function Categories() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          )}
         </div>
       ),
     },
@@ -249,6 +255,7 @@ export function Categories() {
             {t('categories.subtitle')}
           </p>
         </div>
+        {hasPermission('categories:manage') && (
         <Button 
           onClick={() => {
             setFormData({ name: '', description: '', level: !isAdmin && userLevel ? userLevel : '' });
@@ -259,6 +266,7 @@ export function Categories() {
           <Plus className="h-4 w-4 mr-2" />
           {t('categories.addCategory')}
         </Button>
+        )}
       </motion.div>
 
       {/* Search */}

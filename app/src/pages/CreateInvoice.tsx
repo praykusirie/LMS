@@ -46,6 +46,7 @@ import {
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { generateInvoicePdf } from '@/lib/invoice-pdf';
+import { usePermissions } from '@/lib/permissions';
 
 interface Student {
   id: string;
@@ -75,6 +76,7 @@ interface OtherCharge {
   fee_name: string;
   amount: number;
   fee_type: string;
+  min_level?: string;
 }
 
 interface LineItem {
@@ -104,6 +106,7 @@ interface InvoiceResponse {
 
 export function CreateInvoice() {
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
 
   // Reference data
   const [students, setStudents] = useState<Student[]>([]);
@@ -207,7 +210,15 @@ export function CreateInvoice() {
     [feeStructures, yearGroup],
   );
 
-  // ── Calculate preview line items ──
+  // Level hierarchy for min_level filtering
+  const LEVEL_ORDER: Record<string, number> = { pre_primary: 0, primary: 1, secondary: 2, advanced: 3 };
+  const meetsMinLevel = (studentLevel: string | undefined, minLevel: string | null | undefined) => {
+    if (!minLevel) return true;
+    if (!studentLevel) return true;
+    return (LEVEL_ORDER[studentLevel] ?? 0) >= (LEVEL_ORDER[minLevel] ?? 0);
+  };
+
+  // â”€â”€ Calculate preview line items â”€â”€
   const previewLineItems = useMemo(() => {
     if (!selectedFee) return [];
 
@@ -229,7 +240,7 @@ export function CreateInvoice() {
       }
     }
 
-    for (const charge of otherCharges.filter((c) => c.fee_type === 'annual')) {
+    for (const charge of otherCharges.filter((c) => c.fee_type === 'annual' && meetsMinLevel(selectedFee.level, c.min_level))) {
       items.push({ fee_name: charge.fee_name, amount: Number(charge.amount) });
     }
 
@@ -332,7 +343,7 @@ export function CreateInvoice() {
     );
   }
 
-  // ── Success state: show created invoice ──
+  // â”€â”€ Success state: show created invoice â”€â”€
   if (createdInvoice) {
     return (
       <motion.div
@@ -346,7 +357,7 @@ export function CreateInvoice() {
             <p className="text-muted-foreground">{t('finance.invoiceCreated')}</p>
           </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => generateInvoicePdf(createdInvoice)}>
+          <Button variant="outline" onClick={async () => { await generateInvoicePdf(createdInvoice); }}>
             <Download className="h-4 w-4 mr-1" />
             {t('finance.downloadPdf')}
           </Button>
@@ -362,7 +373,7 @@ export function CreateInvoice() {
             <div>
               <p className="font-semibold">{createdInvoice.invoice_number}</p>
               <p className="text-sm text-muted-foreground">
-                {createdInvoice.student_name} — {createdInvoice.class_name}
+                {createdInvoice.student_name} â€” {createdInvoice.class_name}
               </p>
             </div>
           </div>
@@ -383,7 +394,7 @@ export function CreateInvoice() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
+          <div className={`grid gap-4 p-4 bg-muted/50 rounded-lg text-sm ${createdInvoice.term3_amount === 0 ? 'grid-cols-2' : 'grid-cols-3'}`}>
             <div className="text-center">
               <p className="text-muted-foreground">{t('finance.term1')}</p>
               <p className="font-semibold">TZS {formatCurrency(createdInvoice.term1_amount)}</p>
@@ -392,17 +403,19 @@ export function CreateInvoice() {
               <p className="text-muted-foreground">{t('finance.term2')}</p>
               <p className="font-semibold">TZS {formatCurrency(createdInvoice.term2_amount)}</p>
             </div>
-            <div className="text-center">
-              <p className="text-muted-foreground">{t('finance.term3')}</p>
-              <p className="font-semibold">TZS {formatCurrency(createdInvoice.term3_amount)}</p>
-            </div>
+            {createdInvoice.term3_amount > 0 && (
+              <div className="text-center">
+                <p className="text-muted-foreground">{t('finance.term3')}</p>
+                <p className="font-semibold">TZS {formatCurrency(createdInvoice.term3_amount)}</p>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
     );
   }
 
-  // ── Form state ──
+  // â”€â”€ Form state â”€â”€
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -418,7 +431,7 @@ export function CreateInvoice() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ── Left: Form ── */}
+        {/* â”€â”€ Left: Form â”€â”€ */}
         <div className="space-y-6">
           <div className="bg-card rounded-xl border p-6 space-y-4">
             {/* Student Selection */}
@@ -463,7 +476,7 @@ export function CreateInvoice() {
                             <div>
                               <p className="font-medium">{student.name}</p>
                               <p className="text-xs text-muted-foreground">
-                                {student.student_id || student.admission_number} — {student.class_name}
+                                {student.student_id || student.admission_number} â€” {student.class_name}
                               </p>
                             </div>
                           </CommandItem>
@@ -605,7 +618,7 @@ export function CreateInvoice() {
           )}
         </div>
 
-        {/* ── Right: Preview ── */}
+        {/* â”€â”€ Right: Preview â”€â”€ */}
         <div className="space-y-6">
           <div className="bg-card rounded-xl border p-6 sticky top-6">
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
@@ -617,7 +630,7 @@ export function CreateInvoice() {
               <div className="mb-4 text-sm">
                 <p className="font-medium">{selectedStudent.name}</p>
                 <p className="text-muted-foreground">
-                  {selectedStudent.class_name} — {academicYear}
+                  {selectedStudent.class_name} â€” {academicYear}
                 </p>
               </div>
             )}
@@ -633,7 +646,7 @@ export function CreateInvoice() {
                     <div key={i} className="flex justify-between text-sm">
                       <span>{li.fee_name}</span>
                       <span className={li.amount < 0 ? 'text-red-500' : ''}>
-                        {li.amount < 0 ? '-' : ''}TZS{' '}
+                        {li.amount < 0 ? '-' : ''}TSh{' '}
                         {formatCurrency(Math.abs(li.amount))}
                       </span>
                     </div>
@@ -652,7 +665,7 @@ export function CreateInvoice() {
                 <h3 className="text-sm font-medium mb-3">
                   {t('finance.termBreakdown')}
                 </h3>
-                <div className="grid grid-cols-3 gap-3">
+                <div className={`grid gap-3 ${selectedFee?.term3_percent === 0 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                   <div className="text-center p-3 bg-muted/50 rounded-lg">
                     <p className="text-xs text-muted-foreground">
                       {t('finance.term1')}
@@ -669,16 +682,19 @@ export function CreateInvoice() {
                       TZS {formatCurrency(termBreakdown.term2)}
                     </p>
                   </div>
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">
-                      {t('finance.term3')}
-                    </p>
-                    <p className="font-semibold text-sm">
-                      TZS {formatCurrency(termBreakdown.term3)}
-                    </p>
-                  </div>
+                  {selectedFee?.term3_percent !== 0 && (
+                    <div className="text-center p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground">
+                        {t('finance.term3')}
+                      </p>
+                      <p className="font-semibold text-sm">
+                        TZS {formatCurrency(termBreakdown.term3)}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
+                {hasPermission('finance:create') && (
                 <Button
                   className="w-full mt-6"
                   size="lg"
@@ -694,6 +710,7 @@ export function CreateInvoice() {
                     t('finance.generateInvoice')
                   )}
                 </Button>
+                )}
               </>
             )}
           </div>

@@ -23,9 +23,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { EmptyState } from '@/components/ui-custom';
 import { borrowRecords as mockBorrowRecords, students } from '@/data/mockData';
 import type { BorrowRecord } from '@/types';
+import { usePermissions } from '@/lib/permissions';
 
 export function Overdue() {
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
   const [borrowRecords, setBorrowRecords] = useState<BorrowRecord[]>(mockBorrowRecords);
   const [searchQuery, setSearchQuery] = useState('');
   const [showReminderDialog, setShowReminderDialog] = useState(false);
@@ -53,7 +55,7 @@ export function Overdue() {
 
   const getTotalPenalty = (dueDate: string) => {
     const days = getDaysOverdue(dueDate);
-    return days * 1000; // TSH 1,000 per day
+    return days * 1000; // TZS 1,000 per day
   };
 
   const handleSendReminder = (record: BorrowRecord) => {
@@ -135,7 +137,7 @@ export function Overdue() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">
-                TSH {overdueRecords.reduce((sum, r) => sum + getTotalPenalty(r.dueDate), 0).toLocaleString()}
+                TZS {overdueRecords.reduce((sum, r) => sum + getTotalPenalty(r.dueDate), 0).toLocaleString()}
               </p>
               <p className="text-sm text-muted-foreground">{t('overdue.totalPenalties')}</p>
             </div>
@@ -233,10 +235,11 @@ export function Overdue() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-red">TSH {penalty.toLocaleString()}</span>
+                        <span className="text-sm font-medium text-red">TZS {penalty.toLocaleString()}</span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {hasPermission('overdue:manage') && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -246,6 +249,8 @@ export function Overdue() {
                             <Mail className="h-4 w-4 mr-1" />
                             {t('overdue.remind')}
                           </Button>
+                          )}
+                          {hasPermission('overdue:manage') && (
                           <Button 
                             size="sm" 
                             onClick={() => handleClearOverdue(record.id)}
@@ -253,6 +258,7 @@ export function Overdue() {
                           >
                             {t('overdue.clear')}
                           </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

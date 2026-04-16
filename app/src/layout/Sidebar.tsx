@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -10,8 +10,6 @@ import {
   Settings, 
   LogOut,
   Library,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   Database,
   GraduationCap,
@@ -32,12 +30,22 @@ import {
   ArrowRightLeft,
   RotateCcw,
   Banknote,
-  BarChart3
+  BarChart3,
+  Search,
+  PanelLeftClose,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import { signOut } from '@/lib/auth-client';
 import { usePermissions } from '@/lib/permissions';
 
@@ -67,7 +75,7 @@ interface NavItem {
   permission?: string;
 }
 
-const navItems: NavItem[] = [
+export const navItems: NavItem[] = [
   { id: 'dashboard', path: '/dashboard', label: 'nav.dashboard', icon: LayoutDashboard, permission: 'dashboard:view' },
   { 
     id: 'master', 
@@ -114,6 +122,7 @@ const navItems: NavItem[] = [
       { id: 'issue-book', path: '/books-items-management/issue-book', label: 'nav.issueBook', icon: ArrowRightLeft, permission: 'borrow:view' },
       { id: 'return-book', path: '/books-items-management/return-book', label: 'nav.returnBook', icon: RotateCcw, permission: 'borrow:view' },
       { id: 'items-distribution', path: '/books-items-management/items-distribution', label: 'nav.itemsDistribution', icon: PackagePlus, permission: 'items:view' },
+      { id: 'overdue', path: '/overdue', label: 'nav.overdue', icon: AlertCircle, permission: 'overdue:view' },
     ]
   },
   {
@@ -138,14 +147,13 @@ const navItems: NavItem[] = [
       { id: 'fee-structure', path: '/finance/fee-structure', label: 'nav.feeStructure', icon: Settings, permission: 'finance:manage_fees' },
     ]
   },
-  { id: 'overdue', path: '/overdue', label: 'nav.overdue', icon: AlertCircle, permission: 'overdue:view' },
   { id: 'reports', path: '/reports', label: 'nav.reports', icon: FileText, permission: 'reports:view' },
   { id: 'settings', path: '/settings', label: 'nav.settings', icon: Settings, permission: 'settings:view' }
 ];
 
 const parentPaths: Record<string, string[]> = {
   'master': ['/students', '/books', '/teachers', '/classes', '/categories', '/subjects', '/shelf-locations', '/items', '/add-student', '/add-book', '/add-teacher'],
-  'books-items-management': ['/books-items-management'],
+  'books-items-management': ['/books-items-management', '/overdue'],
   'library-inventory': ['/library-inventory'],
   'user-management': ['/user-management'],
   'finance': ['/finance'],
@@ -157,6 +165,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
   const { hasPermission, isLoading } = usePermissions();
   const { t } = useTranslation();
   const pathname = location.pathname;
+  const [commandOpen, setCommandOpen] = useState(false);
 
   const getInitialExpanded = () => {
     for (const [parentId, paths] of Object.entries(parentPaths)) {
@@ -168,6 +177,37 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
   };
 
   const [expandedMenu, setExpandedMenu] = useState<string | null>(getInitialExpanded());
+
+  // Keyboard shortcut: "/" to open search
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+        e.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+    document.addEventListener('keydown', down);
+    return () => document.removeEventListener('keydown', down);
+  }, []);
+
+  // Flatten all nav items for search
+  const flatItems = useCallback(() => {
+    const items: { id: string; path: string; label: string; icon: LucideIcon; parentLabel?: string }[] = [];
+    for (const item of navItems) {
+      if (item.subItems) {
+        for (const sub of item.subItems) {
+          if (hasPermission(sub.permission ?? null)) {
+            items.push({ id: sub.id, path: sub.path, label: t(sub.label), icon: sub.icon, parentLabel: t(item.label) });
+          }
+        }
+      } else if (hasPermission(item.permission ?? null)) {
+        items.push({ id: item.id, path: item.path, label: t(item.label), icon: item.icon });
+      }
+    }
+    return items;
+  }, [hasPermission, t]);
 
   const handleNavigate = (item: NavItem) => {
     if (item.subItems) {
@@ -224,16 +264,42 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
     const expanded = forMobile ? true : !isCollapsed;
     return (
       <>
-        {/* Logo */}
+        {/* Header: Logo + Brand + Toggle */}
         <div className={cn(
           "flex h-[72px] items-center border-b border-border/60",
-          expanded ? "gap-3 px-6" : "justify-center px-2"
+          expanded ? "justify-between px-5" : "justify-center px-2"
         )}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy flex-shrink-0">
-            <Library className="h-5 w-5 text-white" />
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy flex-shrink-0">
+              <Library className="h-4.5 w-4.5 text-white" />
+            </div>
+            {expanded && <span className="text-base font-bold text-foreground tracking-tight">ShulePro</span>}
           </div>
-          {expanded && <span className="text-lg font-bold text-foreground">ShulePro..</span>}
+          {expanded && !forMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleCollapse}
+              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          )}
         </div>
+
+        {/* Search trigger */}
+        {expanded && (
+          <div className="px-4 pt-3 pb-1">
+            <button
+              onClick={() => setCommandOpen(true)}
+              className="flex w-full items-center gap-2 rounded-xl border border-border/60 bg-secondary/50 px-3 py-1 text-sm text-muted-foreground hover:bg-secondary transition-colors"
+            >
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left">{t('topbar.search', 'Search')}</span>
+              <kbd className="pointer-events-none inline-flex h-5 items-center rounded border border-border/80 bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">/</kbd>
+            </button>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className={cn("flex flex-col gap-1 overflow-y-auto", expanded ? "p-4" : "p-2")} style={{ maxHeight: 'calc(100vh - 140px)' }}>
@@ -321,39 +387,85 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
   // Mobile: render inside a Sheet
   if (isMobile) {
     return (
-      <Sheet open={isMobileMenuOpen} onOpenChange={(open) => { if (!open) onMobileMenuClose(); }}>
-        <SheetContent side="left" className="w-[280px] p-0 [&>button]:hidden">
-          <div className="relative h-full bg-card">
-            {sidebarContent(true)}
-          </div>
-        </SheetContent>
-      </Sheet>
+      <>
+        <Sheet open={isMobileMenuOpen} onOpenChange={(open) => { if (!open) onMobileMenuClose(); }}>
+          <SheetContent side="left" className="w-[280px] p-0 [&>button]:hidden">
+            <div className="relative h-full bg-card">
+              {sidebarContent(true)}
+            </div>
+          </SheetContent>
+        </Sheet>
+        <CommandDialog open={commandOpen} onOpenChange={setCommandOpen} title={t('topbar.search', 'Search')} description="Navigate to a module">
+          <CommandInput placeholder={t('topbar.search', 'Search') + '...'} />
+          <CommandList>
+            <CommandEmpty>{t('common.noResults', 'No results found.')}</CommandEmpty>
+            <CommandGroup heading={t('nav.modules', 'Modules')}>
+              {flatItems().map((item) => {
+                const Icon = item.icon;
+                return (
+                  <CommandItem
+                    key={item.id}
+                    value={`${item.label} ${item.parentLabel ?? ''}`}
+                    onSelect={() => {
+                      navigate(item.path);
+                      setCommandOpen(false);
+                      onMobileMenuClose();
+                    }}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span>{item.label}</span>
+                    {item.parentLabel && (
+                      <span className="ml-auto text-xs text-muted-foreground">{item.parentLabel}</span>
+                    )}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </CommandDialog>
+      </>
     );
   }
 
   // Desktop: fixed aside
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 z-40 h-full bg-card shadow-[2px_0_12px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_12px_rgba(0,0,0,0.2)] transition-all duration-300",
-        isCollapsed ? "w-[80px]" : "w-[260px]"
-      )}
-    >
-      {sidebarContent(false)}
-
-      {/* Toggle Button (desktop only) */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onToggleCollapse}
-        className="absolute -right-3 top-20 z-50 h-6 w-6 rounded-full border bg-card shadow-md hover:bg-secondary"
-      >
-        {isCollapsed ? (
-          <ChevronRight className="h-3 w-3" />
-        ) : (
-          <ChevronLeft className="h-3 w-3" />
+    <>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-40 h-full bg-card shadow-[2px_0_12px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_12px_rgba(0,0,0,0.2)] transition-all duration-300",
+          isCollapsed ? "w-[80px]" : "w-[260px]"
         )}
-      </Button>
-    </aside>
+      >
+        {sidebarContent(false)}
+      </aside>
+
+      <CommandDialog open={commandOpen} onOpenChange={setCommandOpen} title={t('topbar.search', 'Search')} description="Navigate to a module">
+        <CommandInput placeholder={t('topbar.search', 'Search') + '...'} />
+        <CommandList>
+          <CommandEmpty>{t('common.noResults', 'No results found.')}</CommandEmpty>
+          <CommandGroup heading={t('nav.modules', 'Modules')}>
+            {flatItems().map((item) => {
+              const Icon = item.icon;
+              return (
+                <CommandItem
+                  key={item.id}
+                  value={`${item.label} ${item.parentLabel ?? ''}`}
+                  onSelect={() => {
+                    navigate(item.path);
+                    setCommandOpen(false);
+                  }}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{item.label}</span>
+                  {item.parentLabel && (
+                    <span className="ml-auto text-xs text-muted-foreground">{item.parentLabel}</span>
+                  )}
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+    </>
   );
 }

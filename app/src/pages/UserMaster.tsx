@@ -41,6 +41,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import { authClient } from '@/lib/auth-client';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { usePermissions } from '@/lib/permissions';
 
 interface User {
   id: string;
@@ -70,6 +71,7 @@ interface Role {
 export function UserMaster() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -346,6 +348,7 @@ export function UserMaster() {
       className: 'text-right',
       render: (user) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {hasPermission('users:edit') && (
           <Button
             variant="ghost"
             size="icon"
@@ -354,6 +357,8 @@ export function UserMaster() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
+          )}
+          {hasPermission('users:edit') && (
           <Button
             variant="ghost"
             size="icon"
@@ -363,6 +368,8 @@ export function UserMaster() {
           >
             {user.banned ? <ShieldCheck className="h-4 w-4" /> : <ShieldBan className="h-4 w-4" />}
           </Button>
+          )}
+          {hasPermission('users:delete') && (
           <Button
             variant="ghost"
             size="icon"
@@ -371,6 +378,7 @@ export function UserMaster() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          )}
         </div>
       ),
     },
@@ -391,6 +399,7 @@ export function UserMaster() {
             {t('users.subtitle')}
           </p>
         </div>
+        {hasPermission('users:create') && (
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
@@ -398,6 +407,7 @@ export function UserMaster() {
           <UserPlus className="h-4 w-4 mr-2" />
           {t('users.addUser')}
         </Button>
+        )}
       </motion.div>
 
       {/* Search */}

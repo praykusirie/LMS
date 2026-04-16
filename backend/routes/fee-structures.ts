@@ -244,17 +244,17 @@ router.post('/other-charges', async (req: Request, res: Response) => {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
-        const { academic_year, fee_name, amount, fee_type } = req.body;
+        const { academic_year, fee_name, amount, fee_type, min_level } = req.body;
         if (!academic_year || !fee_name) {
             res.status(400).json({ error: 'academic_year and fee_name are required' });
             return;
         }
 
         const result = await pool.query(
-            `INSERT INTO fee_other_charges (academic_year, fee_name, amount, fee_type)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO fee_other_charges (academic_year, fee_name, amount, fee_type, min_level)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING *`,
-            [academic_year, fee_name, amount || 0, fee_type || 'annual'],
+            [academic_year, fee_name, amount || 0, fee_type || 'annual', min_level || null],
         );
         res.status(201).json(result.rows[0]);
     } catch (error: any) {
@@ -270,16 +270,17 @@ router.post('/other-charges', async (req: Request, res: Response) => {
 // PUT update other charge
 router.put('/other-charges/:id', async (req: Request, res: Response) => {
     try {
-        const { fee_name, amount, fee_type } = req.body;
+        const { fee_name, amount, fee_type, min_level } = req.body;
         const result = await pool.query(
             `UPDATE fee_other_charges SET
                 fee_name = COALESCE($1, fee_name),
                 amount = COALESCE($2, amount),
                 fee_type = COALESCE($3, fee_type),
+                min_level = $4,
                 updated_at = NOW()
-             WHERE id = $4
+             WHERE id = $5
              RETURNING *`,
-            [fee_name, amount, fee_type, req.params.id],
+            [fee_name, amount, fee_type, min_level ?? null, req.params.id],
         );
         if (result.rows.length === 0) {
             res.status(404).json({ error: 'Other charge not found' });

@@ -41,6 +41,7 @@ import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { usePermissions } from '@/lib/permissions';
 import { LazyBookCover } from '@/components/shared/LazyBookCover';
 
 interface Activity {
@@ -86,6 +87,7 @@ const generateAvatar = (name: string) => {
 export function ClassActivities() {
   const { t } = useTranslation();
   const { data: session } = useSession();
+  const { hasPermission } = usePermissions();
   const userRole = session?.user?.role ?? null;
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
@@ -374,6 +376,7 @@ export function ClassActivities() {
               </p>
             </div>
           </div>
+          {hasPermission('class_activities:manage') && (
           <Button 
             onClick={handleSaveMarks}
             className="bg-navy hover:bg-navy/90 rounded-xl h-11"
@@ -382,6 +385,7 @@ export function ClassActivities() {
             {isSavingMarks ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             {t('classActivities.saveMarks')}
           </Button>
+          )}
         </motion.div>
 
         {/* Progress */}
@@ -493,6 +497,7 @@ export function ClassActivities() {
             {t('classActivities.createAndManageSubtitle')}
           </p>
         </div>
+        {hasPermission('class_activities:manage') && (
         <Button 
           onClick={() => setShowCreateDialog(true)}
           className="bg-navy hover:bg-navy/90 rounded-xl h-11"
@@ -500,6 +505,7 @@ export function ClassActivities() {
           <Plus className="h-4 w-4 mr-2" />
           {t('classActivities.createActivity')}
         </Button>
+        )}
       </motion.div>
 
       {/* Filters */}

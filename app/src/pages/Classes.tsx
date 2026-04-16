@@ -32,6 +32,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useTranslation } from 'react-i18next';
+import { usePermissions } from '@/lib/permissions';
 
 interface ClassItem {
   id: string;
@@ -48,6 +49,7 @@ export function Classes() {
   const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
 
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -213,6 +215,7 @@ export function Classes() {
       className: 'text-right',
       render: (classItem) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {hasPermission('master:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -221,6 +224,8 @@ export function Classes() {
           >
             <Edit2 className="h-4 w-4" />
           </Button>
+          )}
+          {hasPermission('master:manage') && (
           <Button
             variant="ghost"
             size="icon"
@@ -229,6 +234,7 @@ export function Classes() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          )}
         </div>
       ),
     },
@@ -249,6 +255,7 @@ export function Classes() {
             {t('classes.subtitle')}
           </p>
         </div>
+        {hasPermission('master:manage') && (
         <Button 
           onClick={() => {
             setFormData({ name: '', description: '', level: !isAdmin && userLevel ? userLevel : '' });
@@ -259,6 +266,7 @@ export function Classes() {
           <Plus className="h-4 w-4 mr-2" />
           {t('classes.addClass')}
         </Button>
+        )}
       </motion.div>
 
       {/* Search */}

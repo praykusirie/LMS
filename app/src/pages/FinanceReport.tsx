@@ -9,7 +9,7 @@ import {
   CreditCard,
   FileText,
   TrendingUp,
-  DollarSign,
+  Banknote,
   Eye,
   Trash2,
 } from 'lucide-react';
@@ -53,6 +53,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import api from '@/lib/api';
 import { generateInvoicePdf } from '@/lib/invoice-pdf';
+import { usePermissions } from '@/lib/permissions';
 
 interface Invoice {
   id: string;
@@ -103,6 +104,7 @@ interface ReportSummary {
 
 export function FinanceReport() {
   const { t } = useTranslation();
+  const { hasPermission } = usePermissions();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [summary, setSummary] = useState<ReportSummary | null>(null);
@@ -258,7 +260,7 @@ export function FinanceReport() {
         {
           label: t('finance.totalCollected'),
           value: `TZS ${formatCurrency(summary.total_collected)}`,
-          icon: DollarSign,
+          icon: Banknote,
           color: 'bg-green-100 text-green-600',
         },
         {
@@ -401,15 +403,16 @@ export function FinanceReport() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {inv.status !== 'paid' && (
+                      {inv.status !== 'paid' && hasPermission('finance:edit') && (
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => setPaymentDialog(inv.id)}
                         >
-                          <DollarSign className="h-4 w-4" />
+                          <Banknote className="h-4 w-4" />
                         </Button>
                       )}
+                      {hasPermission('finance:edit') && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -417,6 +420,7 @@ export function FinanceReport() {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -462,7 +466,7 @@ export function FinanceReport() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className={`grid gap-3 text-sm ${Number(viewInvoice.term3_amount) === 0 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 <div className="text-center p-2 bg-muted/50 rounded">
                   <p className="text-xs text-muted-foreground">{t('finance.term1')}</p>
                   <p className="font-semibold">TZS {formatCurrency(viewInvoice.term1_amount)}</p>
@@ -471,10 +475,12 @@ export function FinanceReport() {
                   <p className="text-xs text-muted-foreground">{t('finance.term2')}</p>
                   <p className="font-semibold">TZS {formatCurrency(viewInvoice.term2_amount)}</p>
                 </div>
-                <div className="text-center p-2 bg-muted/50 rounded">
-                  <p className="text-xs text-muted-foreground">{t('finance.term3')}</p>
-                  <p className="font-semibold">TZS {formatCurrency(viewInvoice.term3_amount)}</p>
-                </div>
+                {Number(viewInvoice.term3_amount) > 0 && (
+                  <div className="text-center p-2 bg-muted/50 rounded">
+                    <p className="text-xs text-muted-foreground">{t('finance.term3')}</p>
+                    <p className="font-semibold">TZS {formatCurrency(viewInvoice.term3_amount)}</p>
+                  </div>
+                )}
               </div>
 
               {viewInvoice.payments.length > 0 && (
@@ -486,7 +492,7 @@ export function FinanceReport() {
                       <div key={p.id} className="flex justify-between text-sm bg-muted/30 p-2 rounded">
                         <div>
                           <p>{new Date(p.payment_date).toLocaleDateString()}</p>
-                          <p className="text-xs text-muted-foreground">{p.payment_method} {p.reference ? `— ${p.reference}` : ''}</p>
+                          <p className="text-xs text-muted-foreground">{p.payment_method} {p.reference ? `â€” ${p.reference}` : ''}</p>
                         </div>
                         <span className="font-medium text-green-600">TZS {formatCurrency(p.amount)}</span>
                       </div>
@@ -505,7 +511,7 @@ export function FinanceReport() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => generateInvoicePdf(viewInvoice)}
+                  onClick={async () => { await generateInvoicePdf(viewInvoice); }}
                 >
                   <Download className="h-4 w-4 mr-1" />
                   {t('finance.downloadPdf')}

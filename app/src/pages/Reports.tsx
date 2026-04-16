@@ -260,7 +260,7 @@ export function Reports() {
                 <div className="h-10 w-10 rounded-xl bg-amber-light flex items-center justify-center">
                   <BarChart3 className="h-5 w-5 text-amber" />
                 </div>
-                <span className="text-2xl font-bold">TSH {totalPenalties.toLocaleString()}</span>
+                <span className="text-2xl font-bold">TZS {totalPenalties.toLocaleString()}</span>
               </div>
             </div>
           </CardContent>
@@ -759,7 +759,7 @@ export function Reports() {
               </div>
               <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30">
                 <p className="text-xs text-amber-700">{t('reports.totalPenalties')}</p>
-                <p className="text-xl font-bold mt-1 text-amber-700">TSH {totalPenalties.toLocaleString()}</p>
+                <p className="text-xl font-bold mt-1 text-amber-700">TZS {totalPenalties.toLocaleString()}</p>
               </div>
               <div className="p-4 rounded-xl bg-secondary/30">
                 <p className="text-xs text-muted-foreground">{t('reports.avgDaysOverdue')}</p>
@@ -808,7 +808,7 @@ export function Reports() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="text-sm font-medium text-red-600">TSH {penalty.toLocaleString()}</span>
+                          <span className="text-sm font-medium text-red-600">TZS {penalty.toLocaleString()}</span>
                         </td>
                       </tr>
                     );
