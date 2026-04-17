@@ -278,15 +278,22 @@ router.post('/', async (req: Request, res: Response) => {
         // ── Calculate totals ──
         const totalAmount = lineItems.reduce((sum, li) => sum + li.amount, 0);
 
-        // Term split: percentages from fee structure
+        // Term split: percentages apply ONLY to tuition fee.
+        // All additional charges (books, cambridge, hostel, annual, new-student) go to Term 1.
         const t1Pct = Number(fee.term1_percent);
         const t2Pct = Number(fee.term2_percent);
         const t3Pct = Number(fee.term3_percent);
 
-        // Term amounts: apply percentages to total
-        const term1Amount = Math.round(totalAmount * t1Pct / 100);
-        const term3Amount = Math.round(totalAmount * t3Pct / 100);
-        const term2Amount = totalAmount - term1Amount - term3Amount; // remainder avoids rounding errors
+        const tuitionForSplit = lineItems.find(li => li.fee_name === 'Tuition Fee')?.amount ?? 0;
+        const additionalCharges = totalAmount - tuitionForSplit;
+
+        const term1Tuition = Math.round(tuitionForSplit * t1Pct / 100);
+        const term3Tuition = Math.round(tuitionForSplit * t3Pct / 100);
+        const term2Tuition = tuitionForSplit - term1Tuition - term3Tuition;
+
+        const term1Amount = term1Tuition + additionalCharges;
+        const term2Amount = term2Tuition;
+        const term3Amount = term3Tuition;
 
         // ── Insert invoice + line items in transaction ──
         const client = await pool.connect();

@@ -22,6 +22,7 @@ import itemDistributionsRouter from './routes/item-distributions.js';
 import borrowRecordsRouter from './routes/borrow-records.js';
 import feeStructuresRouter from './routes/fee-structures.js';
 import invoicesRouter from './routes/invoices.js';
+import reportsRouter from './routes/reports.js';
 import morgan from "morgan"
 
 const app = express()
@@ -59,6 +60,7 @@ app.use('/api/item-distributions', requireAuth, itemDistributionsRouter);
 app.use('/api/borrow-records', requireAuth, borrowRecordsRouter);
 app.use('/api/fee-structures', requireAuth, feeStructuresRouter);
 app.use('/api/invoices', requireAuth, invoicesRouter);
+app.use('/api/reports', requireAuth, reportsRouter);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

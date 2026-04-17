@@ -272,11 +272,17 @@ export function CreateInvoice() {
 
   const termBreakdown = useMemo(() => {
     if (!selectedFee) return { term1: 0, term2: 0, term3: 0 };
-    const t1 = Math.round((totalAmount * Number(selectedFee.term1_percent)) / 100);
-    const t3 = Math.round((totalAmount * Number(selectedFee.term3_percent)) / 100);
-    const t2 = totalAmount - t1 - t3;
-    return { term1: t1, term2: t2, term3: t3 };
-  }, [selectedFee, totalAmount]);
+
+    // Percentages apply ONLY to tuition fee; all additional charges go to Term 1
+    const tuitionForSplit = previewLineItems.find((li) => li.fee_name === 'Tuition Fee')?.amount ?? 0;
+    const additionalCharges = totalAmount - tuitionForSplit;
+
+    const t1Tuition = Math.round((tuitionForSplit * Number(selectedFee.term1_percent)) / 100);
+    const t3Tuition = Math.round((tuitionForSplit * Number(selectedFee.term3_percent)) / 100);
+    const t2Tuition = tuitionForSplit - t1Tuition - t3Tuition;
+
+    return { term1: t1Tuition + additionalCharges, term2: t2Tuition, term3: t3Tuition };
+  }, [selectedFee, totalAmount, previewLineItems]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {
