@@ -28,7 +28,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
 import api from '@/lib/api';
 import { usePermissions } from '@/lib/permissions';
 
@@ -297,9 +296,6 @@ export function FeeStructureEditor() {
     setNewChargeDialog(false);
     setNewCharge({ academic_year: '', fee_name: '', amount: '', fee_type: 'annual', min_level: '' });
   };
-
-  const formatCurrency = (val: string) =>
-    new Intl.NumberFormat('en-TZ').format(Number(val) || 0);
 
   if (isLoading && !academicYear) {
     return (

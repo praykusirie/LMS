@@ -4,8 +4,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
-  User,
-  Hash,
   Calendar,
   GraduationCap,
   Mail,
@@ -44,7 +42,6 @@ import {
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { StatusBadge } from '@/components/ui-custom';
-import { LazyBookCover } from '@/components/shared/LazyBookCover';
 
 interface StudentRecord {
   id: string;

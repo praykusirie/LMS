@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('classes', 'create'), async (req: Request, res: Response) => {
     try {
         const { name, description, level } = req.body;
         const user = await getSessionUser(req);
@@ -46,7 +47,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('classes', 'edit'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { name, description, student_count, is_active, level } = req.body;
@@ -73,7 +74,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 });
 
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('classes', 'delete'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const result = await pool.query('DELETE FROM classes WHERE id = $1 RETURNING *', [id]);

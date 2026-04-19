@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -107,7 +108,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST create new stock
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('stock', 'create'), async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -166,7 +167,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // PUT update stock (add/edit items)
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('stock', 'edit'), async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -224,7 +225,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE stock
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('stock', 'manage'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await pool.query('DELETE FROM stocks WHERE id = $1 RETURNING *', [id]);

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -142,7 +143,7 @@ router.get('/report', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('items', 'create'), async (req: Request, res: Response) => {
     const client = await pool.connect();
 
     try {
@@ -252,7 +253,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/batch', async (req: Request, res: Response) => {
+router.post('/batch', requirePermission('items', 'create'), async (req: Request, res: Response) => {
     const client = await pool.connect();
 
     try {

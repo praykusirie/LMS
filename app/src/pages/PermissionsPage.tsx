@@ -252,7 +252,6 @@ export function PermissionsPage() {
             {filteredModules.map((module) => {
               const stats = getModuleStats(module);
               const allSelected = stats.assigned === stats.total;
-              const someSelected = stats.assigned > 0 && stats.assigned < stats.total;
               
               return (
                 <AccordionItem 

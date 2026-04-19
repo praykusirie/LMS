@@ -101,6 +101,7 @@
     "addStock": "Agregar Stock",
     "classActivities": "Actividades de Clase",
     "results": "Resultados",
+    "attendance": "Asistencia",
     "booksItemsManagement": "Libros y ArtÃ­culos",
     "borrowReturn": "PrÃ©stamo / DevoluciÃ³n",
     "itemsMaster": "Maestro de ArtÃ­culos",
@@ -1206,7 +1207,10 @@
     "failedToFetch": "Error al obtener usuarios",
     "failedToCreate": "Error al crear usuario",
     "failedToUpdate": "Error al actualizar usuario",
-    "failedToDelete": "Error al eliminar usuario"
+    "failedToDelete": "Error al eliminar usuario",
+    "isHomeroomTeacher": "Profesor Titular",
+    "homeroomClass": "Clase Titular",
+    "selectClass": "Seleccionar clase"
   },
   "roles": {
     "title": "Maestro de Roles",
@@ -1373,5 +1377,29 @@
     "bookReturned": "Libro devuelto exitosamente",
     "confirmReturn": "Confirmar DevoluciÃ³n",
     "error": "Error al devolver libro"
+  },
+  "attendance": {
+    "title": "Asistencia",
+    "subtitle": "Registrar la asistencia diaria de los estudiantes",
+    "selectDate": "Seleccionar Fecha",
+    "selectClass": "Seleccionar Clase",
+    "present": "Presente",
+    "absent": "Ausente",
+    "excused": "Excusado",
+    "save": "Guardar Asistencia",
+    "saved": "Asistencia guardada exitosamente",
+    "updateAttendance": "Actualizar Asistencia",
+    "noStudents": "No se encontraron estudiantes en esta clase",
+    "attendanceTaken": "La asistencia ya fue registrada",
+    "takeAttendance": "Tomar Asistencia",
+    "markAll": "Marcar Todos",
+    "studentName": "Nombre del Estudiante",
+    "admissionNo": "Número de Admisión",
+    "status": "Estado",
+    "attendanceRequired": "Se debe tomar asistencia antes de crear una actividad",
+    "summary": "Total",
+    "presentCount": "Presentes: {{count}}",
+    "absentCount": "Ausentes: {{count}}",
+    "excusedCount": "Excusados: {{count}}"
   }
 }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -111,7 +112,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         
         const activity = activityResult.rows[0];
         
-        // Get students in class with their marks
+        // Get students in class with their marks and attendance status
         const studentsResult = await pool.query(
             `SELECT s.id AS id,
                     s.name AS student_name,
@@ -119,10 +120,12 @@ router.get('/:id', async (req: Request, res: Response) => {
                     s.student_id AS student_code,
                     am.id AS mark_id,
                     am.marks_obtained,
-                    a.total_marks
+                    a.total_marks,
+                    att.status AS attendance_status
              FROM students s
              JOIN activities a ON a.class_id = s.class_id
              LEFT JOIN activity_marks am ON am.student_id = s.id AND am.activity_id = a.id
+             LEFT JOIN attendance att ON att.student_id = s.id AND att.class_id = a.class_id AND att.date = a.date
              WHERE a.id = $1 AND s.is_active = true
              ORDER BY s.name`,
             [id]
@@ -139,13 +142,23 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create new activity
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('class_activities', 'manage'), async (req: Request, res: Response) => {
     try {
         const { name, class_id, date, total_marks, level } = req.body;
         const user = await getSessionUser(req);
         
         if (!name || !class_id || !date || !total_marks) {
             res.status(400).json({ error: 'Missing required fields' });
+            return;
+        }
+
+        // Check attendance has been taken for this class on this date
+        const attendanceCheck = await pool.query(
+            'SELECT COUNT(*)::int AS count FROM attendance WHERE class_id = $1 AND date = $2',
+            [class_id, date]
+        );
+        if (attendanceCheck.rows[0].count === 0) {
+            res.status(400).json({ error: 'Attendance must be taken for this class before creating an activity for this date' });
             return;
         }
         
@@ -182,7 +195,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Update activity
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('class_activities', 'manage'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { name, date, total_marks, is_active } = req.body;
@@ -212,7 +225,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // Delete activity
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('class_activities', 'manage'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         
@@ -234,7 +247,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Save/update student marks for an activity
-router.post('/:id/marks', async (req: Request, res: Response) => {
+router.post('/:id/marks', requirePermission('class_activities', 'manage'), async (req: Request, res: Response) => {
     const client = await pool.connect();
     try {
         const { id } = req.params;
@@ -288,6 +301,22 @@ router.post('/:id/marks', async (req: Request, res: Response) => {
                 [id, mark.student_id, mark.marks_obtained]
             );
         }
+
+        // Auto-set 0 for absent students who have no marks yet
+        await client.query(
+            `INSERT INTO activity_marks (activity_id, student_id, marks_obtained)
+             SELECT $1, att.student_id, 0
+             FROM attendance att
+             JOIN activities a ON a.class_id = att.class_id AND a.date = att.date
+             WHERE a.id = $1
+               AND att.status = 'absent'
+               AND NOT EXISTS (
+                   SELECT 1 FROM activity_marks am
+                   WHERE am.activity_id = $1 AND am.student_id = att.student_id
+               )
+             ON CONFLICT (activity_id, student_id) DO NOTHING`,
+            [id]
+        );
         
         await client.query('COMMIT');
         

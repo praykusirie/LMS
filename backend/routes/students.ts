@@ -4,6 +4,7 @@ import multer from 'multer';
 import * as XLSX from 'xlsx';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -80,7 +81,7 @@ router.get('/:id/borrow-history', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('students', 'create'), async (req: Request, res: Response) => {
     try {
         const { 
             first_name, last_name, name, class_id, gender, email, phone, 
@@ -125,7 +126,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('students', 'edit'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { 
@@ -173,7 +174,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 });
 
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('students', 'delete'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const result = await pool.query('DELETE FROM students WHERE id = $1 RETURNING *', [id]);
@@ -189,7 +190,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Bulk import from Excel/CSV
-router.post('/bulk', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/bulk', requirePermission('students', 'create'), upload.single('file'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         const bodyLevel = req.body?.level;
@@ -298,9 +299,9 @@ router.post('/bulk', upload.single('file'), async (req: Request, res: Response) 
                     // Try various date formats
                     const dateMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
                     if (dateMatch) {
-                        let [_, d, m, y] = dateMatch;
-                        const year = y.length === 2 ? (parseInt(y) > 50 ? `19${y}` : `20${y}`) : y;
-                        dob = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                        const [_, d, m, y] = dateMatch;
+                        const year = y!.length === 2 ? (parseInt(y!) > 50 ? `19${y}` : `20${y}`) : y;
+                        dob = `${year}-${m!.padStart(2, '0')}-${d!.padStart(2, '0')}`;
                     }
                 }
             }

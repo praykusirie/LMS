@@ -4,6 +4,7 @@ import multer from 'multer';
 import * as XLSX from 'xlsx';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -135,7 +136,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('books', 'create'), async (req: Request, res: Response) => {
     try {
         const { 
             title, author, isbn, category_id, subject_id, class_id, 
@@ -172,7 +173,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('books', 'edit'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { 
@@ -223,7 +224,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 });
 
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('books', 'delete'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const result = await pool.query('DELETE FROM books WHERE id = $1 RETURNING *', [id]);
@@ -239,7 +240,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Merge duplicate books already in the database
-router.post('/merge-duplicates', async (req: Request, res: Response) => {
+router.post('/merge-duplicates', requirePermission('books', 'edit'), async (req: Request, res: Response) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -325,7 +326,7 @@ router.post('/merge-duplicates', async (req: Request, res: Response) => {
 });
 
 // Bulk import from Excel/CSV
-router.post('/bulk', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/bulk', requirePermission('books', 'create'), upload.single('file'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         const bodyLevel = req.body?.level;

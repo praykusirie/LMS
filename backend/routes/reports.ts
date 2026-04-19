@@ -78,9 +78,10 @@ router.get('/overview', async (req: Request, res: Response) => {
         const range = String(req.query.range || 'all-time');
         const { dateFrom, dateTo } = getDateRange(range);
 
-        const isFiltered = user && user.role !== 'admin' && user.level;
-        const lev = isFiltered ? `AND (level = '${user.level}' OR level IS NULL)` : '';
-        const levBr = isFiltered ? `AND (br.level = '${user.level}' OR br.level IS NULL)` : '';
+        // Parameterized level filters for different table aliases
+        const { clause: lev, params: levP, paramOffset: p1 } = getLevelFilter(user, undefined, 1);
+        const { clause: levBr, params: levBrP, paramOffset: p2 } = getLevelFilter(user, 'br', p1);
+        const statsParams = [...levP, ...levBrP];
 
         // Summary stats (no date filter — these are totals)
         const statsRes = await pool.query(`
@@ -91,12 +92,14 @@ router.get('/overview', async (req: Request, res: Response) => {
                 (SELECT COUNT(*) FROM borrow_records br WHERE br.status = 'overdue' ${levBr}) AS overdue_books,
                 (SELECT COUNT(*) FROM students WHERE is_active = true ${lev}) AS registered_students,
                 (SELECT COUNT(*) FROM teachers WHERE 1=1 ${lev}) AS total_teachers
-        `);
+        `, statsParams);
 
         // Monthly borrowing activity (date-filtered)
-        const monthlyParams: unknown[] = [];
-        let mIdx = 1;
-        let monthFrom = "date_trunc('month', NOW()) - interval '11 months'";
+        const { clause: levBrMonth, params: levBrMonthP, paramOffset: mNext } = getLevelFilter(user, 'br', 1);
+        const monthlyParams: unknown[] = [...levBrMonthP];
+        let mIdx = mNext;
+
+        let monthFrom = "NOW() - interval '11 months'";
         if (dateFrom) {
             monthFrom = `$${mIdx}::timestamptz`;
             monthlyParams.push(dateFrom);
@@ -106,7 +109,7 @@ router.get('/overview', async (req: Request, res: Response) => {
         const monthlyRes = await pool.query(`
             WITH months AS (
                 SELECT generate_series(
-                    date_trunc('month', ${dateFrom ? `$1::timestamptz` : "NOW() - interval '11 months'"}),
+                    date_trunc('month', ${monthFrom}),
                     date_trunc('month', NOW()),
                     interval '1 month'
                 ) AS month
@@ -119,30 +122,31 @@ router.get('/overview', async (req: Request, res: Response) => {
             LEFT JOIN (
                 SELECT date_trunc('month', borrow_date) AS month, COUNT(*) AS count
                 FROM borrow_records br
-                WHERE borrow_date >= date_trunc('month', ${dateFrom ? `$1::timestamptz` : "NOW() - interval '11 months'"}) ${levBr}
+                WHERE borrow_date >= date_trunc('month', ${monthFrom}) ${levBrMonth}
                 GROUP BY 1
             ) borrows ON borrows.month = m.month
             LEFT JOIN (
                 SELECT date_trunc('month', return_date) AS month, COUNT(*) AS count
                 FROM borrow_records br
                 WHERE return_date IS NOT NULL
-                    AND return_date >= date_trunc('month', ${dateFrom ? `$1::timestamptz` : "NOW() - interval '11 months'"}) ${levBr}
+                    AND return_date >= date_trunc('month', ${monthFrom}) ${levBrMonth}
                 GROUP BY 1
             ) returns ON returns.month = m.month
             ORDER BY m.month ASC
         `, monthlyParams);
 
         // Books by category
+        const { clause: levBCat, params: levBCatP } = getLevelFilter(user, 'b', 1);
         const categoryRes = await pool.query(`
             SELECT
                 COALESCE(c.name, 'Uncategorized') AS name,
                 COUNT(*)::int AS count
             FROM books b
             LEFT JOIN categories c ON c.id = b.category_id
-            WHERE b.is_active = true ${lev.replace(/level/g, 'b.level')}
+            WHERE b.is_active = true ${levBCat}
             GROUP BY c.name
             ORDER BY count DESC
-        `);
+        `, levBCatP);
         const totalCat = categoryRes.rows.reduce((s: number, r: any) => s + r.count, 0);
         const categoryData = categoryRes.rows.map((r: any) => ({
             name: r.name,
@@ -151,6 +155,7 @@ router.get('/overview', async (req: Request, res: Response) => {
         }));
 
         // Class-wise borrowing
+        const { clause: levBrCw, params: levBrCwP } = getLevelFilter(user, 'br', 1);
         const classWiseRes = await pool.query(`
             SELECT
                 cl.name AS class,
@@ -160,23 +165,25 @@ router.get('/overview', async (req: Request, res: Response) => {
             FROM borrow_records br
             JOIN students s ON s.id = br.student_id
             JOIN classes cl ON cl.id = s.class_id
-            WHERE 1=1 ${levBr}
+            WHERE 1=1 ${levBrCw}
             GROUP BY cl.name
             ORDER BY cl.name
-        `);
+        `, levBrCwP);
 
         // Top 5 borrowed books
+        const { clause: levBrTop, params: levBrTopP } = getLevelFilter(user, 'br', 1);
         const topBooksRes = await pool.query(`
             SELECT b.title, b.author, COUNT(*)::int AS borrow_count
             FROM borrow_records br
             JOIN books b ON b.id = br.book_id
-            WHERE 1=1 ${levBr}
+            WHERE 1=1 ${levBrTop}
             GROUP BY b.id, b.title, b.author
             ORDER BY borrow_count DESC
             LIMIT 5
-        `);
+        `, levBrTopP);
 
         // Top 5 borrowers
+        const { clause: levBrBorr, params: levBrBorrP } = getLevelFilter(user, 'br', 1);
         const topBorrowersRes = await pool.query(`
             SELECT
                 s.name,
@@ -189,11 +196,11 @@ router.get('/overview', async (req: Request, res: Response) => {
             FROM borrow_records br
             JOIN students s ON s.id = br.student_id
             JOIN classes cl ON cl.id = s.class_id
-            WHERE 1=1 ${levBr}
+            WHERE 1=1 ${levBrBorr}
             GROUP BY s.id, s.name, cl.name
             ORDER BY borrow_count DESC
             LIMIT 5
-        `);
+        `, levBrBorrP);
 
         res.json({
             stats: statsRes.rows[0],

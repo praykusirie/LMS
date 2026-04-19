@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -59,7 +60,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('borrow', 'manage'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) {
@@ -144,7 +145,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
-router.patch('/:id/return', async (req: Request, res: Response) => {
+router.patch('/:id/return', requirePermission('borrow', 'manage'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) {

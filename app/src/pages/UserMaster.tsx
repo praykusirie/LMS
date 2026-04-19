@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PersonAvatar } from '@/components/shared/PersonAvatar';
 import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
@@ -51,6 +52,8 @@ interface User {
   level: string | null;
   gender: 'male' | 'female';
   banned: boolean | null;
+  is_homeroom_teacher: boolean;
+  homeroom_class_id: string | null;
   createdAt: Date;
 }
 
@@ -60,6 +63,13 @@ interface EditFormData {
   role: string;
   level: string;
   newPassword: string;
+  is_homeroom_teacher: boolean;
+  homeroom_class_id: string;
+}
+
+interface ClassItem {
+  id: string;
+  name: string;
 }
 
 interface Role {
@@ -74,6 +84,7 @@ export function UserMaster() {
   const { hasPermission } = usePermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -89,6 +100,8 @@ export function UserMaster() {
     gender: 'male' as 'male' | 'female',
     role: 'user',
     level: '',
+    is_homeroom_teacher: false,
+    homeroom_class_id: '',
   });
   const [editFormData, setEditFormData] = useState<EditFormData>({
     name: '',
@@ -96,12 +109,15 @@ export function UserMaster() {
     role: 'user',
     level: '',
     newPassword: '',
+    is_homeroom_teacher: false,
+    homeroom_class_id: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
     fetchRoles();
+    fetchClasses();
   }, []);
 
   const fetchUsers = async () => {
@@ -126,6 +142,15 @@ export function UserMaster() {
     }
   };
 
+  const fetchClasses = async () => {
+    try {
+      const { data } = await api.get('/classes');
+      setClasses(data);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    }
+  };
+
   const handleCreateUser = async () => {
     if (!formData.name || !formData.email || !formData.password) return;
     
@@ -139,6 +164,8 @@ export function UserMaster() {
         data: {
           gender: formData.gender,
           level: formData.role === 'librarian' ? formData.level || null : null,
+          isHomeroomTeacher: formData.role === 'teacher' ? formData.is_homeroom_teacher : false,
+          homeroomClassId: formData.role === 'teacher' && formData.is_homeroom_teacher ? formData.homeroom_class_id || null : null,
         },
       });
       
@@ -167,6 +194,8 @@ export function UserMaster() {
         gender: editFormData.gender,
         role: editFormData.role,
         level: editFormData.role === 'librarian' ? editFormData.level || null : null,
+        is_homeroom_teacher: editFormData.role === 'teacher' ? editFormData.is_homeroom_teacher : false,
+        homeroom_class_id: editFormData.role === 'teacher' && editFormData.is_homeroom_teacher ? editFormData.homeroom_class_id || null : null,
       });
 
       // Update password if provided (via better-auth admin API)
@@ -231,6 +260,8 @@ export function UserMaster() {
       gender: 'male',
       role: 'user',
       level: '',
+      is_homeroom_teacher: false,
+      homeroom_class_id: '',
     });
     setShowPassword(false);
     setShowEditPassword(false);
@@ -244,6 +275,8 @@ export function UserMaster() {
       role: user.role || 'user',
       level: user.level || '',
       newPassword: '',
+      is_homeroom_teacher: user.is_homeroom_teacher || false,
+      homeroom_class_id: user.homeroom_class_id || '',
     });
     setShowEditPassword(false);
     setIsEditDialogOpen(true);
@@ -548,8 +581,36 @@ export function UserMaster() {
                   </SelectContent>
                 </Select>
               </div>
-            )}
-          </div>
+            )}            {formData.role === 'teacher' && (
+              <>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="create-homeroom"
+                    checked={formData.is_homeroom_teacher}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_homeroom_teacher: !!checked, homeroom_class_id: checked ? formData.homeroom_class_id : '' })}
+                  />
+                  <Label htmlFor="create-homeroom">{t('users.isHomeroomTeacher')}</Label>
+                </div>
+                {formData.is_homeroom_teacher && (
+                  <div className="space-y-2">
+                    <Label>{t('users.homeroomClass')}</Label>
+                    <Select
+                      value={formData.homeroom_class_id}
+                      onValueChange={(value) => setFormData({ ...formData, homeroom_class_id: value })}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder={t('users.selectClass')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
+            )}          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               {t('common.cancel')}
@@ -640,6 +701,36 @@ export function UserMaster() {
                   </SelectContent>
                 </Select>
               </div>
+            )}
+            {editFormData.role === 'teacher' && (
+              <>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="edit-homeroom"
+                    checked={editFormData.is_homeroom_teacher}
+                    onCheckedChange={(checked) => setEditFormData({ ...editFormData, is_homeroom_teacher: !!checked, homeroom_class_id: checked ? editFormData.homeroom_class_id : '' })}
+                  />
+                  <Label htmlFor="edit-homeroom">{t('users.isHomeroomTeacher')}</Label>
+                </div>
+                {editFormData.is_homeroom_teacher && (
+                  <div className="space-y-2">
+                    <Label>{t('users.homeroomClass')}</Label>
+                    <Select
+                      value={editFormData.homeroom_class_id}
+                      onValueChange={(value) => setEditFormData({ ...editFormData, homeroom_class_id: value })}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder={t('users.selectClass')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
             )}
             <div className="space-y-2">
               <Label>{t('users.newPassword')} <span className="text-muted-foreground text-xs">({t('users.leaveBlankPassword')})</span></Label>

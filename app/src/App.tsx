@@ -33,7 +33,8 @@ import {
   Results,
   CreateInvoice,
   FinanceReport,
-  FeeStructureEditor
+  FeeStructureEditor,
+  Attendance
 } from '@/pages';
 import { NotFound } from '@/pages/NotFound';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -123,6 +124,7 @@ function App() {
         {/* Class Management */}
         <Route path="/class-activities" element={<G p="class_activities:view"><ClassActivities /></G>} />
         <Route path="/results" element={<G p="results:view"><Results /></G>} />
+        <Route path="/attendance" element={<G p="attendance:view"><Attendance /></G>} />
 
         {/* Library Inventory */}
         <Route path="/library-inventory/add-stock" element={<G p="stock:view"><StockList /></G>} />

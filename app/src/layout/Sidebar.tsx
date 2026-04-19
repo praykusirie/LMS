@@ -22,6 +22,7 @@ import {
   Key,
   Warehouse,
   ClipboardList,
+  ClipboardCheck,
   PackagePlus,
   Package,
   School,
@@ -101,6 +102,7 @@ export const navItems: NavItem[] = [
     subItems: [
       { id: 'class-activities', path: '/class-activities', label: 'nav.classActivities', icon: CalendarDays, permission: 'class_activities:view' },
       { id: 'results', path: '/results', label: 'nav.results', icon: Trophy, permission: 'results:view' },
+      { id: 'attendance', path: '/attendance', label: 'nav.attendance', icon: ClipboardCheck, permission: 'attendance:view' },
     ]
   },
   {
@@ -153,6 +155,7 @@ export const navItems: NavItem[] = [
 
 const parentPaths: Record<string, string[]> = {
   'master': ['/students', '/books', '/teachers', '/classes', '/categories', '/subjects', '/shelf-locations', '/items', '/add-student', '/add-book', '/add-teacher'],
+  'class-management': ['/class-activities', '/results', '/attendance'],
   'books-items-management': ['/books-items-management', '/overdue'],
   'library-inventory': ['/library-inventory'],
   'user-management': ['/user-management'],

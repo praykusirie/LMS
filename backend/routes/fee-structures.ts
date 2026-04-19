@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -57,7 +58,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST create fee structure
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('finance', 'manage_fees'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
@@ -97,7 +98,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // PUT update fee structure
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('finance', 'manage_fees'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
@@ -134,7 +135,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE fee structure
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('finance', 'manage_fees'), async (req: Request, res: Response) => {
     try {
         const result = await pool.query('DELETE FROM fee_structures WHERE id = $1 RETURNING *', [req.params.id]);
         if (result.rows.length === 0) {
@@ -149,7 +150,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // POST bulk upsert for an academic year
-router.post('/bulk', async (req: Request, res: Response) => {
+router.post('/bulk', requirePermission('finance', 'manage_fees'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
@@ -239,7 +240,7 @@ router.get('/other-charges/list', async (req: Request, res: Response) => {
 });
 
 // POST create other charge
-router.post('/other-charges', async (req: Request, res: Response) => {
+router.post('/other-charges', requirePermission('finance', 'manage_fees'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
@@ -268,7 +269,7 @@ router.post('/other-charges', async (req: Request, res: Response) => {
 });
 
 // PUT update other charge
-router.put('/other-charges/:id', async (req: Request, res: Response) => {
+router.put('/other-charges/:id', requirePermission('finance', 'manage_fees'), async (req: Request, res: Response) => {
     try {
         const { fee_name, amount, fee_type, min_level } = req.body;
         const result = await pool.query(
@@ -294,7 +295,7 @@ router.put('/other-charges/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE other charge
-router.delete('/other-charges/:id', async (req: Request, res: Response) => {
+router.delete('/other-charges/:id', requirePermission('finance', 'manage_fees'), async (req: Request, res: Response) => {
     try {
         const result = await pool.query('DELETE FROM fee_other_charges WHERE id = $1 RETURNING *', [req.params.id]);
         if (result.rows.length === 0) {

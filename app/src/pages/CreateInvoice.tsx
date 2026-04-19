@@ -184,18 +184,66 @@ export function CreateInvoice() {
     [students, selectedStudentId],
   );
 
-  useEffect(() => {
-    if (selectedStudent?.class_name) {
-      // Try to match the class_name to a year_group in fee structures
-      const match = feeStructures.find(
-        (fs) =>
-          fs.year_group.toLowerCase() ===
-          selectedStudent.class_name?.toLowerCase(),
-      );
-      if (match) {
-        setYearGroup(match.year_group);
-      }
+  const normalizeGroupLabel = (value?: string) => {
+    if (!value) return '';
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[-_/]+/g, ' ')
+      .replace(/\s+/g, ' ');
+  };
+
+  const extractBaseGroup = (value?: string) => {
+    const normalized = normalizeGroupLabel(value);
+    if (!normalized) return '';
+
+    const yearMatch = normalized.match(/\byear\s*(\d{1,2})(?:\s*[a-z])?\b/);
+    if (yearMatch?.[1]) {
+      return `year ${yearMatch[1]}`;
     }
+
+    const namedMatch = normalized.match(/^(nursery|junior|senior)\b/);
+    if (namedMatch?.[1]) {
+      return namedMatch[1];
+    }
+
+    return normalized;
+  };
+
+  useEffect(() => {
+    const className = selectedStudent?.class_name;
+    if (!className) {
+      setYearGroup('');
+      return;
+    }
+
+    const normalizedClass = normalizeGroupLabel(className);
+    const classBase = extractBaseGroup(className);
+
+    // Prefer exact normalized equality first.
+    let match = feeStructures.find(
+      (fs) => normalizeGroupLabel(fs.year_group) === normalizedClass,
+    );
+
+    // Then compare canonicalized base group (e.g. Year 6A -> Year 6).
+    if (!match && classBase) {
+      match = feeStructures.find(
+        (fs) => extractBaseGroup(fs.year_group) === classBase,
+      );
+    }
+
+    // Keep tolerant behavior as a fallback.
+    if (!match && normalizedClass) {
+      match = feeStructures.find((fs) => {
+        const normalizedGroup = normalizeGroupLabel(fs.year_group);
+        return (
+          normalizedGroup.includes(normalizedClass) ||
+          normalizedClass.includes(normalizedGroup)
+        );
+      });
+    }
+
+    setYearGroup(match?.year_group ?? '');
   }, [selectedStudent, feeStructures]);
 
   // Available year groups from fee structures

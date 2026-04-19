@@ -43,15 +43,6 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
           fps: 10,
           qrbox: { width: 280, height: 120 },
           aspectRatio: 1.5,
-          formatsToSupport: [
-            0,  // QR_CODE
-            2,  // EAN_13
-            3,  // EAN_8
-            4,  // CODE_128
-            6,  // CODE_39
-            10, // UPC_A
-            11, // UPC_E
-          ],
         },
         (decodedText) => {
           if (hasScannedRef.current) return;

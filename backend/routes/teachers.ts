@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -55,7 +56,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('teachers', 'create'), async (req: Request, res: Response) => {
     try {
         const { name, gender, is_homeroom_teacher, homeroom_class_id, level } = req.body;
         const user = await getSessionUser(req);
@@ -92,7 +93,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('teachers', 'edit'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { name, gender, is_homeroom_teacher, homeroom_class_id } = req.body;
@@ -124,7 +125,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 });
 
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('teachers', 'delete'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const result = await pool.query('DELETE FROM teachers WHERE id = $1 RETURNING *', [id]);

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
-import { getSessionUser } from '../lib/session.js';
+import { getSessionUser, getLevelFilter } from '../lib/session.js';
 
 const router = Router();
 
@@ -9,18 +9,21 @@ const router = Router();
 router.get('/stats', async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
-        const isFiltered = user && user.role !== 'admin' && user.level;
-        const levelCondOr = isFiltered ? `AND (level = '${user.level}' OR level IS NULL)` : '';
+        const { clause: levBooks, params: levBooksP, paramOffset: p1 } = getLevelFilter(user, undefined, 1);
+        const { clause: levBr, params: levBrP, paramOffset: p2 } = getLevelFilter(user, undefined, p1);
+        const { clause: levSt, params: levStP, paramOffset: p3 } = getLevelFilter(user, undefined, p2);
+        const { clause: levTch, params: levTchP } = getLevelFilter(user, undefined, p3);
+        const allParams = [...levBooksP, ...levBrP, ...levStP, ...levTchP];
 
         const result = await pool.query(`
             SELECT
-                (SELECT COUNT(*) FROM books WHERE is_active = true ${levelCondOr}) AS total_books,
-                (SELECT COALESCE(SUM(quantity), 0) FROM books WHERE is_active = true ${levelCondOr}) AS total_copies,
-                (SELECT COUNT(*) FROM borrow_records WHERE status = 'borrowed' ${levelCondOr}) AS borrowed_books,
-                (SELECT COUNT(*) FROM borrow_records WHERE status = 'overdue' ${levelCondOr}) AS overdue_books,
-                (SELECT COUNT(*) FROM students WHERE is_active = true ${levelCondOr}) AS registered_students,
-                (SELECT COUNT(*) FROM teachers WHERE 1=1 ${levelCondOr}) AS total_teachers
-        `);
+                (SELECT COUNT(*) FROM books WHERE is_active = true ${levBooks}) AS total_books,
+                (SELECT COALESCE(SUM(quantity), 0) FROM books WHERE is_active = true ${levBooks}) AS total_copies,
+                (SELECT COUNT(*) FROM borrow_records WHERE status = 'borrowed' ${levBr}) AS borrowed_books,
+                (SELECT COUNT(*) FROM borrow_records WHERE status = 'overdue' ${levBr}) AS overdue_books,
+                (SELECT COUNT(*) FROM students WHERE is_active = true ${levSt}) AS registered_students,
+                (SELECT COUNT(*) FROM teachers WHERE 1=1 ${levTch}) AS total_teachers
+        `, allParams);
         res.json(result.rows[0]);
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);
@@ -32,8 +35,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 router.get('/borrowing-trends', async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
-        const isFiltered = user && user.role !== 'admin' && user.level;
-        const levelCondOr = isFiltered ? `AND (level = '${user.level}' OR level IS NULL)` : '';
+        const { clause: levelClause, params: levelParams } = getLevelFilter(user, undefined, 1);
 
         const result = await pool.query(`
             WITH months AS (
@@ -51,18 +53,18 @@ router.get('/borrowing-trends', async (req: Request, res: Response) => {
             LEFT JOIN (
                 SELECT date_trunc('month', borrow_date) AS month, COUNT(*) AS count
                 FROM borrow_records
-                WHERE borrow_date >= date_trunc('month', NOW()) - interval '5 months' ${levelCondOr}
+                WHERE borrow_date >= date_trunc('month', NOW()) - interval '5 months' ${levelClause}
                 GROUP BY date_trunc('month', borrow_date)
             ) borrows ON borrows.month = m.month
             LEFT JOIN (
                 SELECT date_trunc('month', return_date) AS month, COUNT(*) AS count
                 FROM borrow_records
                 WHERE return_date IS NOT NULL
-                    AND return_date >= date_trunc('month', NOW()) - interval '5 months' ${levelCondOr}
+                    AND return_date >= date_trunc('month', NOW()) - interval '5 months' ${levelClause}
                 GROUP BY date_trunc('month', return_date)
             ) returns ON returns.month = m.month
             ORDER BY m.month ASC
-        `);
+        `, levelParams);
         res.json(result.rows);
     } catch (error) {
         console.error('Error fetching borrowing trends:', error);
@@ -74,8 +76,7 @@ router.get('/borrowing-trends', async (req: Request, res: Response) => {
 router.get('/recent-activity', async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
-        const isFiltered = user && user.role !== 'admin' && user.level;
-        const levelCondOr = isFiltered ? `AND (br.level = '${user.level}' OR br.level IS NULL)` : '';
+        const { clause: levelClause, params: levelParams } = getLevelFilter(user, 'br', 1);
 
         const result = await pool.query(`
             (
@@ -89,7 +90,7 @@ router.get('/recent-activity', async (req: Request, res: Response) => {
                 FROM borrow_records br
                 JOIN books b ON b.id = br.book_id
                 JOIN students s ON s.id = br.student_id
-                WHERE br.status = 'borrowed' ${levelCondOr}
+                WHERE br.status = 'borrowed' ${levelClause}
                 ORDER BY br.borrow_date DESC
                 LIMIT 5
             )
@@ -105,13 +106,13 @@ router.get('/recent-activity', async (req: Request, res: Response) => {
                 FROM borrow_records br
                 JOIN books b ON b.id = br.book_id
                 JOIN students s ON s.id = br.student_id
-                WHERE br.status = 'returned' AND br.return_date IS NOT NULL ${levelCondOr}
+                WHERE br.status = 'returned' AND br.return_date IS NOT NULL ${levelClause}
                 ORDER BY br.return_date DESC
                 LIMIT 5
             )
             ORDER BY timestamp DESC
             LIMIT 10
-        `);
+        `, levelParams);
         res.json(result.rows);
     } catch (error) {
         console.error('Error fetching recent activity:', error);

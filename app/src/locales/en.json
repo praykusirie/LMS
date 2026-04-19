@@ -100,6 +100,7 @@
     "stockDetails": "Stock Details",
     "addStock": "Add Stock",
     "classActivities": "Class Activities",
+    "attendance": "Attendance",
     "results": "Results",
     "booksItemsManagement": "Books & Items",
     "borrowReturn": "Borrow / Return",
@@ -1207,7 +1208,10 @@
     "failedToFetch": "Failed to fetch users",
     "failedToCreate": "Failed to create user",
     "failedToUpdate": "Failed to update user",
-    "failedToDelete": "Failed to delete user"
+    "failedToDelete": "Failed to delete user",
+    "isHomeroomTeacher": "Homeroom Teacher",
+    "homeroomClass": "Homeroom Class",
+    "selectClass": "Select class"
   },
   "roles": {
     "title": "Role Master",
@@ -1463,5 +1467,29 @@
     "allStatuses": "All Statuses",
     "filterByYear": "Filter by year",
     "filterByStatus": "Filter by status"
+  },
+  "attendance": {
+    "title": "Attendance",
+    "subtitle": "Record daily student attendance",
+    "selectDate": "Select Date",
+    "selectClass": "Select Class",
+    "present": "Present",
+    "absent": "Absent",
+    "excused": "Excused",
+    "save": "Save Attendance",
+    "saved": "Attendance saved successfully",
+    "updateAttendance": "Update Attendance",
+    "noStudents": "No students found in this class",
+    "attendanceTaken": "Attendance already recorded",
+    "takeAttendance": "Take Attendance",
+    "markAll": "Mark All",
+    "studentName": "Student Name",
+    "admissionNo": "Admission No",
+    "status": "Status",
+    "attendanceRequired": "Attendance must be taken before creating an activity",
+    "summary": "Total",
+    "presentCount": "Present: {{count}}",
+    "absentCount": "Absent: {{count}}",
+    "excusedCount": "Excused: {{count}}"
   }
 }

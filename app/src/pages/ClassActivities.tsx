@@ -1,19 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
-  Calendar,
   GraduationCap,
   ChevronRight,
   Save,
   ArrowLeft,
-  FileText,
   Users,
   Loader2,
-  AlertCircle,
-  CheckCircle2,
   Award,
   BookOpen
 } from 'lucide-react';
@@ -36,7 +32,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { StatusBadge } from '@/components/ui-custom';
 import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
@@ -73,6 +68,7 @@ interface StudentMark {
   mark_id: string | null;
   marks_obtained: number | null;
   total_marks: number;
+  attendance_status: 'present' | 'absent' | 'excused' | null;
 }
 
 interface ActivityDetail extends Activity {
@@ -167,6 +163,14 @@ export function ClassActivities() {
 
     setIsSubmitting(true);
     try {
+      // Check attendance has been taken
+      const { data: attendanceCheck } = await api.get(`/attendance/check/${formData.class_id}/${formData.date}`);
+      if (!attendanceCheck.taken) {
+        toast.error(t('attendance.attendanceRequired'));
+        setIsSubmitting(false);
+        return;
+      }
+
       const effectiveLevel = isAdmin ? formData.level : userLevel;
       
       await api.post('/activities', {
@@ -203,10 +207,16 @@ export function ClassActivities() {
       const { data } = await api.get(`/activities/${activity.id}`);
       setSelectedActivity(data);
       
-      // Initialize marks
+      // Initialize marks (pre-fill 0 for absent students)
       const marks: Record<string, number | ''> = {};
       data.students.forEach((s: StudentMark) => {
-        marks[s.id] = s.marks_obtained ?? '';
+        if (s.marks_obtained != null) {
+          marks[s.id] = s.marks_obtained;
+        } else if (s.attendance_status === 'absent') {
+          marks[s.id] = 0;
+        } else {
+          marks[s.id] = '';
+        }
       });
       setStudentMarks(marks);
     } catch (error) {
@@ -437,7 +447,14 @@ export function ClassActivities() {
                   />
                   <div>
                     <p className="font-medium">{student.student_name}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{student.student_code}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground font-mono">{student.student_code}</p>
+                      {student.attendance_status && student.attendance_status !== 'present' && (
+                        <Badge variant="outline" className={student.attendance_status === 'absent' ? 'text-red-600 border-red-300 text-[10px] px-1 py-0' : 'text-yellow-600 border-yellow-300 text-[10px] px-1 py-0'}>
+                          {student.attendance_status === 'absent' ? t('attendance.absent') : t('attendance.excused')}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">

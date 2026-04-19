@@ -5,8 +5,7 @@ import {
   Receipt, 
   AlertTriangle, 
   TrendingUp,
-  Loader2,
-  Calendar
+  Loader2
 } from 'lucide-react';
 import { StatsCard } from '@/components/ui-custom';
 import { 

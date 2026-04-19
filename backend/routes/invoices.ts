@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { requirePermission } from '../lib/middleware.js';
 
 const router = Router();
 
@@ -142,7 +143,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // ── Create invoice (calculation engine) ──────────────────────
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('finance', 'create'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
@@ -369,7 +370,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // ── Delete invoice (only if no payments) ─────────────────────
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('finance', 'edit'), async (req: Request, res: Response) => {
     try {
         const paymentsCheck = await pool.query(
             'SELECT COUNT(*)::int AS count FROM invoice_payments WHERE invoice_id = $1',
@@ -392,7 +393,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // ── Record payment ───────────────────────────────────────────
-router.post('/:id/payments', async (req: Request, res: Response) => {
+router.post('/:id/payments', requirePermission('finance', 'edit'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
@@ -80,7 +80,6 @@ export function Students() {
   const { data: session } = useSession();
   const { hasPermission } = usePermissions();
   const userRole = session?.user?.role ?? null;
-  const userLevel = (session?.user as any)?.level ?? null;
   const isAdmin = userRole === 'admin';
 
   const [students, setStudents] = useState<StudentRecord[]>([]);

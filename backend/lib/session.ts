@@ -4,6 +4,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 
 export interface SessionUser {
     id: string;
+    name: string;
     role: string | null;
     level: string | null;
 }
@@ -20,6 +21,7 @@ export async function getSessionUser(req: Request): Promise<SessionUser | null> 
         if (!session?.user) return null;
         return {
             id: session.user.id,
+            name: session.user.name,
             role: (session.user as any).role ?? null,
             level: (session.user as any).level ?? null,
         };

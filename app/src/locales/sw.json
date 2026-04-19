@@ -101,6 +101,7 @@
     "addStock": "Ongeza Stoki",
     "classActivities": "Shughuli za Darasa",
     "results": "Matokeo",
+    "attendance": "Mahudhurio",
     "booksItemsManagement": "Vitabu na Vifaa",
     "borrowReturn": "Azima / Rudisha",
     "itemsMaster": "Vifaa Mkuu",
@@ -1205,6 +1206,9 @@
     "failedToCreate": "Imeshindwa kutengeneza mtumiaji",
     "failedToUpdate": "Imeshindwa kusasisha mtumiaji",
     "failedToDelete": "Imeshindwa kufuta mtumiaji",
+    "isHomeroomTeacher": "Mwalimu wa Darasa",
+    "homeroomClass": "Darasa la Nyumbani",
+    "selectClass": "Chagua darasa",
     "banned": "Imepigwa marufuku",
     "banUser": "Piga Marufuku Mtumiaji",
     "unbanUser": "Ondoa Marufuku"
@@ -1374,5 +1378,29 @@
     "bookReturned": "Kitabu kimerudishwa kwa mafanikio",
     "confirmReturn": "Thibitisha Urudishaji",
     "error": "Imeshindwa kurudisha kitabu"
+  },
+  "attendance": {
+    "title": "Mahudhurio",
+    "subtitle": "Rekodi mahudhurio ya wanafunzi kila siku",
+    "selectDate": "Chagua Tarehe",
+    "selectClass": "Chagua Darasa",
+    "present": "Yupo",
+    "absent": "Hayupo",
+    "excused": "Ameruhusiwa",
+    "save": "Hifadhi Mahudhurio",
+    "saved": "Mahudhurio yamehifadhiwa",
+    "updateAttendance": "Sasisha Mahudhurio",
+    "noStudents": "Hakuna wanafunzi katika darasa hili",
+    "attendanceTaken": "Mahudhurio tayari yamerekodiwa",
+    "takeAttendance": "Chukua Mahudhurio",
+    "markAll": "Weka Wote",
+    "studentName": "Jina la Mwanafunzi",
+    "admissionNo": "Namba ya Usajili",
+    "status": "Hali",
+    "attendanceRequired": "Mahudhurio lazima yachukuliwe kabla ya kuunda shughuli",
+    "summary": "Jumla",
+    "presentCount": "Wapo: {{count}}",
+    "absentCount": "Hawapo: {{count}}",
+    "excusedCount": "Wameruhusiwa: {{count}}"
   }
 }

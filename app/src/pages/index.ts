@@ -32,3 +32,4 @@ export { AddTeacher } from './AddTeacher';
 export { CreateInvoice } from './CreateInvoice';
 export { FinanceReport } from './FinanceReport';
 export { FeeStructureEditor } from './FeeStructureEditor';
+export { default as Attendance } from './Attendance';

@@ -101,6 +101,7 @@
     "addStock": "Ajouter du Stock",
     "classActivities": "ActivitÃ©s de Classe",
     "results": "RÃ©sultats",
+    "attendance": "Présence",
     "booksItemsManagement": "Livres et Articles",
     "borrowReturn": "Emprunt / Retour",
     "itemsMaster": "MaÃ®tre des Articles",
@@ -358,7 +359,7 @@
     "selectClass": "SÃ©lectionner une classe",
     "selectGender": "SÃ©lectionner le genre",
     "enterParentName": "Entrez le nom du parent/tuteur",
-    "enterParentPhone": "Entrez le numÃ©ro de tÃ©lÃ©phone",
+    "enterParentPhone": "Entrez le tÃ©lÃ©phone du parent",
     "enterAddress": "Entrez l'adresse",
     "level": "Niveau",
     "student": "Ã‰tudiant",
@@ -383,7 +384,6 @@
     "parentEmail": "E-mail du Parent",
     "enterParentEmail": "Entrez l'e-mail du parent",
     "parentPhoneLabel": "TÃ©lÃ©phone du Parent",
-    "enterParentPhone": "Entrez le tÃ©lÃ©phone du parent",
     "deleteConfirmMessage": "ÃŠtes-vous sÃ»r de vouloir supprimer \"{{name}}\" ? Cette action ne peut pas Ãªtre annulÃ©e.",
     "failedToFetch": "Ã‰chec du chargement des Ã©tudiants",
     "updateSuccess": "Ã‰tudiant mis Ã  jour avec succÃ¨s",
@@ -1207,7 +1207,10 @@
     "failedToFetch": "Ã‰chec du chargement des utilisateurs",
     "failedToCreate": "Ã‰chec de la crÃ©ation de l'utilisateur",
     "failedToUpdate": "Ã‰chec de la mise Ã  jour de l'utilisateur",
-    "failedToDelete": "Ã‰chec de la suppression de l'utilisateur"
+    "failedToDelete": "Ã‰chec de la suppression de l'utilisateur",
+    "isHomeroomTeacher": "Professeur Principal",
+    "homeroomClass": "Classe Principale",
+    "selectClass": "Sélectionner une classe"
   },
   "roles": {
     "title": "MaÃ®tre des RÃ´les",
@@ -1374,5 +1377,29 @@
     "bookReturned": "Livre retournÃ© avec succÃ¨s",
     "confirmReturn": "Confirmer le Retour",
     "error": "Ã‰chec du retour du livre"
+  },
+  "attendance": {
+    "title": "Présence",
+    "subtitle": "Enregistrer la présence quotidienne des élèves",
+    "selectDate": "Sélectionner la Date",
+    "selectClass": "Sélectionner la Classe",
+    "present": "Présent",
+    "absent": "Absent",
+    "excused": "Excusé",
+    "save": "Enregistrer la Présence",
+    "saved": "Présence enregistrée avec succès",
+    "updateAttendance": "Mettre à jour la Présence",
+    "noStudents": "Aucun élève trouvé dans cette classe",
+    "attendanceTaken": "La présence a déjà été enregistrée",
+    "takeAttendance": "Prendre la Présence",
+    "markAll": "Marquer Tous",
+    "studentName": "Nom de l'Élève",
+    "admissionNo": "Numéro d'Admission",
+    "status": "Statut",
+    "attendanceRequired": "La présence doit être prise avant de créer une activité",
+    "summary": "Total",
+    "presentCount": "Présents: {{count}}",
+    "absentCount": "Absents: {{count}}",
+    "excusedCount": "Excusés: {{count}}"
   }
 }

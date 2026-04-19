@@ -90,14 +90,15 @@ export function Login() {
                 <Label htmlFor="forgot-email">{t('auth.email')}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="forgot-email"
-                    type="email"
-                    placeholder={t('auth.enterEmail')}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    className="h-12 pl-10 rounded-xl"
-                    required
-                  />
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder={t('auth.enterEmail')}
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="h-12 pl-10 rounded-xl"
+                      required
+                    />
                 </div>
               </div>
 

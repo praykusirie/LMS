@@ -28,6 +28,18 @@ export const auth = betterAuth({
                 required: false,
                 input: true,
             },
+            isHomeroomTeacher: {
+                type: "boolean",
+                defaultValue: false,
+                input: true,
+                fieldName: "is_homeroom_teacher",
+            },
+            homeroomClassId: {
+                type: "string",
+                required: false,
+                input: true,
+                fieldName: "homeroom_class_id",
+            },
         },
     },
     
