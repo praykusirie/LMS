@@ -242,7 +242,7 @@ export function ItemsDistributionCreate() {
         className="rounded-[20px] bg-card p-6 shadow-card space-y-4"
       >
         <h2 className="text-lg font-semibold">{t('itemsDistribution.addItems')}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_160px_auto] gap-3 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] md:grid-cols-[1fr_160px_auto] gap-3 items-end">
           <div className="space-y-2">
             <Label>{t('itemsDistribution.item')}</Label>
             <Select value={selectedItemId} onValueChange={setSelectedItemId} disabled={isLoading}>

@@ -11,7 +11,11 @@ import {
   Sun,
   Moon,
   Monitor,
-  Languages
+  Languages,
+  User,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +33,8 @@ import {
 import { useTheme, type Theme } from '@/lib/theme';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/lib/i18n';
+import { authClient } from '@/lib/auth-client';
+import { toast } from 'sonner';
 
 export function Settings() {
   const { t, i18n } = useTranslation();
@@ -57,6 +63,44 @@ export function Settings() {
     logoutTimeout: '30',
     twoFactorAuth: false
   });
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      toast.error(t('auth.passwordMinLength'));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(t('auth.passwordsDoNotMatch'));
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const { error } = await authClient.changePassword({
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: true,
+      });
+      if (error) {
+        toast.error(error.message || t('auth.changePasswordError'));
+      } else {
+        toast.success(t('auth.passwordChanged'));
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch {
+      toast.error(t('auth.changePasswordError'));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   const handleSave = () => {
     // Simulate saving settings
@@ -98,6 +142,10 @@ export function Settings() {
           <TabsTrigger value="appearance" className="rounded-lg">
             <Palette className="h-4 w-4 mr-2" />
             {t('settings.appearance')}
+          </TabsTrigger>
+          <TabsTrigger value="account" className="rounded-lg">
+            <User className="h-4 w-4 mr-2" />
+            {t('settings.account')}
           </TabsTrigger>
         </TabsList>
 
@@ -409,6 +457,81 @@ export function Settings() {
                     <SelectItem value="fr">Français (French)</SelectItem>
                   </SelectContent>
                 </Select>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="account" className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Card className="rounded-[20px] shadow-card border-0">
+              <CardHeader>
+                <CardTitle>{t('settings.changePassword')}</CardTitle>
+                <CardDescription>{t('settings.changePasswordDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+                  <div className="space-y-2">
+                    <Label>{t('auth.currentPassword')}</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="h-11 pl-10 rounded-xl"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('auth.newPassword')}</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="h-11 pl-10 pr-10 rounded-xl"
+                        required
+                        minLength={8}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords(!showPasswords)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t('auth.passwordRequirements')}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('auth.confirmPassword')}</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="h-11 pl-10 rounded-xl"
+                        required
+                        minLength={8}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="bg-navy hover:bg-navy/90 rounded-xl h-11"
+                    disabled={passwordLoading}
+                  >
+                    {passwordLoading ? t('auth.updating') : t('settings.changePassword')}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           </motion.div>

@@ -333,7 +333,7 @@ export function ShelfLocations() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15 }}
-        className="grid grid-cols-1 sm:grid-cols-4 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       >
         <div className="rounded-[20px] bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">

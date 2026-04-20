@@ -186,7 +186,27 @@
     "resetPasswordDescription": "Ingrese su correo y le enviaremos un enlace para restablecer su contraseÃ±a.",
     "sending": "Enviando...",
     "sendResetLink": "Enviar Enlace de Restablecimiento",
-    "backToDashboard": "Volver al Panel"
+    "backToDashboard": "Volver al Panel",
+    "resetLinkSent": "Enlace de Restablecimiento Enviado",
+    "checkEmail": "Revisa tu correo electrónico para el enlace de restablecimiento.",
+    "resetError": "Ocurrió un error. Por favor, inténtalo de nuevo.",
+    "currentPassword": "Contraseña Actual",
+    "newPassword": "Nueva Contraseña",
+    "enterNewPassword": "Ingresa la nueva contraseña",
+    "confirmPassword": "Confirmar Contraseña",
+    "confirmNewPassword": "Confirma la nueva contraseña",
+    "passwordMinLength": "La contraseña debe tener al menos 8 caracteres.",
+    "passwordsDoNotMatch": "Las contraseñas no coinciden.",
+    "changePasswordError": "Error al cambiar la contraseña. Inténtalo de nuevo.",
+    "passwordChanged": "Contraseña cambiada exitosamente.",
+    "passwordRequirements": "Mínimo 8 caracteres.",
+    "updating": "Actualizando...",
+    "setNewPassword": "Establecer Nueva Contraseña",
+    "setNewPasswordDescription": "Ingresa tu nueva contraseña a continuación.",
+    "passwordResetSuccess": "Tu contraseña ha sido restablecida exitosamente.",
+    "invalidToken": "Este enlace es inválido o ha expirado.",
+    "resetting": "Restableciendo...",
+    "resetPasswordBtn": "Restablecer Contraseña"
   },
   "books": {
     "title": "Libros",
@@ -1322,7 +1342,10 @@
     "never": "Nunca",
     "createBackup": "Crear Respaldo",
     "restoreBackup": "Restaurar desde Respaldo",
-    "saveSuccess": "Â¡ConfiguraciÃ³n guardada exitosamente!"
+    "saveSuccess": "Â¡ConfiguraciÃ³n guardada exitosamente!",
+    "account": "Cuenta",
+    "changePassword": "Cambiar Contraseña",
+    "changePasswordDesc": "Actualiza la contraseña de tu cuenta"
   },
   "notFound": {
     "title": "PÃ¡gina No Encontrada",

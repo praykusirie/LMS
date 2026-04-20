@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation, Link } from 'react-router-dom';
-import { Bell, ChevronDown, Check, Menu, PanelLeft } from 'lucide-react';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { Bell, ChevronDown, Check, Menu, PanelLeft, LogOut, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import { notifications as mockNotifications } from '@/data/mockData';
 import type { Notification } from '@/types';
-import { useSession } from '@/lib/auth-client';
+import { useSession, signOut } from '@/lib/auth-client';
 import { IdentityAvatar } from '@/components/shared/IdentityAvatar';
 import { navItems } from './Sidebar';
 
@@ -33,6 +33,12 @@ export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSideba
   const { data: session } = useSession();
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   const displayName = session?.user?.name || 'User';
   const displayEmail = session?.user?.email || 'No email';
@@ -269,11 +275,21 @@ export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSideba
                     <p className="text-xs text-muted-foreground">{displayEmail}</p>
                   </div>
                   <div className="p-2">
-                    <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                    <button
+                      onClick={() => { navigate('/settings'); setShowProfile(false); }}
+                      className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    >
+                      <Settings className="h-4 w-4" />
                       {t('topbar.profileSettings')}
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                      {t('topbar.preferences')}
+                  </div>
+                  <div className="p-2 border-t border-border/60">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {t('topbar.logout')}
                     </button>
                   </div>
                 </motion.div>

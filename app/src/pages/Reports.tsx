@@ -150,7 +150,7 @@ export function Reports() {
           <h1 className="text-2xl font-bold text-foreground">{t('reports.reportsAndAnalytics')}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t('reports.comprehensiveStats')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="rounded-xl h-10" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" />{t('common.print')}
           </Button>
@@ -222,7 +222,7 @@ export function Reports() {
         className="rounded-[20px] bg-card p-6 shadow-card">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ReportTab)} className="w-full">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-            <TabsList className="rounded-xl h-11 w-full lg:w-auto"
+            <TabsList className="rounded-xl h-auto sm:h-11 w-full lg:w-auto overflow-x-auto"
               style={{ display: 'grid', gridTemplateColumns: `repeat(${allowedTabs.length}, 1fr)` }}>
               {allowedTabs.map((tab) => (
                 <TabsTrigger key={tab} value={tab} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-navy data-[state=active]:text-white">

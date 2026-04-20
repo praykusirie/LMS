@@ -309,8 +309,8 @@ export function ItemsDistribution() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="space-y-3"
       >
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="relative flex-1 min-w-[240px] max-w-md">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end">
+          <div className="relative flex-1 min-w-0 sm:min-w-[240px] max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={t('itemsDistribution.searchPlaceholder')}
@@ -320,7 +320,7 @@ export function ItemsDistribution() {
             />
           </div>
 
-          <div className="min-w-[220px]">
+          <div className="min-w-0 sm:min-w-[220px]">
             <Label className="mb-2 block">{t('itemsDistribution.teacher')}</Label>
             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
               <SelectTrigger className="rounded-xl h-11">
@@ -337,7 +337,7 @@ export function ItemsDistribution() {
             </Select>
           </div>
 
-          <div className="min-w-[220px]">
+          <div className="min-w-0 sm:min-w-[220px]">
             <Label className="mb-2 block">{t('itemsDistribution.item')}</Label>
             <Select value={itemFilter} onValueChange={setItemFilter}>
               <SelectTrigger className="rounded-xl h-11">

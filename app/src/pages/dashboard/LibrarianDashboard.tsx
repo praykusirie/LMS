@@ -98,7 +98,7 @@ export function LibrarianDashboard() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex items-center justify-between"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t('dashboard.title')}</h1>
@@ -132,7 +132,7 @@ export function LibrarianDashboard() {
       {visibleActions.length > 0 && (
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
         <h2 className="text-lg font-semibold text-foreground mb-4">{t('dashboard.quickActions')}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {visibleActions.map((action, index) => (
             <QuickActionCard key={action.title} title={action.title} icon={action.icon} color={action.color} onClick={action.onClick} delay={0.5 + index * 0.08} />
           ))}

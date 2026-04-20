@@ -264,8 +264,8 @@ export function Students() {
             containerClassName="h-10 w-10 rounded-full flex-shrink-0"
           />
           <div className="min-w-0">
-            <div className="font-medium text-foreground truncate max-w-[200px]">{student.name}</div>
-            <div className="text-xs text-muted-foreground truncate max-w-[200px]">{student.student_id || student.admission_number}</div>
+            <div className="font-medium text-foreground truncate max-w-[120px] sm:max-w-[200px]">{student.name}</div>
+            <div className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]">{student.student_id || student.admission_number}</div>
           </div>
         </div>
       ),

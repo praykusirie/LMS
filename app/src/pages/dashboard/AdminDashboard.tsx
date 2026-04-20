@@ -18,7 +18,7 @@ export function AdminDashboard() {
       </motion.div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList className="grid w-full sm:max-w-md grid-cols-3">
           <TabsTrigger value="library">{t('dashboard.library', 'Library')}</TabsTrigger>
           <TabsTrigger value="teaching">{t('dashboard.teaching', 'Teaching')}</TabsTrigger>
           <TabsTrigger value="finance">{t('dashboard.finance', 'Finance')}</TabsTrigger>

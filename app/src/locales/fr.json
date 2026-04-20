@@ -186,7 +186,27 @@
     "resetPasswordDescription": "Entrez votre email et nous vous enverrons un lien pour rÃ©initialiser votre mot de passe.",
     "sending": "Envoi en cours...",
     "sendResetLink": "Envoyer le Lien de RÃ©initialisation",
-    "backToDashboard": "Retour au Tableau de bord"
+    "backToDashboard": "Retour au Tableau de bord",
+    "resetLinkSent": "Lien de Réinitialisation Envoyé",
+    "checkEmail": "Vérifiez votre e-mail pour le lien de réinitialisation.",
+    "resetError": "Une erreur est survenue. Veuillez réessayer.",
+    "currentPassword": "Mot de Passe Actuel",
+    "newPassword": "Nouveau Mot de Passe",
+    "enterNewPassword": "Entrez le nouveau mot de passe",
+    "confirmPassword": "Confirmer le Mot de Passe",
+    "confirmNewPassword": "Confirmez le nouveau mot de passe",
+    "passwordMinLength": "Le mot de passe doit comporter au moins 8 caractères.",
+    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas.",
+    "changePasswordError": "Échec du changement de mot de passe. Veuillez réessayer.",
+    "passwordChanged": "Mot de passe changé avec succès.",
+    "passwordRequirements": "Minimum 8 caractères.",
+    "updating": "Mise à jour...",
+    "setNewPassword": "Définir un Nouveau Mot de Passe",
+    "setNewPasswordDescription": "Entrez votre nouveau mot de passe ci-dessous.",
+    "passwordResetSuccess": "Votre mot de passe a été réinitialisé avec succès.",
+    "invalidToken": "Ce lien est invalide ou a expiré.",
+    "resetting": "Réinitialisation...",
+    "resetPasswordBtn": "Réinitialiser le Mot de Passe"
   },
   "books": {
     "title": "Livres",
@@ -1322,7 +1342,10 @@
     "never": "Jamais",
     "createBackup": "CrÃ©er une Sauvegarde",
     "restoreBackup": "Restaurer depuis une Sauvegarde",
-    "saveSuccess": "ParamÃ¨tres enregistrÃ©s avec succÃ¨s !"
+    "saveSuccess": "ParamÃ¨tres enregistrÃ©s avec succÃ¨s !",
+    "account": "Compte",
+    "changePassword": "Changer le Mot de Passe",
+    "changePasswordDesc": "Mettez à jour le mot de passe de votre compte"
   },
   "notFound": {
     "title": "Page Non TrouvÃ©e",

@@ -373,8 +373,8 @@ export function Books() {
             containerClassName="h-10 w-8 rounded-lg flex-shrink-0"
           />
           <div className="min-w-0">
-            <div className="font-medium text-foreground truncate max-w-[200px]">{book.title}</div>
-            <div className="text-xs text-muted-foreground truncate max-w-[200px]">{book.author || '-'}</div>
+            <div className="font-medium text-foreground truncate max-w-[120px] sm:max-w-[200px]">{book.title}</div>
+            <div className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]">{book.author || '-'}</div>
           </div>
         </div>
       ),

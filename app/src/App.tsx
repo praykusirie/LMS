@@ -34,7 +34,8 @@ import {
   CreateInvoice,
   FinanceReport,
   FeeStructureEditor,
-  Attendance
+  Attendance,
+  ResetPassword
 } from '@/pages';
 import { NotFound } from '@/pages/NotFound';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -95,6 +96,9 @@ function App() {
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
       </Route>
+
+      {/* Public password reset (no auth required) */}
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>

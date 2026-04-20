@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { signIn } from '@/lib/auth-client';
+import { signIn, authClient } from '@/lib/auth-client';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -20,6 +20,8 @@ export function Login() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,12 +51,24 @@ export function Login() {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setResetError('');
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsLoading(false);
-    setShowForgotPassword(false);
+    try {
+      const { error } = await authClient.requestPasswordReset({
+        email: forgotEmail,
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) {
+        setResetError(error.message || t('auth.resetError'));
+      } else {
+        setResetSent(true);
+      }
+    } catch {
+      setResetError(t('auth.resetError'));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (showForgotPassword) {
@@ -68,7 +82,7 @@ export function Login() {
         >
           <div className="rounded-[20px] bg-card p-8 shadow-card">
             <button
-              onClick={() => setShowForgotPassword(false)}
+              onClick={() => { setShowForgotPassword(false); setResetSent(false); setResetError(''); }}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -85,7 +99,22 @@ export function Login() {
               </p>
             </div>
 
+            {resetSent ? (
+              <div className="text-center space-y-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-950/40 mx-auto">
+                  <Mail className="h-6 w-6 text-green-600" />
+                </div>
+                <p className="text-sm text-foreground font-medium">{t('auth.resetLinkSent')}</p>
+                <p className="text-xs text-muted-foreground">{t('auth.checkEmail')}</p>
+              </div>
+            ) : (
             <form onSubmit={handleForgotPassword} className="space-y-4">
+              {resetError && (
+                <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/30 rounded-xl">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {resetError}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="forgot-email">{t('auth.email')}</Label>
                 <div className="relative">
@@ -110,6 +139,7 @@ export function Login() {
                 {isLoading ? t('auth.sending') : t('auth.sendResetLink')}
               </Button>
             </form>
+            )}
           </div>
         </motion.div>
       </div>
