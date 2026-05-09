@@ -53,8 +53,8 @@ router.post('/', requirePermission('categories', 'manage'), async (req: Request,
         const recordLevel = level ?? user?.level ?? null;
 
         const existing = await pool.query(
-            'SELECT id FROM categories WHERE LOWER(name) = LOWER($1)',
-            [name.trim()]
+            'SELECT id FROM categories WHERE LOWER(name) = LOWER($1) AND level IS NOT DISTINCT FROM $2',
+            [name.trim(), recordLevel]
         );
         if (existing.rows.length > 0) {
             res.status(409).json({ message: `Category "${name.trim()}" already exists` });

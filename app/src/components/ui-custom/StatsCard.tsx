@@ -38,7 +38,7 @@ export function StatsCard({
         delay,
         ease: [0.22, 1, 0.36, 1]
       }}
-      className="rounded-[20px] bg-card p-5 shadow-card card-hover"
+      className="rounded-lg bg-card p-5 shadow-card card-hover"
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">

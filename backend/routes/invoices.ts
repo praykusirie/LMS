@@ -48,10 +48,14 @@ router.get('/', async (req: Request, res: Response) => {
                 i.*,
                 s.name AS student_name,
                 COALESCE(s.student_id, s.admission_number, '') AS student_code,
-                c.name AS class_name
+                c.name AS class_name,
+                f.term1_percent,
+                f.term2_percent,
+                f.term3_percent
              FROM invoices i
              JOIN students s ON s.id = i.student_id
              LEFT JOIN classes c ON c.id = s.class_id
+             LEFT JOIN fee_structures f ON f.academic_year = i.academic_year AND f.year_group = i.year_group
              WHERE ${where.join(' AND ')} ${levelClause}
              ORDER BY i.created_at DESC`,
             params,
@@ -107,10 +111,14 @@ router.get('/:id', async (req: Request, res: Response) => {
                 i.*,
                 s.name AS student_name,
                 COALESCE(s.student_id, s.admission_number, '') AS student_code,
-                c.name AS class_name
+                c.name AS class_name,
+                f.term1_percent,
+                f.term2_percent,
+                f.term3_percent
              FROM invoices i
              JOIN students s ON s.id = i.student_id
              LEFT JOIN classes c ON c.id = s.class_id
+             LEFT JOIN fee_structures f ON f.academic_year = i.academic_year AND f.year_group = i.year_group
              WHERE i.id = $1`,
             [req.params.id],
         );
@@ -339,10 +347,14 @@ router.post('/', requirePermission('finance', 'create'), async (req: Request, re
             const fullInvoice = await pool.query(
                 `SELECT i.*, s.name AS student_name,
                     COALESCE(s.student_id, s.admission_number, '') AS student_code,
-                    c.name AS class_name
+                    c.name AS class_name,
+                    f.term1_percent,
+                    f.term2_percent,
+                    f.term3_percent
                  FROM invoices i
                  JOIN students s ON s.id = i.student_id
                  LEFT JOIN classes c ON c.id = s.class_id
+                 LEFT JOIN fee_structures f ON f.academic_year = i.academic_year AND f.year_group = i.year_group
                  WHERE i.id = $1`,
                 [invoiceId],
             );
@@ -462,10 +474,14 @@ router.post('/:id/payments', requirePermission('finance', 'edit'), async (req: R
             const updated = await pool.query(
                 `SELECT i.*, s.name AS student_name,
                     COALESCE(s.student_id, s.admission_number, '') AS student_code,
-                    c.name AS class_name
+                    c.name AS class_name,
+                    f.term1_percent,
+                    f.term2_percent,
+                    f.term3_percent
                  FROM invoices i
                  JOIN students s ON s.id = i.student_id
                  LEFT JOIN classes c ON c.id = s.class_id
+                 LEFT JOIN fee_structures f ON f.academic_year = i.academic_year AND f.year_group = i.year_group
                  WHERE i.id = $1`,
                 [req.params.id],
             );

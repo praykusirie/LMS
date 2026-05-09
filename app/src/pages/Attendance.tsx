@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import {
   ClipboardCheck,
   Save,
@@ -20,15 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { IdentityAvatar } from '@/components/shared/IdentityAvatar';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface ClassItem {
   id: string;
   name: string;
+  level?: string | null;
 }
 
 interface Student {
@@ -67,6 +68,7 @@ const Attendance = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
   const [homeroomClassId, setHomeroomClassId] = useState<string | null>(null);
+  const [attendanceMode, setAttendanceMode] = useState<'homeroom' | 'levels'>('levels');
 
   // Fetch classes (admin) or homeroom class (teacher)
   useEffect(() => {
@@ -76,18 +78,30 @@ const Attendance = () => {
           const { data } = await api.get('/classes');
           setClasses(data);
         } catch {
-          toast.error(t('common.error'));
+          toast.error(t('attendance.fetchClassesError', 'Failed to load classes'));
         }
       } else {
         try {
-          const { data } = await api.get('/attendance/my-class');
-          if (data.class_id) {
-            setHomeroomClassId(data.class_id);
-            setSelectedClassId(data.class_id);
-            setClasses([{ id: data.class_id, name: data.class_name }]);
+          const { data } = await api.get('/attendance/my-classes');
+          const teacherClasses: ClassItem[] = data.classes || [];
+          setAttendanceMode(data.mode === 'homeroom' ? 'homeroom' : 'levels');
+          setClasses(teacherClasses);
+
+          if (data.mode === 'homeroom' && teacherClasses[0]) {
+            setHomeroomClassId(teacherClasses[0].id);
+            setSelectedClassId(teacherClasses[0].id);
+          } else {
+            setHomeroomClassId(null);
+            setSelectedClassId((prev) => (
+              teacherClasses.some((classItem) => classItem.id === prev)
+                ? prev
+                : teacherClasses.length === 1
+                  ? teacherClasses[0].id
+                  : ''
+            ));
           }
         } catch {
-          toast.error(t('common.error'));
+          toast.error(t('attendance.fetchClassesError', 'Failed to load classes'));
         }
       }
     };
@@ -101,10 +115,8 @@ const Attendance = () => {
     const load = async () => {
       setIsLoading(true);
       try {
-        // Fetch students in this class
-        const { data: studentsData } = await api.get('/students');
-        const classStudents = studentsData.filter((s: any) => s.class_id === selectedClassId && s.is_active !== false);
-        setStudents(classStudents);
+        const { data: studentsData } = await api.get('/students', { params: { class_id: selectedClassId } });
+        setStudents(studentsData);
 
         // Check for existing attendance
         const { data: existingData } = await api.get(`/attendance?class_id=${selectedClassId}&date=${selectedDate}`);
@@ -120,13 +132,13 @@ const Attendance = () => {
           setIsExisting(false);
           // Default all to present
           const defaults = new Map<string, 'present' | 'absent' | 'excused'>();
-          classStudents.forEach((s: Student) => {
+          studentsData.forEach((s: Student) => {
             defaults.set(s.id, 'present');
           });
           setRecords(defaults);
         }
       } catch {
-        toast.error(t('common.error'));
+        toast.error(t('attendance.fetchStudentsError', 'Failed to load students'));
       } finally {
         setIsLoading(false);
       }
@@ -167,7 +179,7 @@ const Attendance = () => {
       setIsExisting(true);
       toast.success(t('attendance.saved'));
     } catch {
-      toast.error(t('common.error'));
+      toast.error(t('attendance.saveError', 'Failed to save attendance'));
     } finally {
       setIsSaving(false);
     }
@@ -177,193 +189,214 @@ const Attendance = () => {
   const absentCount = Array.from(records.values()).filter(s => s === 'absent').length;
   const excusedCount = Array.from(records.values()).filter(s => s === 'excused').length;
 
-  const statusColors = {
-    present: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
-    absent: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
-    excused: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
-  };
+  const canSelectClass = isAdmin || attendanceMode !== 'homeroom';
 
-  const statusIcons = {
-    present: <CheckCircle2 className="h-4 w-4" />,
-    absent: <XCircle className="h-4 w-4" />,
-    excused: <AlertCircle className="h-4 w-4" />,
+  const segmentConfig = {
+    present: {
+      icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+      abbrev: 'P',
+      label: t('attendance.present'),
+      active: 'bg-green-600 text-white',
+      rowBorder: 'border-l-green-500',
+      rowBg: 'bg-green-50/40 dark:bg-green-950/20',
+    },
+    absent: {
+      icon: <XCircle className="h-3.5 w-3.5" />,
+      abbrev: 'A',
+      label: t('attendance.absent'),
+      active: 'bg-red-600 text-white',
+      rowBorder: 'border-l-red-500',
+      rowBg: 'bg-red-50/40 dark:bg-red-950/20',
+    },
+    excused: {
+      icon: <AlertCircle className="h-3.5 w-3.5" />,
+      abbrev: 'E',
+      label: t('attendance.excused'),
+      active: 'bg-amber-500 text-white',
+      rowBorder: 'border-l-amber-400',
+      rowBg: 'bg-amber-50/40 dark:bg-amber-950/20',
+    },
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6 pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('attendance.title')}</h1>
-          <p className="text-muted-foreground">{t('attendance.subtitle')}</p>
-        </div>
-      </div>
+      <PageHeader
+        title={t('attendance.title')}
+        description={t('attendance.subtitle')}
+      />
 
-      {/* Controls */}
-      <div className="flex flex-wrap gap-4 items-end">
-        <div className="space-y-2">
-          <Label>{t('attendance.selectDate')}</Label>
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
-            className="rounded-xl w-[180px]"
-          />
-        </div>
-        {isAdmin ? (
-          <div className="space-y-2">
-            <Label>{t('attendance.selectClass')}</Label>
-            <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-              <SelectTrigger className="rounded-xl w-[200px]">
-                <SelectValue placeholder={t('attendance.selectClass')} />
-              </SelectTrigger>
-              <SelectContent>
-                {classes.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Controls card: date + class + mark-all in one surface */}
+      <div className="rounded-xl border bg-card shadow-card p-4 space-y-4">
+        {/* Row 1: Date + Class selectors */}
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">{t('attendance.selectDate')}</Label>
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="rounded-lg h-9 w-[160px] text-sm"
+            />
           </div>
-        ) : (
-          homeroomClassId && (
-            <div className="space-y-2">
-              <Label>{t('attendance.selectClass')}</Label>
-              <div className="px-3 py-2 rounded-xl border bg-muted text-sm font-medium">
-                {classes[0]?.name || '—'}
-              </div>
+          {canSelectClass ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">{t('attendance.selectClass')}</Label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <SelectTrigger className="rounded-lg h-9 w-[200px] text-sm">
+                  <SelectValue placeholder={t('attendance.selectClass')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )
+          ) : (
+            homeroomClassId && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">{t('attendance.selectClass')}</Label>
+                <div className="px-3 h-9 flex items-center rounded-lg border bg-muted text-sm font-medium">
+                  {classes[0]?.name || '—'}
+                </div>
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Row 2: Mark All — visible once students are loaded */}
+        {selectedClassId && students.length > 0 && hasPermission('attendance:manage') && (
+          <div className="flex items-center gap-2 flex-wrap border-t pt-3">
+            <span className="text-xs font-medium text-muted-foreground">{t('attendance.markAll', 'Mark all')}:</span>
+            <button
+              type="button"
+              onClick={() => markAll('present')}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-green-300 text-green-700 dark:text-green-400 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950/40 transition-colors"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {t('attendance.present')}
+            </button>
+            <button
+              type="button"
+              onClick={() => markAll('absent')}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-red-300 text-red-600 dark:text-red-400 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              {t('attendance.absent')}
+            </button>
+            <button
+              type="button"
+              onClick={() => markAll('excused')}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-amber-300 text-amber-600 dark:text-amber-400 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+            >
+              <AlertCircle className="h-3.5 w-3.5" />
+              {t('attendance.excused')}
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Summary badges */}
-      {selectedClassId && students.length > 0 && (
-        <div className="flex flex-wrap gap-3">
-          <Badge variant="outline" className={statusColors.present}>
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t('attendance.presentCount', { count: presentCount })}
-          </Badge>
-          <Badge variant="outline" className={statusColors.absent}>
-            <XCircle className="h-3 w-3 mr-1" />
-            {t('attendance.absentCount', { count: absentCount })}
-          </Badge>
-          <Badge variant="outline" className={statusColors.excused}>
-            <AlertCircle className="h-3 w-3 mr-1" />
-            {t('attendance.excusedCount', { count: excusedCount })}
-          </Badge>
-          <Badge variant="secondary">
-            <Users className="h-3 w-3 mr-1" />
-            {t('attendance.summary')}: {students.length}
-          </Badge>
-        </div>
-      )}
-
-      {/* Mark All Buttons */}
-      {selectedClassId && students.length > 0 && hasPermission('attendance:manage') && (
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => markAll('present')} className="text-green-700 border-green-300">
-            <CheckCircle2 className="h-4 w-4 mr-1" />
-            {t('attendance.markAll')} {t('attendance.present')}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => markAll('absent')} className="text-red-700 border-red-300">
-            <XCircle className="h-4 w-4 mr-1" />
-            {t('attendance.markAll')} {t('attendance.absent')}
-          </Button>
-        </div>
-      )}
-
-      {/* Student List */}
+      {/* Student list */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : !selectedClassId ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <ClipboardCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>{t('attendance.selectClass')}</p>
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <ClipboardCheck className="h-10 w-10 mb-3 opacity-40" />
+          <p className="text-sm">{t('attendance.selectClass')}</p>
         </div>
       ) : students.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>{t('attendance.noStudents')}</p>
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <Users className="h-10 w-10 mb-3 opacity-40" />
+          <p className="text-sm">{t('attendance.noStudents')}</p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card">
-          <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-2 p-3 border-b font-medium text-sm text-muted-foreground">
-            <div>{t('attendance.studentName')}</div>
-            <div className="hidden sm:block text-center">{t('attendance.present')}</div>
-            <div className="hidden sm:block text-center">{t('attendance.absent')}</div>
-            <div className="hidden sm:block text-center">{t('attendance.excused')}</div>
+        <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+          {/* Column header */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/40">
+            <span className="text-xs font-medium text-muted-foreground">{t('attendance.studentName')}</span>
+            <span className="text-xs font-medium text-muted-foreground">{t('attendance.status', 'Status')}</span>
           </div>
-          {students.map((student, idx) => {
-            const status = records.get(student.id) || 'present';
-            return (
-              <div
-                key={student.id}
-                className={`grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-2 p-3 items-center ${
-                  idx < students.length - 1 ? 'border-b' : ''
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
-                    {student.name.charAt(0)}
+
+          {/* Rows */}
+          <div className="divide-y">
+            {students.map((student) => {
+              const status = records.get(student.id) || 'present';
+              const cfg = segmentConfig[status];
+              return (
+                <div
+                  key={student.id}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 border-l-4 transition-colors ${cfg.rowBorder} ${cfg.rowBg}`}
+                >
+                  {/* Student info */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <IdentityAvatar
+                      name={student.name}
+                      className="h-9 w-9 flex-shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{student.name}</p>
+                      <p className="text-xs text-muted-foreground">{student.student_id}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{student.name}</p>
-                    <p className="text-xs text-muted-foreground">{student.student_id}</p>
+
+                  {/* Segmented toggle */}
+                  <div className="flex-shrink-0 flex rounded-lg border divide-x overflow-hidden">
+                    {(['present', 'absent', 'excused'] as const).map(s => {
+                      const c = segmentConfig[s];
+                      const isActive = status === s;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => hasPermission('attendance:manage') && setStatus(student.id, s)}
+                          disabled={!hasPermission('attendance:manage')}
+                          aria-label={c.label}
+                          aria-pressed={isActive}
+                          className={`h-9 px-2.5 sm:px-3.5 flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                            isActive
+                              ? c.active
+                              : 'bg-muted/40 text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                          }`}
+                        >
+                          {c.icon}
+                          <span className="sm:hidden">{c.abbrev}</span>
+                          <span className="hidden sm:inline">{c.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                {/* Mobile: toggle buttons inline */}
-                <div className="flex gap-1 sm:contents">
-                  <button
-                    type="button"
-                    onClick={() => setStatus(student.id, 'present')}
-                    className={`rounded-lg px-2 py-1 text-xs font-medium border transition-colors ${
-                      status === 'present' ? statusColors.present : 'bg-muted/50 text-muted-foreground border-transparent'
-                    }`}
-                    disabled={!hasPermission('attendance:manage')}
-                  >
-                    {statusIcons.present}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatus(student.id, 'absent')}
-                    className={`rounded-lg px-2 py-1 text-xs font-medium border transition-colors ${
-                      status === 'absent' ? statusColors.absent : 'bg-muted/50 text-muted-foreground border-transparent'
-                    }`}
-                    disabled={!hasPermission('attendance:manage')}
-                  >
-                    {statusIcons.absent}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatus(student.id, 'excused')}
-                    className={`rounded-lg px-2 py-1 text-xs font-medium border transition-colors ${
-                      status === 'excused' ? statusColors.excused : 'bg-muted/50 text-muted-foreground border-transparent'
-                    }`}
-                    disabled={!hasPermission('attendance:manage')}
-                  >
-                    {statusIcons.excused}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Save Button */}
+      {/* Sticky bottom save bar */}
       {selectedClassId && students.length > 0 && hasPermission('attendance:manage') && (
-        <div className="flex justify-end">
+        <div className="sticky bottom-0 z-10 -mx-4 md:-mx-8 border-t bg-card/95 backdrop-blur-sm px-4 md:px-8 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 text-sm">
+            <span className="flex items-center gap-1.5 font-medium text-green-700 dark:text-green-400">
+              <CheckCircle2 className="h-4 w-4" />
+              {presentCount}
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-red-600 dark:text-red-400">
+              <XCircle className="h-4 w-4" />
+              {absentCount}
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+              <AlertCircle className="h-4 w-4" />
+              {excusedCount}
+            </span>
+            <span className="text-xs text-muted-foreground">/ {students.length}</span>
+          </div>
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-navy hover:bg-navy/90"
+            className="bg-primary hover:bg-primary/90 shrink-0"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -374,7 +407,7 @@ const Attendance = () => {
           </Button>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 

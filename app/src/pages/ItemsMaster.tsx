@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import { 
   Package, 
   Search, 
@@ -23,6 +22,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,6 +43,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface Item {
   id: string;
@@ -55,6 +65,7 @@ export function ItemsMaster() {
   const [items, setItems] = useState<Item[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -69,10 +80,12 @@ export function ItemsMaster() {
   const fetchItems = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const { data } = await api.get('/items');
       setItems(data);
     } catch (error) {
       console.error('Error fetching items:', error);
+      setIsError(true);
       toast.error(t('items.failedToFetch'));
     } finally {
       setIsLoading(false);
@@ -167,8 +180,8 @@ export function ItemsMaster() {
       getValue: (row) => row.name,
       render: (item) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-            <Package className="h-5 w-5 text-navy" />
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Package className="h-5 w-5 text-primary" />
           </div>
           <span className="font-medium text-foreground">{item.name}</span>
         </div>
@@ -239,33 +252,18 @@ export function ItemsMaster() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('items.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('items.subtitle')}
-          </p>
-        </div>
-        {hasPermission('items:create') && (
-        <Button onClick={() => { resetForm(); if (!isAdmin && userLevel) setFormData(prev => ({ ...prev, level: userLevel })); setIsCreateDialogOpen(true); }} className="bg-navy hover:bg-navy/90 rounded-xl h-11">
-          <Plus className="h-4 w-4 mr-2" />
-          {t('items.addItem')}
-        </Button>
-        )}
-      </motion.div>
+      <PageHeader
+        title={t('items.title')}
+        description={t('items.subtitle')}
+        action={hasPermission('items:create') ? {
+          label: t('items.addItem'),
+          icon: Plus,
+          onClick: () => { resetForm(); if (!isAdmin && userLevel) setFormData(prev => ({ ...prev, level: userLevel })); setIsCreateDialogOpen(true); },
+        } : undefined}
+      />
 
       {/* Search */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="flex gap-3"
-      >
+      <div className="flex gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -275,24 +273,75 @@ export function ItemsMaster() {
             className="pl-10 rounded-xl h-11"
           />
         </div>
-      </motion.div>
+      </div>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-      >
+      {/* Mobile cards */}
+      <div className="space-y-3 lg:hidden">
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border bg-card p-4 animate-pulse h-20" />
+            ))
+          : filteredItems.length === 0
+          ? (
+              <div className="rounded-xl border border-dashed bg-card/70 px-6 py-12 text-center">
+                <Package className="mx-auto h-10 w-10 text-muted-foreground/30" />
+                <p className="mt-3 text-sm font-medium text-muted-foreground">{t('items.noItems')}</p>
+              </div>
+            )
+          : filteredItems.map((item) => (
+              <div key={item.id} className="rounded-xl border bg-card p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Package className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground truncate">{item.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{item.description || t('common.noDescription')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {hasPermission('items:edit') && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(item)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {hasPermission('items:delete') && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600" onClick={() => openDeleteDialog(item)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-secondary text-foreground">
+                    {item.unit}
+                  </span>
+                </div>
+              </div>
+            ))
+        }
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden lg:block">
         <DataTable
           data={filteredItems}
           columns={columns}
           isLoading={isLoading}
+          isError={isError}
+          onRetry={() => { setIsError(false); fetchItems(); }}
           getRowId={(row) => row.id}
           emptyIcon={Package}
           emptyTitle={t('items.noItems')}
           emptyDescription={t('items.noItemsDesc')}
+          emptyAction={hasPermission('items:create') ? {
+            label: t('items.addItem'),
+            icon: Plus,
+            onClick: () => { resetForm(); if (!isAdmin && userLevel) setFormData(prev => ({ ...prev, level: userLevel })); setIsCreateDialogOpen(true); },
+          } : undefined}
         />
-      </motion.div>
+      </div>
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -333,7 +382,7 @@ export function ItemsMaster() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>{t('common.cancel')}</Button>
-            <Button onClick={handleCreate} disabled={isSubmitting || !formData.name} className="bg-navy hover:bg-navy/90">
+            <Button onClick={handleCreate} disabled={isSubmitting || !formData.name} className="bg-primary hover:bg-primary/90">
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
               {t('items.createItem')}
             </Button>
@@ -380,7 +429,7 @@ export function ItemsMaster() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>{t('common.cancel')}</Button>
-            <Button onClick={handleEdit} disabled={isSubmitting || !formData.name} className="bg-navy hover:bg-navy/90">
+            <Button onClick={handleEdit} disabled={isSubmitting || !formData.name} className="bg-primary hover:bg-primary/90">
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {t('common.save')}
             </Button>
@@ -389,23 +438,27 @@ export function ItemsMaster() {
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{t('items.deleteItemTitle')}</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('items.deleteItemTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
               {t('items.deleteConfirm', { name: selectedItem?.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>{t('common.cancel')}</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {t('items.deleteItem')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

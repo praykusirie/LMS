@@ -7,7 +7,7 @@ html {
 
 /* Custom focus styles */
 *:focus-visible {
-  outline: 2px solid hsl(224 76% 33%);
+  outline: 2px solid hsl(var(--primary));
   outline-offset: 2px;
 }
 

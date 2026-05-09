@@ -9,7 +9,6 @@ import {
   FileText, 
   Settings, 
   LogOut,
-  Library,
   ChevronDown,
   Database,
   GraduationCap,
@@ -162,7 +161,7 @@ const parentPaths: Record<string, string[]> = {
   'finance': ['/finance'],
 };
 
-export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, isMobileMenuOpen, onMobileMenuClose }: SidebarProps) {
+export function Sidebar({ isCollapsed, onToggleCollapse, isMobile, isMobileMenuOpen, onMobileMenuClose }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { hasPermission, isLoading } = usePermissions();
@@ -218,7 +217,6 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
     } else {
       navigate(item.path);
       if (isMobile) onMobileMenuClose();
-      else onCollapse();
     }
   };
 
@@ -226,7 +224,6 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
     navigate(path);
     setExpandedMenu(null);
     if (isMobile) onMobileMenuClose();
-    else onCollapse();
   };
 
   const handleLogout = async () => {
@@ -273,10 +270,10 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
           expanded ? "justify-between px-5" : "justify-center px-2"
         )}>
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy flex-shrink-0">
-              <Library className="h-4.5 w-4.5 text-white" />
+            <div className="flex h-14 w-14 items-center justify-center flex-shrink-0">
+              <img src="/sidebar_logo.png" alt="ShulePro" className="h-full w-full object-contain" />
             </div>
-            {expanded && <span className="text-base font-bold text-foreground tracking-tight">ShulePro</span>}
+            {expanded && <span className="font-lazydog text-3xl text-navy font-extrabold tracking-wide text-left pt-1">shulepro</span>}
           </div>
           {expanded && !forMobile && (
             <Button
@@ -321,9 +318,9 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
                     'flex w-full items-center rounded-xl text-sm font-medium transition-colors duration-150',
                     expanded ? 'justify-between px-4 py-3' : 'justify-center px-2 py-3',
                     isActive && !hasSubItems
-                      ? 'bg-navy text-white'
+                      ? 'bg-primary text-primary-foreground'
                       : isActive && hasSubItems
-                      ? 'bg-navy-light text-navy'
+                      ? 'text-primary font-semibold'
                       : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                   )}
                 >
@@ -341,7 +338,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
                 
                 {/* Submenu */}
                 {hasSubItems && isExpanded && expanded && (
-                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-border/60 pl-3">
+                  <div className="ml-4 mt-1 space-y-1 pl-3">
                     {item.subItems?.map((subItem) => {
                       const SubIcon = subItem.icon;
                       const subActive = isSubActive(subItem);
@@ -351,10 +348,10 @@ export function Sidebar({ isCollapsed, onToggleCollapse, onCollapse, isMobile, i
                           key={subItem.id}
                           onClick={() => handleSubNavigate(subItem.path)}
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150',
+                            'flex w-full items-center gap-3 rounded-lg py-2 text-sm font-medium transition-colors duration-150',
                             subActive
-                              ? 'bg-primary/10 text-primary'
-                              : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                              ? 'border-l-2 border-primary text-primary pl-[10px] pr-3 bg-transparent'
+                              : 'border-l-2 border-transparent text-muted-foreground hover:bg-secondary hover:text-foreground pl-[10px] pr-3'
                           )}
                         >
                           <SubIcon className="h-4 w-4 flex-shrink-0" />

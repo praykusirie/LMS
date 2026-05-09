@@ -175,7 +175,7 @@ export function StockDetails() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="grid grid-cols-1 sm:grid-cols-4 gap-4"
       >
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
               <Package className="h-5 w-5 text-blue-600" />
@@ -186,7 +186,7 @@ export function StockDetails() {
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 dark:bg-green-950/30">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -197,7 +197,7 @@ export function StockDetails() {
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/30">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
@@ -208,7 +208,7 @@ export function StockDetails() {
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30">
               <XCircle className="h-5 w-5 text-red-600" />
@@ -258,3 +258,4 @@ export function StockDetails() {
     </div>
   );
 }
+

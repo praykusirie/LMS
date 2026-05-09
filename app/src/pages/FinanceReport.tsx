@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import {
-  BarChart3,
   Download,
   Search,
   Loader2,
@@ -12,6 +10,7 @@ import {
   Banknote,
   Eye,
   Trash2,
+  FileDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -38,7 +37,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -50,10 +48,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import api from '@/lib/api';
 import { generateInvoicePdf } from '@/lib/invoice-pdf';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface Invoice {
   id: string;
@@ -114,11 +120,12 @@ export function FinanceReport() {
   // Filters
   const [academicYear, setAcademicYear] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [yearGroupFilter, setYearGroupFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Dialogs
   const [viewInvoice, setViewInvoice] = useState<InvoiceDetail | null>(null);
-  const [paymentDialog, setPaymentDialog] = useState<string | null>(null);
+  const [paymentSheet, setPaymentSheet] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
 
@@ -171,15 +178,24 @@ export function FinanceReport() {
   };
 
   const filteredInvoices = useMemo(() => {
-    if (!searchQuery) return invoices;
+    let list = invoices;
+    if (yearGroupFilter !== 'all') {
+      list = list.filter((inv) => inv.year_group === yearGroupFilter);
+    }
+    if (!searchQuery) return list;
     const q = searchQuery.toLowerCase();
-    return invoices.filter(
+    return list.filter(
       (inv) =>
         inv.student_name.toLowerCase().includes(q) ||
         inv.invoice_number.toLowerCase().includes(q) ||
         (inv.student_code || '').toLowerCase().includes(q),
     );
-  }, [invoices, searchQuery]);
+  }, [invoices, yearGroupFilter, searchQuery]);
+
+  const yearGroups = useMemo(
+    () => [...new Set(invoices.map((inv) => inv.year_group).filter(Boolean))].sort(),
+    [invoices],
+  );
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-TZ', {
@@ -200,6 +216,35 @@ export function FinanceReport() {
     );
   };
 
+  const exportCsv = () => {
+    const headers = ['Invoice #', 'Student', 'Code', 'Class', 'Year Group', 'Academic Year', 'Date', 'Total', 'Paid', 'Balance', 'Status'];
+    const rows = filteredInvoices.map((inv) => [
+      inv.invoice_number,
+      inv.student_name,
+      inv.student_code,
+      inv.class_name,
+      inv.year_group,
+      inv.academic_year,
+      new Date(inv.invoice_date).toLocaleDateString(),
+      inv.total_amount,
+      inv.total_paid,
+      inv.balance,
+      inv.status,
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoices-${academicYear}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = () => {
+    window.print();
+  };
+
   const handleViewInvoice = async (id: string) => {
     try {
       setIsActionLoading(true);
@@ -213,17 +258,17 @@ export function FinanceReport() {
   };
 
   const handleRecordPayment = async () => {
-    if (!paymentDialog || !paymentAmount) return;
+    if (!paymentSheet || !paymentAmount) return;
     try {
       setIsActionLoading(true);
-      await api.post(`/invoices/${paymentDialog}/payments`, {
+      await api.post(`/invoices/${paymentSheet}/payments`, {
         amount: Number(paymentAmount),
         payment_date: paymentDate,
         payment_method: paymentMethod,
         reference: paymentRef || undefined,
       });
       toast.success(t('finance.paymentRecorded'));
-      setPaymentDialog(null);
+      setPaymentSheet(null);
       setPaymentAmount('');
       setPaymentRef('');
       fetchData();
@@ -255,57 +300,67 @@ export function FinanceReport() {
           label: t('finance.totalInvoiced'),
           value: `TZS ${formatCurrency(summary.total_invoiced)}`,
           icon: FileText,
-          color: 'bg-blue-100 text-blue-600',
+          color: 'bg-primary/10 text-primary',
         },
         {
           label: t('finance.totalCollected'),
           value: `TZS ${formatCurrency(summary.total_collected)}`,
           icon: Banknote,
-          color: 'bg-green-100 text-green-600',
+          color: 'bg-green-light text-green',
         },
         {
           label: t('finance.totalOutstanding'),
           value: `TZS ${formatCurrency(summary.total_outstanding)}`,
           icon: TrendingUp,
-          color: 'bg-orange-100 text-orange-600',
+          color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400',
         },
         {
           label: t('finance.invoiceCount'),
           value: String(summary.invoice_count),
           icon: CreditCard,
-          color: 'bg-purple-100 text-purple-600',
+          color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400',
         },
       ]
     : [];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <BarChart3 className="h-6 w-6" />
-          {t('finance.financeReport')}
-        </h1>
-        <p className="text-muted-foreground">
-          {t('finance.financeReportSubtitle')}
-        </p>
+    <div className="space-y-6 print:space-y-4">
+      <div className="print:hidden">
+        <PageHeader
+          title={t('finance.financeReport')}
+          description={t('finance.financeReportSubtitle')}
+          secondaryActions={
+            <div className="flex items-center gap-2">
+              <Button variant="outline" className="rounded-xl" onClick={exportCsv}>
+                <Download className="h-4 w-4 mr-1" />
+                Export CSV
+              </Button>
+              <Button variant="outline" className="rounded-xl" onClick={exportPdf}>
+                <FileDown className="h-4 w-4 mr-1" />
+                Export PDF
+              </Button>
+            </div>
+          }
+        />
+      </div>
+
+      {/* Print header */}
+      <div className="hidden print:block">
+        <h1 className="text-xl font-bold">{t('finance.financeReport')} — {academicYear}</h1>
       </div>
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
           {summaryCards.map((card) => (
             <div key={card.label} className="bg-card rounded-xl border p-4">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.color}`}>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${card.color}`}>
                   <card.icon className="h-5 w-5" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{card.label}</p>
-                  <p className="text-lg font-semibold">{card.value}</p>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground truncate">{card.label}</p>
+                  <p className="text-sm font-semibold truncate">{card.value}</p>
                 </div>
               </div>
             </div>
@@ -313,10 +368,31 @@ export function FinanceReport() {
         </div>
       )}
 
+      {/* Status counts */}
+      {summary && (
+        <div className="flex flex-wrap items-center gap-3 text-sm print:hidden">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-primary inline-block" />
+            <span className="text-muted-foreground">{t('finance.paid')}:</span>
+            <span className="font-medium">{summary.paid_count}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-secondary-foreground/40 inline-block" />
+            <span className="text-muted-foreground">{t('finance.partial')}:</span>
+            <span className="font-medium">{summary.partial_count}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-destructive inline-block" />
+            <span className="text-muted-foreground">{t('finance.unpaid')}:</span>
+            <span className="font-medium">{summary.unpaid_count}</span>
+          </span>
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 print:hidden">
         <Select value={academicYear} onValueChange={setAcademicYear}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[160px] rounded-xl">
             <SelectValue placeholder={t('finance.filterByYear')} />
           </SelectTrigger>
           <SelectContent>
@@ -327,7 +403,7 @@ export function FinanceReport() {
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[160px] rounded-xl">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -338,13 +414,27 @@ export function FinanceReport() {
           </SelectContent>
         </Select>
 
-        <div className="relative flex-1 max-w-sm">
+        {yearGroups.length > 0 && (
+          <Select value={yearGroupFilter} onValueChange={setYearGroupFilter}>
+            <SelectTrigger className="w-[160px] rounded-xl">
+              <SelectValue placeholder="All Year Groups" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Year Groups</SelectItem>
+              {yearGroups.map((yg) => (
+                <SelectItem key={yg} value={yg}>{yg}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t('common.search')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-9 rounded-xl"
           />
         </div>
       </div>
@@ -356,92 +446,129 @@ export function FinanceReport() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : filteredInvoices.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
+          <div className="text-center py-16 text-muted-foreground text-sm">
             {t('finance.noInvoices')}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('finance.invoiceNumber')}</TableHead>
-                <TableHead>{t('finance.student')}</TableHead>
-                <TableHead>{t('finance.class')}</TableHead>
-                <TableHead className="text-right">{t('finance.totalAmount')}</TableHead>
-                <TableHead className="text-right">{t('finance.totalPaid')}</TableHead>
-                <TableHead className="text-right">{t('finance.balance')}</TableHead>
-                <TableHead>{t('finance.status')}</TableHead>
-                <TableHead>{t('common.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('finance.invoiceNumber')}</TableHead>
+                    <TableHead>{t('finance.student')}</TableHead>
+                    <TableHead>{t('finance.class')}</TableHead>
+                    <TableHead className="text-right">{t('finance.totalAmount')}</TableHead>
+                    <TableHead className="text-right">{t('finance.totalPaid')}</TableHead>
+                    <TableHead className="text-right">{t('finance.balance')}</TableHead>
+                    <TableHead>{t('finance.status')}</TableHead>
+                    <TableHead className="print:hidden">{t('common.actions')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInvoices.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">{inv.invoice_number}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{inv.student_name}</p>
+                          <p className="text-xs text-muted-foreground">{inv.student_code}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm">{inv.class_name}</p>
+                          <p className="text-xs text-muted-foreground">{inv.year_group}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">TZS {formatCurrency(inv.total_amount)}</TableCell>
+                      <TableCell className="text-right">TZS {formatCurrency(inv.total_paid)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        <span className={inv.balance > 0 ? 'text-orange-600' : 'text-green-600'}>
+                          TZS {formatCurrency(inv.balance)}
+                        </span>
+                      </TableCell>
+                      <TableCell>{statusBadge(inv.status)}</TableCell>
+                      <TableCell className="print:hidden">
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleViewInvoice(inv.id)} disabled={isActionLoading}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {inv.status !== 'paid' && hasPermission('finance:edit') && (
+                            <Button variant="ghost" size="icon" onClick={() => setPaymentSheet(inv.id)}>
+                              <Banknote className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {hasPermission('finance:edit') && (
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteDialog(inv.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="block md:hidden divide-y divide-border">
               {filteredInvoices.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="font-medium">{inv.invoice_number}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-sm">{inv.student_name}</p>
-                      <p className="text-xs text-muted-foreground">{inv.student_code}</p>
+                <div key={inv.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">{inv.invoice_number}</span>
+                        {statusBadge(inv.status)}
+                      </div>
+                      <p className="text-sm text-foreground mt-1">{inv.student_name}</p>
+                      <p className="text-xs text-muted-foreground">{inv.class_name} · {inv.year_group}</p>
+                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">Total</p>
+                          <p className="font-medium">TZS {formatCurrency(inv.total_amount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Paid</p>
+                          <p className="font-medium text-green-600">TZS {formatCurrency(inv.total_paid)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Balance</p>
+                          <p className={`font-medium ${inv.balance > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                            TZS {formatCurrency(inv.balance)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>{inv.class_name}</TableCell>
-                  <TableCell className="text-right">
-                    TZS {formatCurrency(inv.total_amount)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    TZS {formatCurrency(inv.total_paid)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    TZS {formatCurrency(inv.balance)}
-                  </TableCell>
-                  <TableCell>{statusBadge(inv.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleViewInvoice(inv.id)}
-                      >
+                    <div className="flex flex-col gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleViewInvoice(inv.id)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                       {inv.status !== 'paid' && hasPermission('finance:edit') && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setPaymentDialog(inv.id)}
-                        >
+                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setPaymentSheet(inv.id)}>
                           <Banknote className="h-4 w-4" />
                         </Button>
                       )}
-                      {hasPermission('finance:edit') && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteDialog(inv.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                      )}
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          </>
         )}
       </div>
 
-      {/* View Invoice Dialog */}
-      <Dialog
-        open={viewInvoice !== null}
-        onOpenChange={(open) => { if (!open) setViewInvoice(null); }}
-      >
-        <DialogContent className="max-w-lg">
+      {/* ── View Invoice Dialog ── */}
+      <Dialog open={viewInvoice !== null} onOpenChange={(open) => { if (!open) setViewInvoice(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{viewInvoice?.invoice_number}</DialogTitle>
           </DialogHeader>
           {viewInvoice && (
             <div className="space-y-4">
-              <div className="text-sm">
+              <div className="text-sm space-y-1">
                 <p><strong>{t('finance.student')}:</strong> {viewInvoice.student_name}</p>
                 <p><strong>{t('finance.class')}:</strong> {viewInvoice.class_name}</p>
                 <p><strong>{t('finance.academicYear')}:</strong> {viewInvoice.academic_year}</p>
@@ -492,7 +619,7 @@ export function FinanceReport() {
                       <div key={p.id} className="flex justify-between text-sm bg-muted/30 p-2 rounded">
                         <div>
                           <p>{new Date(p.payment_date).toLocaleDateString()}</p>
-                          <p className="text-xs text-muted-foreground">{p.payment_method} {p.reference ? `â€” ${p.reference}` : ''}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{p.payment_method}{p.reference ? ` — ${p.reference}` : ''}</p>
                         </div>
                         <span className="font-medium text-green-600">TZS {formatCurrency(p.amount)}</span>
                       </div>
@@ -507,31 +634,30 @@ export function FinanceReport() {
                 </>
               )}
 
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => { await generateInvoicePdf(viewInvoice); }}
-                >
+              <div className="pt-2 flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={async () => { await generateInvoicePdf(viewInvoice); }}>
                   <Download className="h-4 w-4 mr-1" />
                   {t('finance.downloadPdf')}
                 </Button>
+                {viewInvoice.status !== 'paid' && hasPermission('finance:edit') && (
+                  <Button className="flex-1" onClick={() => { setViewInvoice(null); setPaymentSheet(viewInvoice.id); }}>
+                    <Banknote className="h-4 w-4 mr-1" />
+                    {t('finance.recordPayment')}
+                  </Button>
+                )}
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Record Payment Dialog */}
-      <Dialog
-        open={paymentDialog !== null}
-        onOpenChange={(open) => { if (!open) setPaymentDialog(null); }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('finance.recordPayment')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+      {/* ── Record Payment Sheet ── */}
+      <Sheet open={paymentSheet !== null} onOpenChange={(open) => { if (!open) setPaymentSheet(null); }}>
+        <SheetContent side="bottom" className="rounded-t-2xl sm:max-w-lg sm:mx-auto">
+          <SheetHeader className="pb-4 border-b">
+            <SheetTitle>{t('finance.recordPayment')}</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-4">
             <div className="space-y-2">
               <Label>{t('finance.paymentAmount')}</Label>
               <Input
@@ -539,28 +665,25 @@ export function FinanceReport() {
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 placeholder="0"
+                className="text-lg h-12"
               />
             </div>
-            <div className="space-y-2">
-              <Label>{t('finance.paymentDate')}</Label>
-              <Input
-                type="date"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('finance.paymentMethod')}</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">{t('finance.cash')}</SelectItem>
-                  <SelectItem value="bank_transfer">{t('finance.bankTransfer')}</SelectItem>
-                  <SelectItem value="mobile_money">{t('finance.mobileMoney')}</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t('finance.paymentDate')}</Label>
+                <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('finance.paymentMethod')}</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">{t('finance.cash')}</SelectItem>
+                    <SelectItem value="bank_transfer">{t('finance.bankTransfer')}</SelectItem>
+                    <SelectItem value="mobile_money">{t('finance.mobileMoney')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>{t('finance.reference')}</Label>
@@ -571,32 +694,28 @@ export function FinanceReport() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentDialog(null)}>
+          <SheetFooter className="pt-4 border-t gap-2">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setPaymentSheet(null)}>
               {t('common.cancel')}
             </Button>
             <Button
+              className="flex-1 rounded-xl"
               onClick={handleRecordPayment}
               disabled={isActionLoading || !paymentAmount}
             >
               {isActionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('finance.recordPayment')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
-      {/* Delete Confirm Dialog */}
-      <AlertDialog
-        open={deleteDialog !== null}
-        onOpenChange={(open) => { if (!open) setDeleteDialog(null); }}
-      >
+      {/* ── Delete Confirm ── */}
+      <AlertDialog open={deleteDialog !== null} onOpenChange={(open) => { if (!open) setDeleteDialog(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('finance.deleteInvoice')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('finance.deleteConfirm')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('finance.deleteConfirm')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
@@ -606,6 +725,6 @@ export function FinanceReport() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </motion.div>
+    </div>
   );
 }

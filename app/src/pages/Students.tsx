@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -10,19 +9,20 @@ import {
   Users,
   Eye,
   X,
-  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -32,13 +32,14 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui-custom';
+import { PageHeader } from '@/components/ui-custom';
 import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
+import { PersonAvatar } from '@/components/shared/PersonAvatar';
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/lib/permissions';
-import { LazyBookCover } from '@/components/shared/LazyBookCover';
 
 interface StudentRecord {
   id: string;
@@ -64,15 +65,6 @@ interface StudentRecord {
   active_borrows: number;
 }
 
-interface ClassItem {
-  id: string;
-  name: string;
-}
-
-const generateAvatar = (name: string, gender: string) => {
-  const seed = encodeURIComponent(name);
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&gender=${gender}`;
-};
 
 export function Students() {
   const { t } = useTranslation();
@@ -84,6 +76,7 @@ export function Students() {
 
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
@@ -91,54 +84,28 @@ export function Students() {
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
-  // Dialogs
-  const [showEditDialog, setShowEditDialog] = useState(false);
+  // Delete dialog only
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Master data
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    class_id: '',
-    gender: 'male',
-    email: '',
-    phone: '',
-    dob: '',
-    nationality: '',
-    parent_email: '',
-    parent_phone: '',
-    address: '',
-  });
 
   useEffect(() => {
     fetchStudents();
-    fetchClasses();
   }, []);
 
   const fetchStudents = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const { data } = await api.get('/students');
       setStudents(data);
     } catch (error) {
       console.error('Error fetching students:', error);
+      setIsError(true);
       toast.error(t('students.failedToFetch'));
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchClasses = async () => {
-    try {
-      const { data } = await api.get('/classes');
-      setClasses(data);
-    } catch (error) {
-      console.error('Error fetching classes:', error);
     }
   };
 
@@ -163,38 +130,8 @@ export function Students() {
   const classNames = [...new Set(students.map(s => s.class_name).filter(Boolean))] as string[];
   const hasActiveFilters = classFilter !== 'all' || genderFilter !== 'all' || statusFilter !== 'all' || levelFilter !== 'all';
 
-  const handleEditStudent = async () => {
-    if (!selectedStudent) return;
-    setIsSubmitting(true);
-    try {
-      await api.put(`/students/${selectedStudent.id}`, {
-        first_name: formData.first_name.trim(),
-        last_name: formData.last_name.trim(),
-        name: `${formData.first_name} ${formData.last_name}`.trim(),
-        class_id: formData.class_id || null,
-        gender: formData.gender,
-        email: formData.email.trim() || null,
-        phone: formData.phone.trim() || null,
-        dob: formData.dob || null,
-        nationality: formData.nationality.trim() || null,
-        parent_email: formData.parent_email.trim() || null,
-        parent_phone: formData.parent_phone.trim() || null,
-        address: formData.address.trim() || null,
-      });
-      await fetchStudents();
-      setShowEditDialog(false);
-      setSelectedStudent(null);
-      toast.success(t('students.updateSuccess'));
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || t('students.failedToUpdate'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleDeleteStudent = async () => {
     if (!selectedStudent) return;
-    setIsSubmitting(true);
     try {
       await api.delete(`/students/${selectedStudent.id}`);
       await fetchStudents();
@@ -203,8 +140,6 @@ export function Students() {
       toast.success(t('students.deleteSuccess'));
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t('students.failedToDelete'));
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -220,24 +155,6 @@ export function Students() {
     } catch (error: any) {
       toast.error(t('students.failedToDeleteSome'));
     }
-  };
-
-  const openEditDialog = (student: StudentRecord) => {
-    setSelectedStudent(student);
-    setFormData({
-      first_name: student.first_name || '',
-      last_name: student.last_name || '',
-      class_id: student.class_id || '',
-      gender: student.gender || 'male',
-      email: student.email || '',
-      phone: student.phone || '',
-      dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : '',
-      nationality: student.nationality || '',
-      parent_email: student.parent_email || '',
-      parent_phone: student.parent_phone || '',
-      address: student.address || '',
-    });
-    setShowEditDialog(true);
   };
 
   const clearFilters = () => {
@@ -257,12 +174,7 @@ export function Students() {
       getValue: (row) => row.name,
       render: (student) => (
         <div className="flex items-center gap-3">
-          <LazyBookCover
-            src={student.avatar}
-            fallbackSrc={generateAvatar(student.name, student.gender)}
-            alt={student.name}
-            containerClassName="h-10 w-10 rounded-full flex-shrink-0"
-          />
+          <PersonAvatar name={student.name} gender={(student.gender as 'male' | 'female') || 'male'} className="h-10 w-10 flex-shrink-0" />
           <div className="min-w-0">
             <div className="font-medium text-foreground truncate max-w-[120px] sm:max-w-[200px]">{student.name}</div>
             <div className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]">{student.student_id || student.admission_number}</div>
@@ -349,7 +261,7 @@ export function Students() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={() => openEditDialog(student)}
+            onClick={() => navigate(`/students/${student.id}/edit`)}
           >
             <Edit2 className="h-4 w-4" />
           </Button>
@@ -367,183 +279,33 @@ export function Students() {
         </div>
       ),
     },
-  ], [navigate, classes]);
-
-  const renderStudentForm = () => (
-    <div className="space-y-4 py-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t('students.firstName')}</Label>
-          <Input
-            value={formData.first_name}
-            onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-            placeholder={t('students.enterFirstName')}
-            className="rounded-xl h-11"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{t('students.lastName')}</Label>
-          <Input
-            value={formData.last_name}
-            onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-            placeholder={t('students.enterLastName')}
-            className="rounded-xl h-11"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t('students.class')}</Label>
-          <Select
-            value={formData.class_id}
-            onValueChange={(value) => setFormData({ ...formData, class_id: value })}
-          >
-            <SelectTrigger className="rounded-xl h-11">
-              <SelectValue placeholder={t('students.selectClass')} />
-            </SelectTrigger>
-            <SelectContent>
-              {classes.map((cls) => (
-                <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>{t('students.gender')}</Label>
-          <Select
-            value={formData.gender}
-            onValueChange={(value) => setFormData({ ...formData, gender: value })}
-          >
-            <SelectTrigger className="rounded-xl h-11">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="male">{t('common.male')}</SelectItem>
-              <SelectItem value="female">{t('common.female')}</SelectItem>
-              <SelectItem value="other">{t('common.other')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t('students.dateOfBirth')}</Label>
-          <Input
-            type="date"
-            value={formData.dob}
-            onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-            className="rounded-xl h-11"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{t('students.nationality')}</Label>
-          <Input
-            value={formData.nationality}
-            onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-            placeholder="e.g., Tanzanian"
-            className="rounded-xl h-11"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t('students.email')}</Label>
-          <Input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder={t('students.enterEmail')}
-            className="rounded-xl h-11"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{t('students.phone')}</Label>
-          <Input
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            placeholder={t('students.enterPhone')}
-            className="rounded-xl h-11"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>{t('students.parentEmail')}</Label>
-          <Input
-            type="email"
-            value={formData.parent_email}
-            onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
-            placeholder={t('students.enterParentEmail')}
-            className="rounded-xl h-11"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>{t('students.parentPhoneLabel')}</Label>
-          <Input
-            value={formData.parent_phone}
-            onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
-            placeholder={t('students.enterParentPhone')}
-            className="rounded-xl h-11"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>{t('students.address')}</Label>
-        <Input
-          value={formData.address}
-          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-          placeholder={t('students.enterAddress')}
-          className="rounded-xl h-11"
-        />
-      </div>
-    </div>
-  );
+  ], [navigate]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('students.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('students.manageRegistrations', { count: filteredStudents.length })}
-          </p>
-        </div>
-        <div className="flex gap-3">
-          {selectedRows.size > 0 && hasPermission('students:delete') && (
-            <Button 
-              variant="destructive"
-              className="rounded-xl h-11"
-              onClick={handleBulkDelete}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete ({selectedRows.size})
-            </Button>
-          )}
-          {hasPermission('students:create') && (
-          <Button 
-            onClick={() => navigate('/add-student')}
-            className="bg-navy hover:bg-navy/90 rounded-xl h-11"
+      <PageHeader
+        title={t('students.title')}
+        description={t('students.manageRegistrations', { count: filteredStudents.length })}
+        action={hasPermission('students:create') ? {
+          label: t('students.registerStudent'),
+          icon: Plus,
+          onClick: () => navigate('/add-student'),
+        } : undefined}
+        secondaryActions={selectedRows.size > 0 && hasPermission('students:delete') ? (
+          <Button
+            variant="destructive"
+            className="rounded-xl h-11"
+            onClick={handleBulkDelete}
           >
-            <Plus className="h-4 w-4 mr-2" />
-            {t('students.registerStudent')}
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete ({selectedRows.size})
           </Button>
-          )}
-        </div>
-      </motion.div>
+        ) : undefined}
+      />
 
       {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="flex flex-wrap gap-3 items-center"
-      >
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-center">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -554,7 +316,7 @@ export function Students() {
           />
         </div>
         <Select value={classFilter} onValueChange={setClassFilter}>
-          <SelectTrigger className="w-[150px] h-11 rounded-xl">
+          <SelectTrigger className="w-full sm:w-[150px] h-11 rounded-xl">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Class" />
           </SelectTrigger>
@@ -566,7 +328,7 @@ export function Students() {
           </SelectContent>
         </Select>
         <Select value={genderFilter} onValueChange={setGenderFilter}>
-          <SelectTrigger className="w-[130px] h-11 rounded-xl">
+          <SelectTrigger className="w-full sm:w-[130px] h-11 rounded-xl">
             <SelectValue placeholder="Gender" />
           </SelectTrigger>
           <SelectContent>
@@ -577,7 +339,7 @@ export function Students() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[130px] h-11 rounded-xl">
+          <SelectTrigger className="w-full sm:w-[130px] h-11 rounded-xl">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -588,7 +350,7 @@ export function Students() {
         </Select>
         {isAdmin && (
           <Select value={levelFilter} onValueChange={setLevelFilter}>
-            <SelectTrigger className="w-[130px] h-11 rounded-xl">
+            <SelectTrigger className="w-full sm:w-[130px] h-11 rounded-xl">
               <SelectValue placeholder="Level" />
             </SelectTrigger>
             <SelectContent>
@@ -604,18 +366,76 @@ export function Students() {
             {t('common.clear')}
           </Button>
         )}
-      </motion.div>
+      </div>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      {/* Mobile cards */}
+      <div className="space-y-3 lg:hidden">
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border bg-card p-4 animate-pulse h-24" />
+            ))
+          : filteredStudents.length === 0
+          ? (
+              <div className="rounded-xl border border-dashed bg-card/70 px-6 py-12 text-center">
+                <Users className="mx-auto h-10 w-10 text-muted-foreground/30" />
+                <p className="mt-3 text-sm font-medium text-muted-foreground">{t('students.noStudents')}</p>
+              </div>
+            )
+          : filteredStudents.map((student) => (
+              <div
+                key={student.id}
+                className="rounded-xl border bg-card p-4 shadow-sm cursor-pointer"
+                onClick={() => navigate(`/students/${student.id}`)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <PersonAvatar name={student.name} gender={(student.gender as 'male' | 'female') || 'male'} className="h-10 w-10 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground truncate">{student.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{student.student_id || student.admission_number}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => navigate(`/students/${student.id}`)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {hasPermission('students:edit') && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => navigate(`/students/${student.id}/edit`)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {hasPermission('students:delete') && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600" onClick={() => { setSelectedStudent(student); setShowDeleteDialog(true); }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {student.class_name && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-secondary text-xs font-medium">{student.class_name}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground capitalize">{student.gender}</span>
+                  {student.active_borrows > 0 && (
+                    <Badge variant="default" className="rounded-lg text-xs">{student.active_borrows} borrow{student.active_borrows > 1 ? 's' : ''}</Badge>
+                  )}
+                  <StatusBadge status={student.is_active ? 'active' : 'inactive'}>
+                    {student.is_active ? t('common.active') : t('common.inactive')}
+                  </StatusBadge>
+                </div>
+              </div>
+            ))
+        }
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden lg:block">
         <DataTable
           data={filteredStudents}
           columns={columns}
           isLoading={isLoading}
+          isError={isError}
+          onRetry={() => { setIsError(false); fetchStudents(); }}
           selectable
           selectedRows={selectedRows}
           onSelectionChange={setSelectedRows}
@@ -624,53 +444,31 @@ export function Students() {
           emptyIcon={Users}
           emptyTitle={t('students.noStudents')}
           emptyDescription={t('students.noStudentsDesc')}
+          emptyAction={hasPermission('students:create') ? {
+            label: t('students.registerStudent'),
+            icon: Plus,
+            onClick: () => navigate('/add-student'),
+          } : undefined}
         />
-      </motion.div>
-
-      {/* Edit Student Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="rounded-[20px] max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('students.editStudent')}</DialogTitle>
-          </DialogHeader>
-          {renderStudentForm()}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              {t('common.cancel')}
-            </Button>
-            <Button 
-              onClick={handleEditStudent} 
-              className="bg-navy hover:bg-navy/90 rounded-xl"
-              disabled={isSubmitting}
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {t('common.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('students.deleteStudent')}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('students.deleteStudent')}</AlertDialogTitle>
+            <AlertDialogDescription>
               {t('students.deleteConfirmMessage', { name: selectedStudent?.name })}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleDeleteStudent} variant="destructive" className="rounded-xl">
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteStudent} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

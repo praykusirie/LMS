@@ -22,7 +22,9 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface Stock {
   id: string;
@@ -45,6 +47,7 @@ export function StockList() {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     fetchStocks();
@@ -53,10 +56,13 @@ export function StockList() {
   const fetchStocks = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const { data } = await api.get('/stocks');
       setStocks(data);
     } catch (error) {
       console.error('Error fetching stocks:', error);
+      setIsError(true);
+      toast.error(t('stock.fetchError', 'Failed to load stock records'));
     } finally {
       setIsLoading(false);
     }
@@ -78,25 +84,17 @@ export function StockList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('stock.addStock')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('stock.manageStockSubtitle')}
-          </p>
-        </div>
-        {hasPermission('stock:create') && (
-        <Button 
-          onClick={() => navigate('/library-inventory/add-stock/new')}
-          className="bg-navy hover:bg-navy/90"
-        >
-          <PackagePlus className="h-4 w-4 mr-2" />
-          {t('stock.createNewStock')}
-        </Button>
-        )}
-      </div>
+      <PageHeader
+        title={t('stock.addStock')}
+        description={t('stock.manageStockSubtitle')}
+        action={hasPermission('stock:create') ? {
+          label: t('stock.createNewStock'),
+          icon: PackagePlus,
+          onClick: () => navigate('/library-inventory/add-stock/new'),
+        } : undefined}
+      />
 
-      <div className="rounded-[20px] bg-card p-6 shadow-card-sm">
+      <div className="rounded-lg bg-card p-6 shadow-card-sm">
         <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -112,6 +110,11 @@ export function StockList() {
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : isError ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <p className="text-sm">{t('stock.fetchError', 'Failed to load stock records')}</p>
+            <button onClick={() => { setIsError(false); fetchStocks(); }} className="mt-2 text-xs text-primary underline">{t('common.tryAgain', 'Try again')}</button>
           </div>
         ) : filteredStocks.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -150,7 +153,7 @@ export function StockList() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <IdentityAvatar name={stock.created_by_name || stock.created_by} className="h-7 w-7" fallbackClassName="bg-navy text-white text-[10px]" />
+                        <IdentityAvatar name={stock.created_by_name || stock.created_by} className="h-7 w-7" fallbackClassName="bg-primary text-white text-[10px]" />
                         <span className="text-sm">{stock.created_by_name || stock.created_by}</span>
                       </div>
                     </TableCell>
@@ -199,3 +202,5 @@ export function StockList() {
     </div>
   );
 }
+
+

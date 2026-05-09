@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -7,7 +6,8 @@ import {
   Trash2, 
   GraduationCap,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Users
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,6 +43,7 @@ import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface ClassItem {
   id: string;
@@ -53,6 +64,7 @@ export function Classes() {
 
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -72,10 +84,12 @@ export function Classes() {
   const fetchClasses = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const { data } = await api.get('/classes');
       setClasses(data);
     } catch (error) {
       console.error('Error fetching classes:', error);
+      setIsError(true);
       toast.error(t('classes.failedToFetch'));
     } finally {
       setIsLoading(false);
@@ -168,8 +182,8 @@ export function Classes() {
       getValue: (row) => row.name,
       render: (classItem) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-            <GraduationCap className="h-5 w-5 text-navy" />
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <GraduationCap className="h-5 w-5 text-primary" />
           </div>
           <span className="font-medium text-foreground">{classItem.name}</span>
         </div>
@@ -243,39 +257,21 @@ export function Classes() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('classes.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('classes.subtitle')}
-          </p>
-        </div>
-        {hasPermission('master:manage') && (
-        <Button 
-          onClick={() => {
+      <PageHeader
+        title={t('classes.title')}
+        description={t('classes.subtitle')}
+        action={hasPermission('master:manage') ? {
+          label: t('classes.addClass'),
+          icon: Plus,
+          onClick: () => {
             setFormData({ name: '', description: '', level: !isAdmin && userLevel ? userLevel : '' });
             setShowAddDialog(true);
-          }}
-          className="bg-navy hover:bg-navy/90 rounded-xl h-11"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t('classes.addClass')}
-        </Button>
-        )}
-      </motion.div>
+          },
+        } : undefined}
+      />
 
       {/* Search */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="flex gap-3"
-      >
+      <div className="flex gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -285,19 +281,14 @@ export function Classes() {
             className="pl-10 rounded-xl h-11"
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Stats */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-      >
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 text-navy" />
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <GraduationCap className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold">{classes.length}</p>
@@ -305,9 +296,9 @@ export function Classes() {
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-green-light flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-green-light flex items-center justify-center">
               <CheckCircle2 className="h-5 w-5 text-green" />
             </div>
             <div>
@@ -316,9 +307,9 @@ export function Classes() {
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-amber-light flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-amber-light flex items-center justify-center">
               <GraduationCap className="h-5 w-5 text-amber" />
             </div>
             <div>
@@ -327,28 +318,88 @@ export function Classes() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      {/* Mobile cards */}
+      <div className="space-y-3 lg:hidden">
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border bg-card p-4 animate-pulse h-20" />
+            ))
+          : filteredClasses.length === 0
+          ? (
+              <div className="rounded-xl border border-dashed bg-card/70 px-6 py-12 text-center">
+                <GraduationCap className="mx-auto h-10 w-10 text-muted-foreground/30" />
+                <p className="mt-3 text-sm font-medium text-muted-foreground">{t('classes.noClasses')}</p>
+              </div>
+            )
+          : filteredClasses.map((classItem) => (
+              <div key={classItem.id} className="rounded-xl border bg-card p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <GraduationCap className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground truncate">{classItem.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{classItem.description || t('common.noDescription')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {hasPermission('master:manage') && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(classItem)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {hasPermission('master:manage') && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600" onClick={() => openDeleteDialog(classItem)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
+                    <Users className="h-3 w-3" />
+                    {classItem.student_count || 0}
+                  </span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    classItem.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-700'
+                  }`}>
+                    {classItem.is_active ? t('classes.active') : t('classes.inactive')}
+                  </span>
+                </div>
+              </div>
+            ))
+        }
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden lg:block">
         <DataTable
           data={filteredClasses}
           columns={columns}
           isLoading={isLoading}
+          isError={isError}
+          onRetry={() => { setIsError(false); fetchClasses(); }}
           getRowId={(row) => row.id}
           emptyIcon={GraduationCap}
           emptyTitle={t('classes.noClasses')}
           emptyDescription={t('classes.noClassesDesc')}
+          emptyAction={hasPermission('master:manage') ? {
+            label: t('classes.addClass'),
+            icon: Plus,
+            onClick: () => {
+              setFormData({ name: '', description: '', level: !isAdmin && userLevel ? userLevel : '' });
+              setShowAddDialog(true);
+            },
+          } : undefined}
         />
-      </motion.div>
+      </div>
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t('classes.addNewClass')}</DialogTitle>
           </DialogHeader>
@@ -392,7 +443,7 @@ export function Classes() {
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="rounded-xl">
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleAdd} className="bg-navy hover:bg-navy/90 rounded-xl">
+            <Button onClick={handleAdd} className="bg-primary hover:bg-primary/90">
               {t('classes.addClass')}
             </Button>
           </DialogFooter>
@@ -401,7 +452,7 @@ export function Classes() {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t('classes.editClass')}</DialogTitle>
           </DialogHeader>
@@ -445,7 +496,7 @@ export function Classes() {
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleEdit} className="bg-navy hover:bg-navy/90 rounded-xl">
+            <Button onClick={handleEdit} className="bg-primary hover:bg-primary/90">
               {t('common.save')}
             </Button>
           </DialogFooter>
@@ -453,34 +504,30 @@ export function Classes() {
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('classes.deleteClass')}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('classes.deleteClass')}</AlertDialogTitle>
+            <AlertDialogDescription>
               {t('classes.deleteConfirmMessage', { name: selectedClass?.name })}
-            </p>
-            {selectedClass && (selectedClass.student_count || 0) > 0 && (
-              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
-                <p className="text-sm text-amber-700">
-                  <AlertCircle className="h-4 w-4 inline mr-1" />
-                  {t('classes.hasStudents', { count: selectedClass.student_count })}
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {selectedClass && (selectedClass.student_count || 0) > 0 && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
+              <p className="text-sm text-amber-700">
+                <AlertCircle className="h-4 w-4 inline mr-1" />
+                {t('classes.hasStudents', { count: selectedClass.student_count })}
+              </p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

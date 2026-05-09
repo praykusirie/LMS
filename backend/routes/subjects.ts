@@ -53,8 +53,14 @@ router.post('/', requirePermission('subjects', 'manage'), async (req: Request, r
         const recordLevel = level ?? user?.level ?? null;
 
         const existing = await pool.query(
-            'SELECT id FROM subjects WHERE LOWER(name) = LOWER($1) OR (code IS NOT NULL AND LOWER(code) = LOWER($2))',
-            [name.trim(), code?.trim() || '']
+            `SELECT id
+             FROM subjects
+             WHERE level IS NOT DISTINCT FROM $3
+               AND (
+                    LOWER(name) = LOWER($1)
+                    OR ($2 <> '' AND code IS NOT NULL AND LOWER(code) = LOWER($2))
+               )`,
+            [name.trim(), code?.trim() || '', recordLevel]
         );
         if (existing.rows.length > 0) {
             res.status(409).json({ message: `Subject with name "${name.trim()}" or code "${code?.trim()}" already exists` });

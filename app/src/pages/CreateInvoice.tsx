@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import {
-  Banknote,
   Check,
   ChevronsUpDown,
   Loader2,
@@ -10,7 +8,9 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Search,
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,10 +43,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { generateInvoicePdf } from '@/lib/invoice-pdf';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface Student {
   id: string;
@@ -107,6 +114,7 @@ interface InvoiceResponse {
 export function CreateInvoice() {
   const { t } = useTranslation();
   const { hasPermission } = usePermissions();
+  const isMobile = useIsMobile();
 
   // Reference data
   const [students, setStudents] = useState<Student[]>([]);
@@ -118,6 +126,9 @@ export function CreateInvoice() {
 
   // Form state
   const [studentComboOpen, setStudentComboOpen] = useState(false);
+  const [studentSheetOpen, setStudentSheetOpen] = useState(false);
+  const [studentSheetSearch, setStudentSheetSearch] = useState('');
+  const [previewSheetOpen, setPreviewSheetOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [academicYear, setAcademicYear] = useState('');
   const [yearGroup, setYearGroup] = useState('');
@@ -307,7 +318,8 @@ export function CreateInvoice() {
     // Apply overrides
     return items.map((li) => {
       if (overrides[li.fee_name] !== undefined && overrides[li.fee_name] !== '') {
-        return { ...li, amount: Number(overrides[li.fee_name]) };
+        const val = Number(overrides[li.fee_name]);
+        return { ...li, amount: Number.isNaN(val) ? 0 : val };
       }
       return li;
     });
@@ -362,7 +374,7 @@ export function CreateInvoice() {
         year_group: yearGroup,
         is_new_student: isNewStudent,
         is_boarder: isBoarder,
-        sibling_discount_percent: Number(siblingDiscount),
+        sibling_discount_percent: siblingDiscount === '' ? 0 : Number(siblingDiscount),
         invoice_date: invoiceDate,
         notes: notes || undefined,
         line_item_overrides: lineItemOverrides.length > 0 ? lineItemOverrides : undefined,
@@ -389,6 +401,17 @@ export function CreateInvoice() {
     setOverridesOpen(false);
   };
 
+  const filteredStudentsForSheet = useMemo(() => {
+    if (!studentSheetSearch) return students;
+    const q = studentSheetSearch.toLowerCase();
+    return students.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.student_id || '').toLowerCase().includes(q) ||
+        (s.admission_number || '').toLowerCase().includes(q),
+    );
+  }, [students, studentSheetSearch]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -400,24 +423,20 @@ export function CreateInvoice() {
   // â”€â”€ Success state: show created invoice â”€â”€
   if (createdInvoice) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-6"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{t('finance.createInvoice')}</h1>
-            <p className="text-muted-foreground">{t('finance.invoiceCreated')}</p>
-          </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={async () => { await generateInvoicePdf(createdInvoice); }}>
-            <Download className="h-4 w-4 mr-1" />
-            {t('finance.downloadPdf')}
-          </Button>
-          <Button onClick={handleNewInvoice}>{t('finance.createInvoice')}</Button>
-        </div>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          title={t('finance.createInvoice')}
+          description={t('finance.invoiceCreated')}
+          secondaryActions={
+            <div className="flex gap-2">
+              <Button variant="outline" className="rounded-xl" onClick={async () => { await generateInvoicePdf(createdInvoice); }}>
+                <Download className="h-4 w-4 mr-1" />
+                {t('finance.downloadPdf')}
+              </Button>
+              <Button className="rounded-xl" onClick={handleNewInvoice}>{t('finance.createInvoice')}</Button>
+            </div>
+          }
+        />
 
         <div className="bg-card rounded-xl border p-6 max-w-2xl">
           <div className="flex items-center gap-3 mb-6">
@@ -465,33 +484,84 @@ export function CreateInvoice() {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
-  // â”€â”€ Form state â”€â”€
+  // Form state
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Banknote className="h-6 w-6" />
-          {t('finance.createInvoice')}
-        </h1>
-        <p className="text-muted-foreground">{t('finance.createInvoiceSubtitle')}</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title={t('finance.createInvoice')}
+        description={t('finance.createInvoiceSubtitle')}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* â”€â”€ Left: Form â”€â”€ */}
+        {/* Left: Form */}
         <div className="space-y-6">
           <div className="bg-card rounded-xl border p-6 space-y-4">
             {/* Student Selection */}
             <div className="space-y-2">
               <Label>{t('finance.selectStudent')}</Label>
-              <Popover open={studentComboOpen} onOpenChange={setStudentComboOpen}>
+              {isMobile ? (
+                <>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start font-normal text-left"
+                    onClick={() => setStudentSheetOpen(true)}
+                  >
+                    <Search className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className={cn(!selectedStudent && 'text-muted-foreground')}>
+                      {selectedStudent
+                        ? `${selectedStudent.name} (${selectedStudent.student_id || selectedStudent.admission_number || ''})`
+                        : t('finance.searchStudent')}
+                    </span>
+                  </Button>
+                  <Sheet open={studentSheetOpen} onOpenChange={setStudentSheetOpen}>
+                    <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] flex flex-col">
+                      <SheetHeader className="pb-3 border-b">
+                        <SheetTitle>{t('finance.searchStudent')}</SheetTitle>
+                      </SheetHeader>
+                      <div className="relative mt-3 mb-2">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder={t('common.search')}
+                          value={studentSheetSearch}
+                          onChange={(e) => setStudentSheetSearch(e.target.value)}
+                          className="pl-9"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="overflow-y-auto flex-1 divide-y divide-border">
+                        {filteredStudentsForSheet.map((student) => (
+                          <button
+                            key={student.id}
+                            className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              setSelectedStudentId(student.id);
+                              setStudentSheetOpen(false);
+                              setStudentSheetSearch('');
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              {selectedStudentId === student.id && (
+                                <Check className="h-4 w-4 text-primary shrink-0" />
+                              )}
+                              <div className={cn('min-w-0', selectedStudentId !== student.id && 'ml-7')}>
+                                <p className="font-medium text-sm">{student.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {student.student_id || student.admission_number} &mdash; {student.class_name}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                </>
+              ) : (
+                <Popover open={studentComboOpen} onOpenChange={setStudentComboOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -540,6 +610,7 @@ export function CreateInvoice() {
                   </Command>
                 </PopoverContent>
               </Popover>
+              )}
             </div>
 
             {/* Academic Year */}
@@ -604,16 +675,20 @@ export function CreateInvoice() {
             {/* Sibling Discount */}
             <div className="space-y-2">
               <Label>{t('finance.siblingDiscount')}</Label>
-              <Select value={siblingDiscount} onValueChange={setSiblingDiscount}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">{t('finance.noDiscount')}</SelectItem>
-                  <SelectItem value="10">{t('finance.secondChild')}</SelectItem>
-                  <SelectItem value="12.5">{t('finance.thirdChild')}</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={siblingDiscount}
+                  onChange={(e) => setSiblingDiscount(e.target.value)}
+                  className="rounded-r-none"
+                />
+                <span className="h-9 px-3 flex items-center border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm">
+                  %
+                </span>
+              </div>
             </div>
 
             {/* Notes */}
@@ -770,6 +845,84 @@ export function CreateInvoice() {
           </div>
         </div>
       </div>
-    </motion.div>
+
+      {/* Mobile floating preview footer */}
+      {isMobile && selectedFee && (
+        <>
+          <div className="fixed bottom-0 left-0 right-0 z-20 bg-card border-t border-border/60 px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">{t('finance.totalFee')}</p>
+              <p className="font-semibold">TZS {formatCurrency(totalAmount)}</p>
+            </div>
+            <Button className="rounded-xl" onClick={() => setPreviewSheetOpen(true)}>
+              <FileText className="h-4 w-4 mr-1" />
+              Preview &amp; Generate
+            </Button>
+          </div>
+          <div className="h-20" />
+
+          <Sheet open={previewSheetOpen} onOpenChange={setPreviewSheetOpen}>
+            <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
+              <SheetHeader className="pb-4 border-b">
+                <SheetTitle>{t('finance.invoicePreview')}</SheetTitle>
+              </SheetHeader>
+              <div className="py-4 space-y-4">
+                {selectedStudent && (
+                  <div className="text-sm">
+                    <p className="font-medium">{selectedStudent.name}</p>
+                    <p className="text-muted-foreground">{selectedStudent.class_name} &mdash; {academicYear}</p>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {previewLineItems.map((li, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span>{li.fee_name}</span>
+                      <span className={li.amount < 0 ? 'text-red-500' : ''}>
+                        {li.amount < 0 ? '-' : ''}TZS {formatCurrency(Math.abs(li.amount))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <Separator />
+                <div className="flex justify-between font-semibold">
+                  <span>{t('finance.totalFee')}</span>
+                  <span>TZS {formatCurrency(totalAmount)}</span>
+                </div>
+                <div className={`grid gap-3 text-sm ${selectedFee?.term3_percent === 0 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                  <div className="text-center p-2 bg-muted/50 rounded">
+                    <p className="text-xs text-muted-foreground">{t('finance.term1')}</p>
+                    <p className="font-semibold">TZS {formatCurrency(termBreakdown.term1)}</p>
+                  </div>
+                  <div className="text-center p-2 bg-muted/50 rounded">
+                    <p className="text-xs text-muted-foreground">{t('finance.term2')}</p>
+                    <p className="font-semibold">TZS {formatCurrency(termBreakdown.term2)}</p>
+                  </div>
+                  {selectedFee?.term3_percent !== 0 && (
+                    <div className="text-center p-2 bg-muted/50 rounded">
+                      <p className="text-xs text-muted-foreground">{t('finance.term3')}</p>
+                      <p className="font-semibold">TZS {formatCurrency(termBreakdown.term3)}</p>
+                    </div>
+                  )}
+                </div>
+                {hasPermission('finance:create') && (
+                  <Button
+                    className="w-full rounded-xl"
+                    size="lg"
+                    onClick={() => { setPreviewSheetOpen(false); handleGenerate(); }}
+                    disabled={isSubmitting || !selectedStudentId}
+                  >
+                    {isSubmitting ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('common.loading')}</>
+                    ) : (
+                      t('finance.generateInvoice')
+                    )}
+                  </Button>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
+    </div>
   );
 }

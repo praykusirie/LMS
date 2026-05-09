@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, Check, Menu, PanelLeft, LogOut, Settings } from 'lucide-react';
+import { Bell, ChevronDown, Check, Menu, PanelLeft, LogOut, Settings, Sun, Moon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,12 +10,35 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { notifications as mockNotifications } from '@/data/mockData';
+import { useNotifications } from '@/lib/notifications';
 import type { Notification } from '@/types';
 import { useSession, signOut } from '@/lib/auth-client';
 import { IdentityAvatar } from '@/components/shared/IdentityAvatar';
+import { useTheme } from '@/lib/theme';
 import { navItems } from './Sidebar';
+
+// Actual routes that exist in App.tsx — used to determine if breadcrumb parent is clickable
+const VALID_ROUTES = new Set([
+  '/dashboard', '/students', '/books', '/classes', '/categories', '/subjects',
+  '/shelf-locations', '/items', '/teachers', '/reports', '/settings',
+  '/overdue', '/borrow-records',
+  '/user-management/user-master', '/user-management/role-master', '/user-management/permissions',
+  '/class-activities', '/results', '/attendance',
+  '/library-inventory/add-stock', '/library-inventory/stock-details',
+  '/books-items-management/issue-book', '/books-items-management/return-book',
+  '/books-items-management/items-distribution',
+  '/finance/create-invoice', '/finance/report', '/finance/fee-structure',
+]);
 
 interface TopBarProps {
   isCollapsed: boolean;
@@ -27,13 +48,12 @@ interface TopBarProps {
 }
 
 export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSidebar }: TopBarProps) {
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const { data: session } = useSession();
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const handleLogout = async () => {
     await signOut();
@@ -51,7 +71,8 @@ export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSideba
       if (item.subItems) {
         for (const sub of item.subItems) {
           if (pathname.startsWith(sub.path)) {
-            return { parent: { label: t(item.label), path: item.path }, current: t(sub.label) };
+            const parentPath = VALID_ROUTES.has(item.path) ? item.path : null;
+            return { parent: { label: t(item.label), path: parentPath }, current: t(sub.label) };
           }
         }
       }
@@ -66,7 +87,8 @@ export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSideba
         if (item.subItems) {
           for (const sub of item.subItems) {
             if (pathname.startsWith(sub.path.split('/').slice(0, 2).join('/'))) {
-              return { parent: { label: t(item.label), path: item.path }, current: t(sub.label) };
+              const parentPath = VALID_ROUTES.has(item.path) ? item.path : null;
+              return { parent: { label: t(item.label), path: parentPath }, current: t(sub.label) };
             }
           }
         }
@@ -80,24 +102,12 @@ export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSideba
 
   const breadcrumb = getBreadcrumb();
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  };
-
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'overdue':
         return 'bg-red-100 dark:bg-red-900/30 text-red-600';
       case 'system':
-        return 'bg-navy-light text-navy';
+        return 'bg-primary/10 text-primary';
       case 'reminder':
         return 'bg-green-light text-green';
       default:
@@ -106,10 +116,7 @@ export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSideba
   };
 
   return (
-    <motion.header
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.25 }}
+    <header
       className={cn(
         "fixed right-0 top-0 z-30 h-[72px] bg-card border-b border-border/60 transition-all duration-300",
         isMobile ? "left-0" : (isCollapsed ? "left-[80px]" : "left-[260px]")
@@ -138,166 +145,164 @@ export function TopBar({ isCollapsed, isMobile, onMobileMenuOpen, onExpandSideba
             </Button>
           ) : null}
 
+          {/* Mobile: page title only */}
           {breadcrumb && (
-            <Breadcrumb>
-              <BreadcrumbList>
-                {breadcrumb.parent && (
-                  <>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink asChild>
-                        <Link to={breadcrumb.parent.path} className="text-muted-foreground hover:text-foreground">
-                          {breadcrumb.parent.label}
-                        </Link>
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                  </>
-                )}
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{breadcrumb.current}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+            <span className="sm:hidden text-sm font-semibold truncate max-w-[180px] text-foreground">
+              {breadcrumb.current}
+            </span>
+          )}
+
+          {/* Desktop: full breadcrumb */}
+          {breadcrumb && (
+            <span className="hidden sm:flex">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  {breadcrumb.parent && (
+                    <>
+                      <BreadcrumbItem>
+                        {breadcrumb.parent.path ? (
+                          <BreadcrumbLink asChild>
+                            <Link to={breadcrumb.parent.path} className="text-muted-foreground hover:text-foreground">
+                              {breadcrumb.parent.label}
+                            </Link>
+                          </BreadcrumbLink>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">{breadcrumb.parent.label}</span>
+                        )}
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator />
+                    </>
+                  )}
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{breadcrumb.current}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </span>
           )}
         </div>
 
         {/* Right Side */}
-        <div className="flex items-center gap-4">
-          {/* Notifications */}
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative rounded-xl"
-              onClick={() => setShowNotifications(!showNotifications)}
-            >
-              <Bell className="h-5 w-5 text-muted-foreground" />
-              {unreadCount > 0 && (
-                <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-navy" />
-              )}
-            </Button>
+        <div className="flex items-center gap-1">
+          {/* Theme Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-xl"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <Moon className="h-5 w-5 text-muted-foreground" />
+            )}
+          </Button>
 
-            <AnimatePresence>
-              {showNotifications && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-card shadow-lg border border-border/60 overflow-hidden"
-                >
-                  <div className="flex items-center justify-between p-4 border-b border-border/60">
-                    <h3 className="font-semibold text-sm">{t('topbar.notifications')}</h3>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllAsRead}
-                        className="text-xs text-navy hover:underline"
+          {/* Notifications */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative rounded-xl">
+                <Bell className="h-5 w-5 text-muted-foreground" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-0 rounded-xl border-border/60">
+              <div className="flex items-center justify-between p-4 border-b border-border/60">
+                <h3 className="font-semibold text-sm">{t('topbar.notifications')}</h3>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {t('topbar.markAllRead')}
+                  </button>
+                )}
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    {t('topbar.noNotifications')}
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={cn(
+                        'flex items-start gap-3 p-4 border-b border-border/40 hover:bg-secondary/50 transition-colors',
+                        !notification.isRead && 'bg-primary/10'
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'h-8 w-8 rounded-lg flex items-center justify-center shrink-0',
+                          getNotificationIcon(notification.type)
+                        )}
                       >
-                        {t('topbar.markAllRead')}
-                      </button>
-                    )}
-                  </div>
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">
-                        {t('topbar.noNotifications')}
+                        <Bell className="h-4 w-4" />
                       </div>
-                    ) : (
-                      notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={cn(
-                            'flex items-start gap-3 p-4 border-b border-border/40 hover:bg-secondary/50 transition-colors',
-                            !notification.isRead && 'bg-navy-light/30'
-                          )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(notification.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {!notification.isRead && (
+                        <button
+                          onClick={() => markAsRead(notification.id)}
+                          className="shrink-0 p-1 hover:bg-secondary rounded"
                         >
-                          <div
-                            className={cn(
-                              'h-8 w-8 rounded-lg flex items-center justify-center shrink-0',
-                              getNotificationIcon(notification.type)
-                            )}
-                          >
-                            <Bell className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground">
-                              {notification.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(notification.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                          {!notification.isRead && (
-                            <button
-                              onClick={() => markAsRead(notification.id)}
-                              className="shrink-0 p-1 hover:bg-secondary rounded"
-                            >
-                              <Check className="h-3.5 w-3.5 text-muted-foreground" />
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                          <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* Profile */}
-          <div className="relative">
-            <button
-              onClick={() => setShowProfile(!showProfile)}
-              className="flex items-center gap-3 rounded-xl p-2 hover:bg-secondary transition-colors"
-            >
-              <IdentityAvatar name={displayName} className="h-8 w-8" fallbackClassName="bg-navy text-white text-xs" />
-              <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-foreground">{displayName}</p>
-                <p className="text-xs text-muted-foreground capitalize">{displayRole}</p>
-              </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </button>
-
-            <AnimatePresence>
-              {showProfile && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-card shadow-lg border border-border/60 overflow-hidden"
-                >
-                  <div className="p-4 border-b border-border/60">
-                    <p className="font-medium text-sm">{displayName}</p>
-                    <p className="text-xs text-muted-foreground">{displayEmail}</p>
-                  </div>
-                  <div className="p-2">
-                    <button
-                      onClick={() => { navigate('/settings'); setShowProfile(false); }}
-                      className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                    >
-                      <Settings className="h-4 w-4" />
-                      {t('topbar.profileSettings')}
-                    </button>
-                  </div>
-                  <div className="p-2 border-t border-border/60">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-colors"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      {t('topbar.logout')}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-3 rounded-xl p-2 hover:bg-secondary transition-colors outline-none">
+                <IdentityAvatar name={displayName} className="h-8 w-8" fallbackClassName="bg-primary text-primary-foreground text-xs" />
+                <div className="hidden md:block text-left">
+                  <p className="text-sm font-medium text-foreground">{displayName}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{displayRole}</p>
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-xl">
+              <DropdownMenuLabel className="font-normal">
+                <p className="font-medium text-sm">{displayName}</p>
+                <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/settings')}>
+                <Settings className="h-4 w-4 mr-2" />
+                {t('topbar.profileSettings')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-red-500 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                {t('topbar.logout')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }

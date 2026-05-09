@@ -59,6 +59,17 @@ module.exports = {
       boxShadow: {
         xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
       },
+      fontFamily: {
+        sans: ['"Geist"', 'Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        lazydog: ['"Lazy Dog"', 'cursive'],
+      },
+      fontSize: {
+        display:    ['2.25rem',  { lineHeight: '2.5rem',  fontWeight: '700', letterSpacing: '-0.02em' }],
+        heading:    ['1.5rem',   { lineHeight: '2rem',    fontWeight: '600', letterSpacing: '-0.01em' }],
+        subheading: ['1.125rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+        body:       ['0.875rem', { lineHeight: '1.5rem',  fontWeight: '400' }],
+        caption:    ['0.75rem',  { lineHeight: '1rem',    fontWeight: '400' }],
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

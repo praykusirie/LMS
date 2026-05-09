@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Download, BarChart3, Users, BookOpen, Clock, Calendar, Filter, Search,
@@ -138,7 +138,7 @@ export function Reports() {
 
   const LoadingOverlay = () => loading ? (
     <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-navy" />
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   ) : null;
 
@@ -172,12 +172,12 @@ export function Reports() {
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
-            { label: t('reports.totalBooks'), value: overviewData.stats.total_books, icon: BookOpen, bg: 'bg-navy-light', iconColor: 'text-navy' },
-            { label: t('reports.activeBorrows'), value: overviewData.stats.borrowed_books, icon: Users, bg: 'bg-navy-light', iconColor: 'text-navy' },
+            { label: t('reports.totalBooks'), value: overviewData.stats.total_books, icon: BookOpen, bg: 'bg-primary/10', iconColor: 'text-primary' },
+            { label: t('reports.activeBorrows'), value: overviewData.stats.borrowed_books, icon: Users, bg: 'bg-primary/10', iconColor: 'text-primary' },
             { label: t('reports.overdueBooks'), value: overviewData.stats.overdue_books, icon: Clock, bg: 'bg-red-50 dark:bg-red-950/30', iconColor: 'text-red-600' },
             { label: t('reports.totalStudents'), value: overviewData.stats.registered_students, icon: GraduationCap, bg: 'bg-green-50 dark:bg-green-950/30', iconColor: 'text-green-600' },
           ].map((card) => (
-            <Card key={card.label} className="rounded-[20px] shadow-card border-0">
+            <Card key={card.label} className="rounded-lg shadow-card border-0">
               <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle></CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3">
@@ -197,12 +197,12 @@ export function Reports() {
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
-            { label: t('dashboard.myClasses'), value: teacherData.summary.total_classes, icon: BookOpen, bg: 'bg-navy-light', iconColor: 'text-navy' },
+            { label: t('dashboard.myClasses'), value: teacherData.summary.total_classes, icon: BookOpen, bg: 'bg-primary/10', iconColor: 'text-primary' },
             { label: t('dashboard.myStudents'), value: teacherData.summary.total_students, icon: Users, bg: 'bg-green-50 dark:bg-green-950/30', iconColor: 'text-green-600' },
             { label: t('dashboard.avgScore'), value: teacherData.summary.avgScore, icon: BarChart3, bg: 'bg-amber-50 dark:bg-amber-950/30', iconColor: 'text-amber-600' },
             { label: t('dashboard.passRate'), value: `${teacherData.summary.passRate}%`, icon: CheckCircle2, bg: 'bg-green-50 dark:bg-green-950/30', iconColor: 'text-green-600' },
           ].map((card) => (
-            <Card key={card.label} className="rounded-[20px] shadow-card border-0">
+            <Card key={card.label} className="rounded-lg shadow-card border-0">
               <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle></CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3">
@@ -219,13 +219,13 @@ export function Reports() {
 
       {/* Main Tabs */}
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
-        className="rounded-[20px] bg-card p-6 shadow-card">
+        className="rounded-lg bg-card p-6 shadow-card">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ReportTab)} className="w-full">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
             <TabsList className="rounded-xl h-auto sm:h-11 w-full lg:w-auto overflow-x-auto"
               style={{ display: 'grid', gridTemplateColumns: `repeat(${allowedTabs.length}, 1fr)` }}>
               {allowedTabs.map((tab) => (
-                <TabsTrigger key={tab} value={tab} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-navy data-[state=active]:text-white">
+                <TabsTrigger key={tab} value={tab} className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   {t(`reports.${tab}`) || tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </TabsTrigger>
               ))}
@@ -269,7 +269,7 @@ export function Reports() {
                             <td className="px-4 py-3 text-sm text-muted-foreground">{cp.avg_score}</td>
                             <td className="px-4 py-3"><div className="flex items-center gap-2">
                               <div className="flex-1 h-2 bg-secondary rounded-full max-w-[100px]">
-                                <div className="h-2 bg-navy rounded-full" style={{ width: `${cp.pass_rate}%` }} />
+                                <div className="h-2 bg-primary rounded-full" style={{ width: `${cp.pass_rate}%` }} />
                               </div>
                               <span className="text-xs text-muted-foreground">{cp.pass_rate}%</span>
                             </div></td>
@@ -300,7 +300,7 @@ export function Reports() {
                             <td className="px-4 py-3 font-medium text-sm">{ac.activity_name}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{ac.class_name}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(ac.date).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 text-sm"><span className="text-navy font-medium">{ac.marks_entered}/{ac.total_students}</span></td>
+                            <td className="px-4 py-3 text-sm"><span className="text-primary font-medium">{ac.marks_entered}/{ac.total_students}</span></td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{ac.avg_marks}/{ac.total_marks}</td>
                           </tr>
                         ))}
@@ -378,7 +378,7 @@ export function Reports() {
                             <td className="px-4 py-3"><span className="text-sm text-red-600 font-medium">{item.overdue}</span></td>
                             <td className="px-4 py-3"><div className="flex items-center gap-2">
                               <div className="flex-1 h-2 bg-secondary rounded-full max-w-[100px]">
-                                <div className="h-2 bg-navy rounded-full" style={{ width: `${item.borrowed > 0 ? Math.round((item.returned / item.borrowed) * 100) : 0}%` }} />
+                                <div className="h-2 bg-primary rounded-full" style={{ width: `${item.borrowed > 0 ? Math.round((item.returned / item.borrowed) * 100) : 0}%` }} />
                               </div>
                               <span className="text-xs text-muted-foreground">{item.borrowed > 0 ? Math.round((item.returned / item.borrowed) * 100) : 0}%</span>
                             </div></td>
@@ -399,13 +399,13 @@ export function Reports() {
                     <div className="space-y-3">
                       {overviewData.topBorrowedBooks.map((book: any, index: number) => (
                         <div key={book.title} className="flex items-center gap-3 p-3 bg-secondary/30 rounded-xl">
-                          <div className="h-8 w-8 rounded-lg bg-navy text-white flex items-center justify-center text-sm font-bold">{index + 1}</div>
+                          <div className="h-8 w-8 rounded-lg bg-primary text-white flex items-center justify-center text-sm font-bold">{index + 1}</div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{book.title}</p>
                             <p className="text-xs text-muted-foreground">{book.author}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-navy">{book.borrow_count}</p>
+                            <p className="text-sm font-bold text-primary">{book.borrow_count}</p>
                             <p className="text-xs text-muted-foreground">{t('reports.borrows')}</p>
                           </div>
                         </div>
@@ -418,13 +418,13 @@ export function Reports() {
                     <div className="space-y-3">
                       {overviewData.topBorrowers.map((student: any, index: number) => (
                         <div key={student.name} className="flex items-center gap-3 p-3 bg-secondary/30 rounded-xl">
-                          <div className="h-8 w-8 rounded-lg bg-navy text-white flex items-center justify-center text-sm font-bold">{index + 1}</div>
+                          <div className="h-8 w-8 rounded-lg bg-primary text-white flex items-center justify-center text-sm font-bold">{index + 1}</div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{student.name}</p>
                             <p className="text-xs text-muted-foreground">{student.class}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-navy">{student.borrow_count}</p>
+                            <p className="text-sm font-bold text-primary">{student.borrow_count}</p>
                             <p className="text-xs text-muted-foreground">{student.return_rate}% {t('reports.returnPct')}</p>
                           </div>
                         </div>
@@ -476,7 +476,7 @@ export function Reports() {
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
                             record.status === 'returned' ? 'bg-green-100 dark:bg-green-900/30 text-green-700'
-                              : record.status === 'overdue' ? 'bg-red-100 dark:bg-red-900/30 text-red-700' : 'bg-navy-light text-navy'
+                              : record.status === 'overdue' ? 'bg-red-100 dark:bg-red-900/30 text-red-700' : 'bg-primary/10 text-primary'
                           }`}>
                             {record.status === 'returned' && <CheckCircle2 className="h-3 w-3" />}
                             {record.status === 'overdue' && <AlertCircle className="h-3 w-3" />}
@@ -568,7 +568,7 @@ export function Reports() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div className="p-4 rounded-xl bg-secondary/30"><p className="text-xs text-muted-foreground">{t('reports.totalStudents')}</p><p className="text-xl font-bold mt-1">{studentsData.stats.total_students}</p></div>
                 <div className="p-4 rounded-xl bg-green-50 dark:bg-green-950/30"><p className="text-xs text-green-700">{t('reports.active')}</p><p className="text-xl font-bold mt-1 text-green-700">{studentsData.stats.active}</p></div>
-                <div className="p-4 rounded-xl bg-navy-light"><p className="text-xs text-navy">{t('reports.withBorrows')}</p><p className="text-xl font-bold mt-1 text-navy">{studentsData.stats.with_borrows}</p></div>
+                <div className="p-4 rounded-xl bg-primary/10"><p className="text-xs text-primary">{t('reports.withBorrows')}</p><p className="text-xl font-bold mt-1 text-primary">{studentsData.stats.with_borrows}</p></div>
                 <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30"><p className="text-xs text-red-700">{t('reports.withOverdue')}</p><p className="text-xl font-bold mt-1 text-red-700">{studentsData.stats.with_overdue}</p></div>
               </div>
               <div className="rounded-xl border border-border/60 overflow-hidden">
@@ -744,3 +744,5 @@ export function Reports() {
     </div>
   );
 }
+
+

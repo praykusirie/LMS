@@ -3,8 +3,89 @@ import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
 import { requirePermission } from '../lib/middleware.js';
+import { getTeacherAccessContext, teacherHasAssignedLevel } from '../lib/teacher-access.js';
 
 const router = Router();
+
+async function getTeacherAttendanceScope(user: Awaited<ReturnType<typeof getSessionUser>>) {
+    if (!user) {
+        return { mode: 'levels' as const, assignedLevels: [], classes: [] };
+    }
+
+    const teacherAccess = await getTeacherAccessContext(pool, user);
+    if (teacherAccess.isHomeroomTeacher && teacherAccess.homeroomClassId) {
+        const classResult = await pool.query<{ id: string; name: string; level: string | null }>(
+            'SELECT id, name, level FROM classes WHERE id = $1',
+            [teacherAccess.homeroomClassId],
+        );
+
+        return {
+            mode: 'homeroom' as const,
+            assignedLevels: teacherAccess.assignedLevels,
+            classes: classResult.rows,
+        };
+    }
+
+    if (teacherAccess.assignedLevels.length === 0) {
+        return {
+            mode: 'levels' as const,
+            assignedLevels: teacherAccess.assignedLevels,
+            classes: [],
+        };
+    }
+
+    const classResult = await pool.query<{ id: string; name: string; level: string | null }>(
+        `SELECT id, name, level
+         FROM classes
+         WHERE level = ANY($1::text[])
+         ORDER BY name ASC`,
+        [teacherAccess.assignedLevels],
+    );
+
+    return {
+        mode: 'levels' as const,
+        assignedLevels: teacherAccess.assignedLevels,
+        classes: classResult.rows,
+    };
+}
+
+async function ensureTeacherCanAccessAttendanceClass(
+    user: Awaited<ReturnType<typeof getSessionUser>>,
+    classId: string,
+) {
+    if (!user) {
+        return { ok: false as const, status: 401, error: 'Unauthorized' };
+    }
+
+    const classResult = await pool.query<{ id: string; name: string; level: string | null }>(
+        'SELECT id, name, level FROM classes WHERE id = $1',
+        [classId],
+    );
+    const classRow = classResult.rows[0];
+    if (!classRow) {
+        return { ok: false as const, status: 404, error: 'Class not found' };
+    }
+
+    if (user.role !== 'teacher') {
+        return { ok: true as const, classRow };
+    }
+
+    const teacherScope = await getTeacherAttendanceScope(user);
+    if (teacherScope.mode === 'homeroom') {
+        const homeroomClass = teacherScope.classes[0];
+        if (!homeroomClass || homeroomClass.id !== classId) {
+            return { ok: false as const, status: 403, error: 'Access denied for selected class' };
+        }
+
+        return { ok: true as const, classRow };
+    }
+
+    if (!teacherHasAssignedLevel(teacherScope.assignedLevels, classRow.level)) {
+        return { ok: false as const, status: 403, error: 'Access denied for selected class' };
+    }
+
+    return { ok: true as const, classRow };
+}
 
 // Get the homeroom class for the current teacher user
 router.get('/my-class', async (req: Request, res: Response) => {
@@ -12,30 +93,68 @@ router.get('/my-class', async (req: Request, res: Response) => {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
-        const result = await pool.query(
-            `SELECT u.homeroom_class_id AS class_id, c.name AS class_name
-             FROM "user" u
-             LEFT JOIN classes c ON c.id = u.homeroom_class_id
-             WHERE u.id = $1 AND u.is_homeroom_teacher = TRUE`,
-            [user.id]
-        );
-
-        if (result.rows.length === 0 || !result.rows[0].class_id) {
+        if (user.role !== 'teacher') {
             res.json({ class_id: null, class_name: null });
             return;
         }
 
-        res.json(result.rows[0]);
+        const teacherScope = await getTeacherAttendanceScope(user);
+        const homeroomClass = teacherScope.mode === 'homeroom' ? teacherScope.classes[0] : null;
+
+        if (!homeroomClass) {
+            res.json({ class_id: null, class_name: null });
+            return;
+        }
+
+        res.json({ class_id: homeroomClass.id, class_name: homeroomClass.name });
     } catch (error) {
         console.error('Error fetching homeroom class:', error);
         res.status(500).json({ error: 'Failed to fetch homeroom class' });
     }
 });
 
+// Get attendance class access for the current user
+router.get('/my-classes', async (req: Request, res: Response) => {
+    try {
+        const user = await getSessionUser(req);
+        if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+        if (user.role === 'teacher') {
+            const teacherScope = await getTeacherAttendanceScope(user);
+            res.json({ mode: teacherScope.mode, classes: teacherScope.classes });
+            return;
+        }
+
+        const { clause, params } = getLevelFilter(user);
+        const result = await pool.query(
+            `SELECT id, name, level
+             FROM classes
+             WHERE 1=1 ${clause}
+             ORDER BY name ASC`,
+            params,
+        );
+
+        res.json({ mode: 'levels', classes: result.rows });
+    } catch (error) {
+        console.error('Error fetching attendance classes:', error);
+        res.status(500).json({ error: 'Failed to fetch attendance classes' });
+    }
+});
+
 // Check if attendance exists for a class on a given date
 router.get('/check/:classId/:date', async (req: Request, res: Response) => {
     try {
-        const { classId, date } = req.params;
+        const classId = String(req.params.classId || '');
+        const date = String(req.params.date || '');
+        const user = await getSessionUser(req);
+
+        if (user?.role === 'teacher') {
+            const classAccess = await ensureTeacherCanAccessAttendanceClass(user, classId);
+            if (!classAccess.ok) {
+                res.status(classAccess.status).json({ error: classAccess.error });
+                return;
+            }
+        }
 
         const result = await pool.query(
             `SELECT COUNT(*)::int AS count
@@ -57,11 +176,18 @@ router.get('/', async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         const { class_id, date } = req.query;
-        const { clause: levelClause, params: levelParams, paramOffset } = getLevelFilter(user, 'a');
 
         const where: string[] = ['1=1'];
-        const params: unknown[] = [...levelParams];
-        let idx = paramOffset;
+        const params: unknown[] = [];
+        let idx = 1;
+
+        if (user?.role === 'teacher' && class_id) {
+            const classAccess = await ensureTeacherCanAccessAttendanceClass(user, String(class_id));
+            if (!classAccess.ok) {
+                res.status(classAccess.status).json({ error: classAccess.error });
+                return;
+            }
+        }
 
         if (class_id) {
             where.push(`a.class_id = $${idx}`);
@@ -74,16 +200,34 @@ router.get('/', async (req: Request, res: Response) => {
             idx++;
         }
 
-        // Homeroom teachers see only their class
         if (user?.role === 'teacher') {
-            const homeroom = await pool.query(
-                `SELECT homeroom_class_id FROM "user" WHERE id = $1 AND is_homeroom_teacher = TRUE`,
-                [user.id]
-            );
-            if (homeroom.rows.length > 0 && homeroom.rows[0].homeroom_class_id) {
+            const teacherScope = await getTeacherAttendanceScope(user);
+            if (!class_id && teacherScope.mode === 'homeroom') {
+                const homeroomClass = teacherScope.classes[0];
+                if (!homeroomClass) {
+                    res.json([]);
+                    return;
+                }
+
                 where.push(`a.class_id = $${idx}`);
-                params.push(homeroom.rows[0].homeroom_class_id);
+                params.push(homeroomClass.id);
                 idx++;
+            } else if (!class_id) {
+                if (teacherScope.assignedLevels.length === 0) {
+                    res.json([]);
+                    return;
+                }
+
+                where.push(`c.level = ANY($${idx}::text[])`);
+                params.push(teacherScope.assignedLevels);
+                idx++;
+            }
+        } else {
+            const { clause: levelClause, params: levelParams, paramOffset } = getLevelFilter(user, 'a', idx);
+            if (levelClause) {
+                where.push(levelClause.replace(/^AND\s+/, ''));
+                params.push(...levelParams);
+                idx = paramOffset;
             }
         }
 
@@ -96,7 +240,7 @@ router.get('/', async (req: Request, res: Response) => {
              JOIN students s ON s.id = a.student_id
              JOIN classes c ON c.id = a.class_id
              LEFT JOIN "user" u ON u.id = a.recorded_by
-             WHERE ${where.join(' AND ')} ${levelClause}
+             WHERE ${where.join(' AND ')}
              ORDER BY s.name`,
             params
         );
@@ -111,10 +255,19 @@ router.get('/', async (req: Request, res: Response) => {
 // Get attendance summary (list of dates with counts) for a class
 router.get('/summary', async (req: Request, res: Response) => {
     try {
+        const user = await getSessionUser(req);
         const { class_id } = req.query;
         if (!class_id) {
             res.status(400).json({ error: 'class_id is required' });
             return;
+        }
+
+        if (user?.role === 'teacher') {
+            const classAccess = await ensureTeacherCanAccessAttendanceClass(user, String(class_id));
+            if (!classAccess.ok) {
+                res.status(classAccess.status).json({ error: classAccess.error });
+                return;
+            }
         }
 
         const result = await pool.query(
@@ -163,6 +316,14 @@ router.post('/', requirePermission('attendance', 'manage'), async (req: Request,
         }
 
         // Get the class level for the records
+        const classAccess = user?.role === 'teacher'
+            ? await ensureTeacherCanAccessAttendanceClass(user, class_id)
+            : null;
+        if (classAccess && !classAccess.ok) {
+            res.status(classAccess.status).json({ error: classAccess.error });
+            return;
+        }
+
         const classResult = await client.query('SELECT level FROM classes WHERE id = $1', [class_id]);
         const classLevel = classResult.rows[0]?.level || null;
 

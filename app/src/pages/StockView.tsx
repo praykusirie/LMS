@@ -165,7 +165,7 @@ export function StockView() {
       }
       
       if (field === 'quantity') {
-        const qty = Number(value);
+        const qty = value === '' ? 0 : Number(value);
         return {
           ...item,
           quantity: qty,
@@ -174,7 +174,7 @@ export function StockView() {
       }
 
       if (field === 'current_stock') {
-        const cs = Number(value);
+        const cs = value === '' ? 0 : Number(value);
         let status = 'available';
         if (cs <= 0) status = 'out_of_stock';
         else if (cs <= 5) status = 'low';
@@ -287,7 +287,7 @@ export function StockView() {
         <Button 
           onClick={handleSave}
           disabled={isSaving || items.filter(i => i.item_id && i.quantity > 0).length === 0}
-          className="bg-navy hover:bg-navy/90"
+          className="bg-primary hover:bg-primary/90"
         >
           {isSaving ? (
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -300,7 +300,7 @@ export function StockView() {
       </div>
 
       {/* Stock Info */}
-      <div className="rounded-[20px] bg-card p-6 shadow-card-sm">
+      <div className="rounded-lg bg-card p-6 shadow-card-sm">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
           <div className="space-y-2">
             <Label className="text-muted-foreground flex items-center gap-2">
@@ -365,7 +365,7 @@ export function StockView() {
       </div>
 
       {/* Stock Items */}
-      <div className="rounded-[20px] bg-card p-6 shadow-card-sm">
+      <div className="rounded-lg bg-card p-6 shadow-card-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">{t('stock.stockItems')}</h2>
           <Button variant="outline" onClick={addItem} className="rounded-xl">
@@ -457,3 +457,5 @@ export function StockView() {
     </div>
   );
 }
+
+

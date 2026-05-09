@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { Package, Search, Send, Printer, Download } from 'lucide-react';
+import { Package, Search, Send, Printer, Download, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -16,8 +16,19 @@ import {
 } from '@/components/ui/select';
 import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumn } from '@/components/ui/data-table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import api from '@/lib/api';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface Teacher {
   id: string;
@@ -60,10 +71,12 @@ export function ItemsDistribution() {
   const [records, setRecords] = useState<DistributionRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [teacherFilter, setTeacherFilter] = useState('all');
   const [itemFilter, setItemFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [voidTarget, setVoidTarget] = useState<DistributionRecord | null>(null);
 
   useEffect(() => {
     fetchReferenceData();
@@ -108,10 +121,12 @@ export function ItemsDistribution() {
   const fetchRecords = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const { data } = await api.get('/item-distributions', { params: buildFilterParams() });
       setRecords(data || []);
     } catch (error) {
       console.error('Error fetching distribution history:', error);
+      setIsError(true);
       toast.error(t('itemsDistribution.failedToLoadHistory'));
     } finally {
       setIsLoading(false);
@@ -271,44 +286,49 @@ export function ItemsDistribution() {
       getValue: (row) => row.issued_by_name || '',
       render: (row) => <span>{row.issued_by_name || '-'}</span>,
     },
-  ], []);
+    ...(hasPermission('distribution:delete') ? [{
+      key: 'actions' as keyof DistributionRecord,
+      header: '',
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (row: DistributionRecord) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={(e) => { e.stopPropagation(); setVoidTarget(row); }}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      ),
+    }] : []),
+  ], [hasPermission, t]);
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('itemsDistribution.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('itemsDistribution.subtitle')}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handlePrintReport} className="rounded-xl h-11">
-            <Printer className="h-4 w-4 mr-2" />
-            {t('itemsDistribution.printReport')}
-          </Button>
-          <Button variant="outline" onClick={handleExportReport} className="rounded-xl h-11">
-            <Download className="h-4 w-4 mr-2" />
-            {t('itemsDistribution.exportCsv')}
-          </Button>
-          {hasPermission('items:create') && (
-          <Button onClick={() => navigate('/books-items-management/items-distribution/new')} className="bg-navy hover:bg-navy/90 rounded-xl h-11">
-            <Send className="h-4 w-4 mr-2" />
-            {t('itemsDistribution.distributeItem')}
-          </Button>
-          )}
-        </div>
-      </motion.div>
+      <PageHeader
+        title={t('itemsDistribution.title')}
+        description={t('itemsDistribution.subtitle')}
+        action={hasPermission('distribution:create') ? {
+          label: t('itemsDistribution.distributeItem'),
+          icon: Send,
+          onClick: () => navigate('/books-items-management/items-distribution/new'),
+        } : undefined}
+        secondaryActions={
+          <>
+            <Button variant="outline" onClick={handlePrintReport} className="rounded-xl h-11">
+              <Printer className="h-4 w-4 mr-2" />
+              {t('itemsDistribution.printReport')}
+            </Button>
+            <Button variant="outline" onClick={handleExportReport} className="rounded-xl h-11">
+              <Download className="h-4 w-4 mr-2" />
+              {t('itemsDistribution.exportCsv')}
+            </Button>
+          </>
+        }
+      />
 
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="space-y-3"
-      >
+      <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end">
           <div className="relative flex-1 min-w-0 sm:min-w-[240px] max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -368,23 +388,98 @@ export function ItemsDistribution() {
             {t('itemsDistribution.clearFilters')}
           </Button>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-      >
+      {/* Mobile cards */}
+      <div className="space-y-3 lg:hidden">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground text-center py-8">{t('common.loading', 'Loading...')}</p>
+        ) : filteredRecords.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">{t('itemsDistribution.noDistributions')}</p>
+        ) : (
+          filteredRecords.map((record) => (
+            <div key={record.id} className="p-4 bg-card border rounded-xl space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{record.teacher_name}</p>
+                  <p className="text-xs text-muted-foreground">{record.teacher_code}</p>
+                </div>
+                {hasPermission('distribution:delete') && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => setVoidTarget(record)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">{record.item_name}</span>
+                <Badge variant="secondary" className="text-xs">{record.item_unit}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Qty: <span className="font-medium text-foreground">{Number(record.quantity).toLocaleString()}</span></span>
+                <span>{new Date(record.distribution_date).toLocaleDateString()}</span>
+              </div>
+              {record.issued_by_name && (
+                <p className="text-xs text-muted-foreground">Issued by: {record.issued_by_name}</p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden lg:block">
         <DataTable
           data={filteredRecords}
           columns={columns}
           isLoading={isLoading}
+          isError={isError}
+          onRetry={() => { setIsError(false); fetchRecords(); }}
           getRowId={(row) => row.id}
           emptyIcon={Package}
           emptyTitle={t('itemsDistribution.noDistributions')}
           emptyDescription={t('itemsDistribution.noDistributionsDesc')}
         />
-      </motion.div>
+      </div>
+
+      {/* Void confirmation dialog */}
+      <AlertDialog open={!!voidTarget} onOpenChange={(open) => { if (!open) setVoidTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('itemsDistribution.voidTitle', 'Void Distribution?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('itemsDistribution.voidDesc', 'Stock will be automatically restored.')}
+              {voidTarget && (
+                <span className="block mt-1 font-medium text-foreground">{voidTarget.item_name} × {voidTarget.quantity} — {voidTarget.teacher_name}</span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!voidTarget) return;
+                try {
+                  await api.delete(`/item-distributions/${voidTarget.id}`);
+                  toast.success(t('itemsDistribution.voidSuccess', 'Distribution voided and stock restored'));
+                  setVoidTarget(null);
+                  fetchRecords();
+                } catch (error) {
+                  console.error('Error voiding distribution:', error);
+                  toast.error(t('itemsDistribution.voidError', 'Failed to void distribution'));
+                }
+              }}
+            >
+              {t('itemsDistribution.voidConfirm', 'Void')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

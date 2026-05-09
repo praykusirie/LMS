@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import { ArrowLeft, PackagePlus, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import api from '@/lib/api';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface Teacher {
   id: string;
@@ -130,8 +131,8 @@ export function ItemsDistributionCreate() {
   };
 
   const updateDraftQuantity = (id: string, rawValue: string) => {
-    const qty = Number(rawValue);
-    if (!Number.isFinite(qty) || qty <= 0) return;
+    let qty = rawValue === '' ? 1 : Number(rawValue);
+    if (!Number.isFinite(qty) || qty <= 0) qty = 1;
 
     setDraftItems((prev) => {
       const current = prev.find((row) => row.id === id);
@@ -184,28 +185,17 @@ export function ItemsDistributionCreate() {
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('itemsDistribution.newDistributionTitle')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('itemsDistribution.newDistributionSubtitle')}</p>
-        </div>
-        <Button variant="outline" className="rounded-xl" onClick={() => navigate('/books-items-management/items-distribution')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          {t('itemsDistribution.backToHistory')}
-        </Button>
-      </motion.div>
+      <PageHeader
+        title={t('itemsDistribution.newDistributionTitle')}
+        description={t('itemsDistribution.newDistributionSubtitle')}
+        action={{
+          label: t('itemsDistribution.backToHistory'),
+          icon: ArrowLeft,
+          onClick: () => navigate('/books-items-management/items-distribution'),
+        }}
+      />
 
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.05 }}
-        className="rounded-[20px] bg-card p-6 shadow-card space-y-4"
-      >
+      <div className="rounded-lg bg-card p-6 shadow-card space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>{t('itemsDistribution.teacher')}</Label>
@@ -233,14 +223,9 @@ export function ItemsDistributionCreate() {
             />
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="rounded-[20px] bg-card p-6 shadow-card space-y-4"
-      >
+      <div className="rounded-lg bg-card p-6 shadow-card space-y-4">
         <h2 className="text-lg font-semibold">{t('itemsDistribution.addItems')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] md:grid-cols-[1fr_160px_auto] gap-3 items-end">
           <div className="space-y-2">
@@ -270,19 +255,14 @@ export function ItemsDistributionCreate() {
             />
           </div>
 
-          <Button onClick={addDraftItem} className="bg-navy hover:bg-navy/90 rounded-xl h-11" disabled={isLoading}>
+          <Button onClick={addDraftItem} className="bg-primary hover:bg-primary/90 rounded-xl h-11" disabled={isLoading}>
             <Plus className="h-4 w-4 mr-2" />
             {t('itemsDistribution.add')}
           </Button>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-        className="rounded-[20px] bg-card p-6 shadow-card"
-      >
+      <div className="rounded-lg bg-card p-6 shadow-card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">{t('itemsDistribution.distributionItems')}</h2>
           <div className="text-sm text-muted-foreground">{totalLines} {t('itemsDistribution.lines')} • {totalUnits} {t('itemsDistribution.totalUnits')}</div>
@@ -293,57 +273,89 @@ export function ItemsDistributionCreate() {
             {t('itemsDistribution.noItemsAdded')}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left border-b">
-                  <th className="py-3 pr-3">{t('itemsDistribution.item')}</th>
-                  <th className="py-3 pr-3">{t('itemsDistribution.available')}</th>
-                  <th className="py-3 pr-3">{t('itemsDistribution.quantity')}</th>
-                  <th className="py-3 pr-3">{t('itemsDistribution.unit')}</th>
-                  <th className="py-3 text-right">{t('itemsDistribution.action')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draftItems.map((row) => (
-                  <tr key={row.id} className="border-b last:border-0">
-                    <td className="py-3 pr-3 font-medium">{row.item_name}</td>
-                    <td className="py-3 pr-3">{row.available}</td>
-                    <td className="py-3 pr-3">
-                      <Input
-                        type="number"
-                        min={1}
-                        value={row.quantity}
-                        onChange={(e) => updateDraftQuantity(row.id, e.target.value)}
-                        className="h-9 max-w-[120px]"
-                      />
-                    </td>
-                    <td className="py-3 pr-3">{row.unit}</td>
-                    <td className="py-3 text-right">
-                      <Button variant="ghost" size="icon" onClick={() => removeDraftItem(row.id)}>
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </td>
+          <>
+            {/* Mobile cards */}
+            <div className="space-y-3 lg:hidden">
+              {draftItems.map((row) => (
+                <div key={row.id} className="p-3 border rounded-xl space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-sm">{row.item_name}</p>
+                      <Badge variant="secondary" className="text-xs mt-1">{row.unit}</Badge>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeDraftItem(row.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Available: {row.available}</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={row.quantity}
+                      onChange={(e) => updateDraftQuantity(row.id, e.target.value)}
+                      className="h-8 w-24 text-sm"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left border-b">
+                    <th className="py-3 pr-3">{t('itemsDistribution.item')}</th>
+                    <th className="py-3 pr-3">{t('itemsDistribution.available')}</th>
+                    <th className="py-3 pr-3">{t('itemsDistribution.quantity')}</th>
+                    <th className="py-3 pr-3">{t('itemsDistribution.unit')}</th>
+                    <th className="py-3 text-right">{t('itemsDistribution.action')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {draftItems.map((row) => (
+                    <tr key={row.id} className="border-b last:border-0">
+                      <td className="py-3 pr-3 font-medium">{row.item_name}</td>
+                      <td className="py-3 pr-3">{row.available}</td>
+                      <td className="py-3 pr-3">
+                        <Input
+                          type="number"
+                          min={1}
+                          value={row.quantity}
+                          onChange={(e) => updateDraftQuantity(row.id, e.target.value)}
+                          className="h-9 max-w-[120px]"
+                        />
+                      </td>
+                      <td className="py-3 pr-3">{row.unit}</td>
+                      <td className="py-3 text-right">
+                        <Button variant="ghost" size="icon" onClick={() => removeDraftItem(row.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="outline" className="rounded-xl" onClick={() => navigate('/books-items-management/items-distribution')}>
             {t('itemsDistribution.cancel')}
           </Button>
-          {hasPermission('items:create') && (
-          <Button className="bg-navy hover:bg-navy/90 rounded-xl" onClick={handleSave} disabled={isSubmitting || draftItems.length === 0}>
+          {hasPermission('distribution:create') && (
+          <Button className="bg-primary hover:bg-primary/90 rounded-xl" onClick={handleSave} disabled={isSubmitting || draftItems.length === 0}>
             <PackagePlus className="h-4 w-4 mr-2" />
             {isSubmitting ? t('itemsDistribution.saving') : t('itemsDistribution.saveDistribution')}
           </Button>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
+
+
 

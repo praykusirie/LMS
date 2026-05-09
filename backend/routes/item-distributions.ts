@@ -3,6 +3,11 @@ import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
 import { requirePermission } from '../lib/middleware.js';
+import {
+    createItemDistributionService,
+    createBatchItemDistributionService,
+    deleteItemDistributionService
+} from '../lib/item-distributions.service.js';
 
 const router = Router();
 
@@ -56,7 +61,7 @@ function csvEscape(value: unknown): string {
     return str;
 }
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requirePermission('distribution', 'view'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         const { clause: levelClause, params: levelParams, paramOffset } = getLevelFilter(user, 'd');
@@ -85,7 +90,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 });
 
-router.get('/report', async (req: Request, res: Response) => {
+router.get('/report', requirePermission('distribution', 'view'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         const { clause: levelClause, params: levelParams, paramOffset } = getLevelFilter(user, 'd');
@@ -143,9 +148,7 @@ router.get('/report', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/', requirePermission('items', 'create'), async (req: Request, res: Response) => {
-    const client = await pool.connect();
-
+router.post('/', requirePermission('distribution', 'create'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) {
@@ -161,101 +164,42 @@ router.post('/', requirePermission('items', 'create'), async (req: Request, res:
         };
 
         const qty = Number(quantity);
-        if (!teacher_id || !item_id || !Number.isFinite(qty) || qty <= 0) {
-            res.status(400).json({ error: 'teacher_id, item_id and quantity are required' });
-            return;
-        }
-
-        await client.query('BEGIN');
-
-        const teacherResult = await client.query('SELECT id FROM teachers WHERE id = $1', [teacher_id]);
-        if (teacherResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            res.status(404).json({ error: 'Teacher not found' });
-            return;
-        }
-
-        const itemResult = await client.query('SELECT id FROM items WHERE id = $1', [item_id]);
-        if (itemResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            res.status(404).json({ error: 'Item not found' });
-            return;
-        }
-
-        const stockRows = await client.query(
-            `SELECT si.id, si.current_stock
-             FROM stock_items si
-             JOIN stocks s ON s.id = si.stock_id
-             WHERE si.item_id = $1
-               AND si.current_stock > 0
-               AND ($2::text IS NULL OR $3 = 'admin' OR s.level = $2 OR s.level IS NULL)
-             ORDER BY si.created_at ASC
-             FOR UPDATE`,
-            [item_id, user.level, user.role],
-        );
-
-        const totalAvailable = stockRows.rows.reduce((sum: number, row: { current_stock: number }) => {
-            return sum + Number(row.current_stock || 0);
-        }, 0);
-
-        if (totalAvailable < qty) {
-            await client.query('ROLLBACK');
-            res.status(400).json({ error: `Insufficient stock. Available: ${totalAvailable}` });
-            return;
-        }
-
-        let remaining = qty;
-        for (const row of stockRows.rows as Array<{ id: string; current_stock: number }>) {
-            if (remaining <= 0) break;
-            const available = Number(row.current_stock || 0);
-            const deduct = Math.min(available, remaining);
-
-            await client.query(
-                'UPDATE stock_items SET current_stock = current_stock - $1 WHERE id = $2',
-                [deduct, row.id],
+        
+        try {
+            const distribution = await createItemDistributionService(
+                user.id,
+                user.level,
+                user.role,
+                teacher_id || '',
+                item_id || '',
+                qty,
+                distribution_date
             );
-
-            remaining -= deduct;
+            res.status(201).json(distribution);
+        } catch (error: any) {
+            if (['teacher_id, item_id and quantity are required'].includes(error.message)) {
+                res.status(400).json({ error: error.message });
+                return;
+            }
+            throw error;
+        }
+    } catch (error: any) {
+        console.error('Error creating item distribution:', error);
+        
+        if (['Teacher not found', 'Item not found'].includes(error.message)) {
+            res.status(404).json({ error: error.message });
+            return;
+        }
+        if (error.message.startsWith('Insufficient stock.')) {
+            res.status(400).json({ error: error.message });
+            return;
         }
 
-        const insertResult = await client.query(
-            `INSERT INTO item_distributions (teacher_id, item_id, quantity, distribution_date, issued_by, level)
-             VALUES ($1, $2, $3, COALESCE($4::timestamptz, NOW()), $5, $6)
-             RETURNING *`,
-            [teacher_id, item_id, qty, distribution_date ?? null, user.id, user.level ?? null],
-        );
-
-        await client.query('COMMIT');
-
-        const distribution = await pool.query(
-            `SELECT
-                d.*,
-                t.name AS teacher_name,
-                t.teacher_id AS teacher_code,
-                i.name AS item_name,
-                i.unit AS item_unit,
-                u.name AS issued_by_name
-             FROM item_distributions d
-             JOIN teachers t ON t.id = d.teacher_id
-             JOIN items i ON i.id = d.item_id
-             LEFT JOIN "user" u ON u.id = d.issued_by
-             WHERE d.id = $1`,
-            [insertResult.rows[0].id],
-        );
-
-        res.status(201).json(distribution.rows[0]);
-    } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('Error creating item distribution:', error);
         res.status(500).json({ error: 'Failed to create item distribution' });
-    } finally {
-        client.release();
     }
 });
 
-router.post('/batch', requirePermission('items', 'create'), async (req: Request, res: Response) => {
-    const client = await pool.connect();
-
+router.post('/batch', requirePermission('distribution', 'create'), async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
         if (!user) {
@@ -290,108 +234,52 @@ router.post('/batch', requirePermission('items', 'create'), async (req: Request,
             return;
         }
 
-        const combinedMap = new Map<string, number>();
-        for (const item of normalized) {
-            combinedMap.set(item.item_id, (combinedMap.get(item.item_id) ?? 0) + item.quantity);
+        const result = await createBatchItemDistributionService(
+            user.id,
+            user.level,
+            user.role,
+            teacher_id,
+            normalized,
+            distribution_date
+        );
+
+        res.status(201).json(result);
+    } catch (error: any) {
+        console.error('Error creating batch item distribution:', error);
+        if (error.message === 'Teacher not found' || error.message.startsWith('Item not found')) {
+            res.status(404).json({ error: error.message });
+            return;
         }
-        const combined = [...combinedMap.entries()].map(([item_id, quantity]) => ({ item_id, quantity }));
+        if (error.message.startsWith('Insufficient stock')) {
+            res.status(400).json({ error: error.message });
+            return;
+        }
+        res.status(500).json({ error: 'Failed to create batch item distribution' });
+    }
+});
 
-        await client.query('BEGIN');
-
-        const teacherResult = await client.query('SELECT id FROM teachers WHERE id = $1', [teacher_id]);
-        if (teacherResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            res.status(404).json({ error: 'Teacher not found' });
+router.delete('/:id', requirePermission('distribution', 'delete'), async (req: Request, res: Response) => {
+    try {
+        const user = await getSessionUser(req);
+        if (!user) {
+            res.status(401).json({ error: 'Unauthorized' });
             return;
         }
 
-        for (const item of combined) {
-            const itemResult = await client.query('SELECT id, name FROM items WHERE id = $1', [item.item_id]);
-            if (itemResult.rows.length === 0) {
-                await client.query('ROLLBACK');
-                res.status(404).json({ error: `Item not found: ${item.item_id}` });
-                return;
-            }
-
-            const stockRows = await client.query(
-                `SELECT si.id, si.current_stock
-                 FROM stock_items si
-                 JOIN stocks s ON s.id = si.stock_id
-                 WHERE si.item_id = $1
-                   AND si.current_stock > 0
-                   AND ($2::text IS NULL OR $3 = 'admin' OR s.level = $2 OR s.level IS NULL)
-                 ORDER BY si.created_at ASC
-                 FOR UPDATE`,
-                [item.item_id, user.level, user.role],
-            );
-
-            const totalAvailable = stockRows.rows.reduce((sum: number, row: { current_stock: number }) => {
-                return sum + Number(row.current_stock || 0);
-            }, 0);
-
-            if (totalAvailable < item.quantity) {
-                await client.query('ROLLBACK');
-                res.status(400).json({
-                    error: `Insufficient stock for item ${itemResult.rows[0].name}. Requested: ${item.quantity}, Available: ${totalAvailable}`,
-                });
-                return;
-            }
-
-            let remaining = item.quantity;
-            for (const row of stockRows.rows as Array<{ id: string; current_stock: number }>) {
-                if (remaining <= 0) break;
-                const available = Number(row.current_stock || 0);
-                const deduct = Math.min(available, remaining);
-
-                await client.query(
-                    'UPDATE stock_items SET current_stock = current_stock - $1 WHERE id = $2',
-                    [deduct, row.id],
-                );
-
-                remaining -= deduct;
-            }
+        const { id } = req.params;
+        if (!id || typeof id !== 'string') {
+            res.status(400).json({ error: 'Valid id is required' });
+            return;
         }
-
-        const insertedIds: string[] = [];
-        for (const item of combined) {
-            const insertResult = await client.query(
-                `INSERT INTO item_distributions (teacher_id, item_id, quantity, distribution_date, issued_by, level)
-                 VALUES ($1, $2, $3, COALESCE($4::timestamptz, NOW()), $5, $6)
-                 RETURNING id`,
-                [teacher_id, item.item_id, item.quantity, distribution_date ?? null, user.id, user.level ?? null],
-            );
-            insertedIds.push(insertResult.rows[0].id);
+        const result = await deleteItemDistributionService(id);
+        res.json(result);
+    } catch (error: any) {
+        console.error('Error voiding item distribution:', error);
+        if (error.message === 'Distribution record not found') {
+            res.status(404).json({ error: error.message });
+            return;
         }
-
-        await client.query('COMMIT');
-
-        const result = await pool.query(
-            `SELECT
-                d.*,
-                t.name AS teacher_name,
-                t.teacher_id AS teacher_code,
-                i.name AS item_name,
-                i.unit AS item_unit,
-                u.name AS issued_by_name
-             FROM item_distributions d
-             JOIN teachers t ON t.id = d.teacher_id
-             JOIN items i ON i.id = d.item_id
-             LEFT JOIN "user" u ON u.id = d.issued_by
-             WHERE d.id = ANY($1::uuid[])
-             ORDER BY d.created_at DESC`,
-            [insertedIds],
-        );
-
-        res.status(201).json({
-            count: result.rows.length,
-            distributions: result.rows,
-        });
-    } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('Error creating batch item distribution:', error);
-        res.status(500).json({ error: 'Failed to create batch item distribution' });
-    } finally {
-        client.release();
+        res.status(500).json({ error: 'Failed to void distribution' });
     }
 });
 

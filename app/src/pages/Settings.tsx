@@ -155,7 +155,7 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-card border-0">
+            <Card className="rounded-lg shadow-card border-0">
               <CardHeader>
                 <CardTitle>{t('settings.libraryInfo')}</CardTitle>
                 <CardDescription>{t('settings.libraryInfoDesc')}</CardDescription>
@@ -205,7 +205,7 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <Card className="rounded-[20px] shadow-card border-0">
+            <Card className="rounded-lg shadow-card border-0">
               <CardHeader>
                 <CardTitle>{t('settings.borrowingRules')}</CardTitle>
                 <CardDescription>{t('settings.borrowingRulesDesc')}</CardDescription>
@@ -267,7 +267,7 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-card border-0">
+            <Card className="rounded-lg shadow-card border-0">
               <CardHeader>
                 <CardTitle>{t('settings.notificationPrefs')}</CardTitle>
                 <CardDescription>{t('settings.notificationPrefsDesc')}</CardDescription>
@@ -304,7 +304,7 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-card border-0">
+            <Card className="rounded-lg shadow-card border-0">
               <CardHeader>
                 <CardTitle>{t('settings.securitySettings')}</CardTitle>
                 <CardDescription>{t('settings.securitySettingsDesc')}</CardDescription>
@@ -363,7 +363,7 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-card border-0">
+            <Card className="rounded-lg shadow-card border-0">
               <CardHeader>
                 <CardTitle>{t('settings.dataBackup')}</CardTitle>
                 <CardDescription>{t('settings.dataBackupDesc')}</CardDescription>
@@ -374,7 +374,7 @@ export function Settings() {
                   <p className="text-xs text-muted-foreground">{t('settings.never')}</p>
                 </div>
                 <div className="flex gap-3">
-                  <Button className="bg-navy hover:bg-navy/90 rounded-xl">
+                  <Button className="bg-primary hover:bg-primary/90 rounded-xl">
                     <Database className="h-4 w-4 mr-2" />
                     {t('settings.createBackup')}
                   </Button>
@@ -394,7 +394,7 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-card border-0">
+            <Card className="rounded-lg shadow-card border-0">
               <CardHeader>
                 <CardTitle>{t('settings.theme')}</CardTitle>
                 <CardDescription>{t('settings.themeDesc')}</CardDescription>
@@ -431,7 +431,7 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <Card className="rounded-[20px] shadow-card border-0">
+            <Card className="rounded-lg shadow-card border-0">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Languages className="h-5 w-5 text-muted-foreground" />
@@ -468,7 +468,7 @@ export function Settings() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="rounded-[20px] shadow-card border-0">
+            <Card className="rounded-lg shadow-card border-0">
               <CardHeader>
                 <CardTitle>{t('settings.changePassword')}</CardTitle>
                 <CardDescription>{t('settings.changePasswordDesc')}</CardDescription>
@@ -526,7 +526,7 @@ export function Settings() {
                   </div>
                   <Button
                     type="submit"
-                    className="bg-navy hover:bg-navy/90 rounded-xl h-11"
+                    className="bg-primary hover:bg-primary/90 rounded-xl h-11"
                     disabled={passwordLoading}
                   >
                     {passwordLoading ? t('auth.updating') : t('settings.changePassword')}
@@ -545,7 +545,7 @@ export function Settings() {
         transition={{ duration: 0.5, delay: 0.2 }}
         className="flex justify-end"
       >
-        <Button onClick={handleSave} className="bg-navy hover:bg-navy/90 rounded-xl h-11 px-6">
+        <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 rounded-xl h-11 px-6">
           <Save className="h-4 w-4 mr-2" />
           {t('common.save')}
         </Button>
@@ -553,3 +553,5 @@ export function Settings() {
     </div>
   );
 }
+
+

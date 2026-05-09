@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
   Upload, 
@@ -260,12 +259,7 @@ export function AddStudent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex items-center gap-4"
-      >
+      <div className="flex items-center gap-4">
         <Button 
           variant="ghost" 
           size="icon" 
@@ -280,45 +274,30 @@ export function AddStudent() {
             {t('students.addSubtitle')}
           </p>
         </div>
-      </motion.div>
-
-      {/* Success/Error Messages */}
+      </div>
       {successMessage && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-green-50 dark:bg-green-950/30 text-green-700 rounded-xl flex items-center gap-2"
-        >
+        <div className="p-4 bg-green-50 dark:bg-green-950/30 text-green-700 rounded-xl flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5" />
           {successMessage}
-        </motion.div>
+        </div>
       )}
       
       {errorMessage && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-red-50 dark:bg-red-950/30 text-red-600 rounded-xl flex items-center gap-2"
-        >
+        <div className="p-4 bg-red-50 dark:bg-red-950/30 text-red-600 rounded-xl flex items-center gap-2">
           <AlertCircle className="h-5 w-5" />
           {errorMessage}
-        </motion.div>
+        </div>
       )}
 
       {/* Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="rounded-[20px] bg-card p-6 shadow-card"
-      >
+      <div className="rounded-lg bg-card p-6 shadow-card">
         <Tabs defaultValue="individual" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6 rounded-xl h-12">
-            <TabsTrigger value="individual" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
+            <TabsTrigger value="individual" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <UserPlus className="h-4 w-4 mr-2" />
               {t('students.individualRegistration')}
             </TabsTrigger>
-            <TabsTrigger value="bulk" className="rounded-lg data-[state=active]:bg-navy data-[state=active]:text-white">
+            <TabsTrigger value="bulk" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               {t('students.bulkImportExcel')}
             </TabsTrigger>
@@ -328,9 +307,9 @@ export function AddStudent() {
           <TabsContent value="individual" className="mt-0">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Next ID Display */}
-              <div className="p-4 bg-navy/5 rounded-xl">
-                <p className="text-sm text-navy">
-                  <strong>{t('students.nextStudentId')}</strong> <span className="font-mono text-navy font-bold">{nextId || t('common.loading')}</span>
+              <div className="p-4 bg-primary/5 rounded-xl">
+                <p className="text-sm text-primary">
+                  <strong>{t('students.nextStudentId')}</strong> <span className="font-mono text-primary font-bold">{nextId || t('common.loading')}</span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {t('students.autoAssignId')}
@@ -485,7 +464,7 @@ export function AddStudent() {
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-navy hover:bg-navy/90 rounded-xl h-11"
+                  className="bg-primary hover:bg-primary/90 rounded-xl h-11"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('students.registering')}</> : t('students.registerStudent')}
@@ -505,13 +484,13 @@ export function AddStudent() {
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
                   <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">StudentID (optional)</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">FirstName *</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">LastName *</span>
+                  <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-lg">FirstName *</span>
+                  <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-lg">LastName *</span>
                   <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">DOB</span>
                   <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">Nationality</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">Gender *</span>
+                  <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-lg">Gender *</span>
                   <span className="px-2 py-1 bg-secondary text-foreground text-xs rounded-lg">ParentEmail</span>
-                  <span className="px-2 py-1 bg-navy text-white text-xs rounded-lg">Class *</span>
+                  <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-lg">Class *</span>
                 </div>
                 <Button 
                   variant="outline" 
@@ -545,7 +524,7 @@ export function AddStudent() {
 
               {/* File Upload */}
               <div 
-                className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-navy/50 transition-colors"
+                className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <input
@@ -599,7 +578,7 @@ export function AddStudent() {
                   </Button>
                   <Button 
                     onClick={handleBulkUpload}
-                    className="bg-navy hover:bg-navy/90 rounded-xl h-11"
+                    className="bg-primary hover:bg-primary/90 rounded-xl h-11"
                     disabled={isSubmitting || (isAdmin && !bulkLevel)}
                   >
                     {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('students.importing')}</> : t('students.importStudents')}
@@ -609,7 +588,8 @@ export function AddStudent() {
             </div>
           </TabsContent>
         </Tabs>
-      </motion.div>
+      </div>
     </div>
   );
 }
+

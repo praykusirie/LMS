@@ -33,6 +33,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/ui-custom';
 import { toast } from 'sonner';
 
 interface Permission {
@@ -61,9 +62,21 @@ const moduleLabels: Record<string, string> = {
   permissions: 'Permission Management',
   books: 'Book Management',
   students: 'Student Management',
-  borrow: 'Borrow/Return',
+  teachers: 'Teacher Management',
+  class_activities: 'Class Activities',
+  attendance: 'Attendance',
+  results: 'Results',
+  borrow: 'Borrow / Return',
   overdue: 'Overdue Management',
   reports: 'Reports',
+  items: 'Items & Inventory',
+  distribution: 'Items Distribution',
+  subjects: 'Subjects',
+  shelf_locations: 'Shelf Locations',
+  categories: 'Book Categories',
+  finance: 'Finance',
+  stock: 'Library Stock',
+  library: 'Library Actions',
   settings: 'Settings',
   master: 'Master Data',
 };
@@ -189,28 +202,26 @@ export function PermissionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('permissions.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('permissions.subtitle')}
-          </p>
-        </div>
-        <Button 
-          onClick={handleSavePermissions}
-          disabled={!hasChanges || isSaving}
-          className="bg-navy hover:bg-navy/90"
-        >
-          {isSaving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          {t('common.save')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('permissions.title')}
+        description={t('permissions.subtitle')}
+        secondaryActions={
+          <Button 
+            onClick={handleSavePermissions}
+            disabled={!hasChanges || isSaving}
+            className="bg-primary hover:bg-primary/90"
+          >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            {t('common.save')}
+          </Button>
+        }
+      />
 
-      <div className="rounded-[20px] bg-card p-6 shadow-card-sm">
+      <div className="rounded-lg bg-card p-6 shadow-card-sm">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
           <div className="w-full sm:w-64">
             <Select value={selectedRole} onValueChange={setSelectedRole}>
@@ -340,3 +351,5 @@ export function PermissionsPage() {
     </div>
   );
 }
+
+

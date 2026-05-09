@@ -28,6 +28,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -38,11 +48,20 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PersonAvatar } from '@/components/shared/PersonAvatar';
 import { DataTable } from '@/components/ui/data-table';
+import { PageHeader } from '@/components/ui-custom';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import { authClient } from '@/lib/auth-client';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { usePermissions } from '@/lib/permissions';
+import {
+  SCHOOL_LEVELS,
+  type SchoolLevel,
+  filterClassesByLevels,
+  normalizeAssignedLevels,
+  primaryAssignedLevel,
+  toggleAssignedLevel,
+} from '@/lib/teacher-levels';
 
 interface User {
   id: string;
@@ -50,6 +69,8 @@ interface User {
   email: string;
   role: string | null;
   level: string | null;
+  assigned_levels?: SchoolLevel[];
+  teacher_id?: string | null;
   gender: 'male' | 'female';
   banned: boolean | null;
   is_homeroom_teacher: boolean;
@@ -62,6 +83,7 @@ interface EditFormData {
   gender: 'male' | 'female';
   role: string;
   level: string;
+  assigned_levels: SchoolLevel[];
   newPassword: string;
   is_homeroom_teacher: boolean;
   homeroom_class_id: string;
@@ -70,6 +92,7 @@ interface EditFormData {
 interface ClassItem {
   id: string;
   name: string;
+  level?: SchoolLevel | null;
 }
 
 interface Role {
@@ -87,6 +110,7 @@ export function UserMaster() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -100,6 +124,7 @@ export function UserMaster() {
     gender: 'male' as 'male' | 'female',
     role: 'user',
     level: '',
+    assigned_levels: [] as SchoolLevel[],
     is_homeroom_teacher: false,
     homeroom_class_id: '',
   });
@@ -108,11 +133,21 @@ export function UserMaster() {
     gender: 'male',
     role: 'user',
     level: '',
+    assigned_levels: [],
     newPassword: '',
     is_homeroom_teacher: false,
     homeroom_class_id: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const createTeacherClasses = useMemo(
+    () => filterClassesByLevels(classes, formData.assigned_levels),
+    [classes, formData.assigned_levels],
+  );
+  const editTeacherClasses = useMemo(
+    () => filterClassesByLevels(classes, editFormData.assigned_levels),
+    [classes, editFormData.assigned_levels],
+  );
 
   useEffect(() => {
     fetchUsers();
@@ -120,13 +155,35 @@ export function UserMaster() {
     fetchClasses();
   }, []);
 
+  useEffect(() => {
+    if (
+      formData.role === 'teacher' &&
+      formData.homeroom_class_id &&
+      !createTeacherClasses.some((classItem) => classItem.id === formData.homeroom_class_id)
+    ) {
+      setFormData((prev) => ({ ...prev, homeroom_class_id: '' }));
+    }
+  }, [createTeacherClasses, formData.homeroom_class_id, formData.role]);
+
+  useEffect(() => {
+    if (
+      editFormData.role === 'teacher' &&
+      editFormData.homeroom_class_id &&
+      !editTeacherClasses.some((classItem) => classItem.id === editFormData.homeroom_class_id)
+    ) {
+      setEditFormData((prev) => ({ ...prev, homeroom_class_id: '' }));
+    }
+  }, [editFormData.homeroom_class_id, editFormData.role, editTeacherClasses]);
+
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const { data } = await api.get('/users');
       setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
+      setIsError(true);
       toast.error(t('users.failedToFetch'));
     } finally {
       setIsLoading(false);
@@ -153,28 +210,62 @@ export function UserMaster() {
 
   const handleCreateUser = async () => {
     if (!formData.name || !formData.email || !formData.password) return;
+    if (formData.role === 'teacher' && formData.assigned_levels.length === 0) {
+      toast.error(t('users.selectLevel'));
+      return;
+    }
+    if (formData.role === 'teacher' && formData.is_homeroom_teacher && !formData.homeroom_class_id) {
+      toast.error(t('users.selectClass'));
+      return;
+    }
     
     setIsSubmitting(true);
     try {
-      const response = await authClient.admin.createUser({
+      const response = await (authClient.admin.createUser as any)({
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: formData.role as "user" | "admin",
+        role: formData.role,
         data: {
           gender: formData.gender,
-          level: formData.role === 'librarian' ? formData.level || null : null,
+          level: formData.role === 'librarian'
+            ? formData.level || null
+            : formData.role === 'teacher'
+              ? primaryAssignedLevel(formData.assigned_levels)
+              : null,
           isHomeroomTeacher: formData.role === 'teacher' ? formData.is_homeroom_teacher : false,
           homeroomClassId: formData.role === 'teacher' && formData.is_homeroom_teacher ? formData.homeroom_class_id || null : null,
         },
       });
-      
-      if (response.data) {
-        await fetchUsers();
-        setIsCreateDialogOpen(false);
-        resetForm();
-        toast.success(t('users.createSuccess'));
+
+      let userId = response?.data?.user?.id || response?.data?.id;
+      if (!userId) {
+        const { data: latestUsers } = await api.get('/users');
+        userId = latestUsers.find((user: User) => user.email === formData.email)?.id;
       }
+      
+      if (!userId) {
+        throw new Error(t('users.failedToCreate'));
+      }
+
+      await api.put(`/users/${userId}`, {
+        name: formData.name,
+        gender: formData.gender,
+        role: formData.role,
+        level: formData.role === 'librarian'
+          ? formData.level || null
+          : formData.role === 'teacher'
+            ? primaryAssignedLevel(formData.assigned_levels)
+            : null,
+        assigned_levels: formData.role === 'teacher' ? formData.assigned_levels : undefined,
+        is_homeroom_teacher: formData.role === 'teacher' ? formData.is_homeroom_teacher : false,
+        homeroom_class_id: formData.role === 'teacher' && formData.is_homeroom_teacher ? formData.homeroom_class_id || null : null,
+      });
+
+      await fetchUsers();
+      setIsCreateDialogOpen(false);
+      resetForm();
+      toast.success(t('users.createSuccess'));
     } catch (error: any) {
       console.error('Error creating user:', error);
       toast.error(error?.message || t('users.failedToCreate'));
@@ -185,6 +276,14 @@ export function UserMaster() {
 
   const handleEditUser = async () => {
     if (!selectedUser) return;
+    if (editFormData.role === 'teacher' && editFormData.assigned_levels.length === 0) {
+      toast.error(t('users.selectLevel'));
+      return;
+    }
+    if (editFormData.role === 'teacher' && editFormData.is_homeroom_teacher && !editFormData.homeroom_class_id) {
+      toast.error(t('users.selectClass'));
+      return;
+    }
     
     setIsSubmitting(true);
     try {
@@ -193,7 +292,12 @@ export function UserMaster() {
         name: editFormData.name,
         gender: editFormData.gender,
         role: editFormData.role,
-        level: editFormData.role === 'librarian' ? editFormData.level || null : null,
+        level: editFormData.role === 'librarian'
+          ? editFormData.level || null
+          : editFormData.role === 'teacher'
+            ? primaryAssignedLevel(editFormData.assigned_levels)
+            : null,
+        assigned_levels: editFormData.role === 'teacher' ? editFormData.assigned_levels : undefined,
         is_homeroom_teacher: editFormData.role === 'teacher' ? editFormData.is_homeroom_teacher : false,
         homeroom_class_id: editFormData.role === 'teacher' && editFormData.is_homeroom_teacher ? editFormData.homeroom_class_id || null : null,
       });
@@ -260,6 +364,7 @@ export function UserMaster() {
       gender: 'male',
       role: 'user',
       level: '',
+      assigned_levels: [],
       is_homeroom_teacher: false,
       homeroom_class_id: '',
     });
@@ -274,6 +379,7 @@ export function UserMaster() {
       gender: user.gender || 'male',
       role: user.role || 'user',
       level: user.level || '',
+      assigned_levels: normalizeAssignedLevels(user.assigned_levels, user.role === 'teacher' ? user.level : null),
       newPassword: '',
       is_homeroom_teacher: user.is_homeroom_teacher || false,
       homeroom_class_id: user.homeroom_class_id || '',
@@ -344,11 +450,14 @@ export function UserMaster() {
             <Shield className="h-3 w-3 mr-1" />
             {user.role || 'user'}
           </Badge>
-          {user.level && (
-            <Badge variant="outline" className="text-xs capitalize">
-              {user.level}
+          {(user.role === 'teacher'
+            ? normalizeAssignedLevels(user.assigned_levels, user.level)
+            : user.level ? [user.level as SchoolLevel] : []
+          ).map((level) => (
+            <Badge key={level} variant="outline" className="text-xs capitalize">
+              {level}
             </Badge>
-          )}
+          ))}
         </div>
       ),
     },
@@ -420,28 +529,15 @@ export function UserMaster() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('users.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('users.subtitle')}
-          </p>
-        </div>
-        {hasPermission('users:create') && (
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-navy hover:bg-navy/90 rounded-xl h-11"
-        >
-          <UserPlus className="h-4 w-4 mr-2" />
-          {t('users.addUser')}
-        </Button>
-        )}
-      </motion.div>
+      <PageHeader
+        title={t('users.title')}
+        description={t('users.subtitle')}
+        action={hasPermission('users:create') ? {
+          label: t('users.addUser'),
+          icon: UserPlus,
+          onClick: () => setIsCreateDialogOpen(true),
+        } : undefined}
+      />
 
       {/* Search */}
       <motion.div
@@ -476,6 +572,8 @@ export function UserMaster() {
           emptyIcon={Users}
           emptyTitle={t('users.noUsers')}
           emptyDescription={t('users.noUsersDesc')}
+          isError={isError}
+          onRetry={() => { setIsError(false); fetchUsers(); }}
         />
       </motion.div>
 
@@ -551,7 +649,14 @@ export function UserMaster() {
               <Label htmlFor="role">{t('users.role')}</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value, level: '' })}
+                onValueChange={(value) => setFormData({
+                  ...formData,
+                  role: value,
+                  level: '',
+                  assigned_levels: [],
+                  is_homeroom_teacher: false,
+                  homeroom_class_id: '',
+                })}
               >
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder={t('users.selectRole')} />
@@ -583,6 +688,23 @@ export function UserMaster() {
               </div>
             )}            {formData.role === 'teacher' && (
               <>
+                <div className="space-y-2">
+                  <Label>{t('users.level')}</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {SCHOOL_LEVELS.map((level) => (
+                      <label key={level} className="flex items-center gap-3 rounded-xl border bg-background px-3 py-3 text-sm">
+                        <Checkbox
+                          checked={formData.assigned_levels.includes(level)}
+                          onCheckedChange={(checked) => setFormData({
+                            ...formData,
+                            assigned_levels: toggleAssignedLevel(formData.assigned_levels, level, checked === true),
+                          })}
+                        />
+                        <span>{level === 'primary' ? t('users.primaryLevel') : t('users.secondaryLevel')}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="create-homeroom"
@@ -602,7 +724,7 @@ export function UserMaster() {
                         <SelectValue placeholder={t('users.selectClass')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {classes.map((cls) => (
+                        {createTeacherClasses.map((cls) => (
                           <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -617,8 +739,15 @@ export function UserMaster() {
             </Button>
             <Button 
               onClick={handleCreateUser} 
-              disabled={isSubmitting || (formData.role === 'librarian' && !formData.level)}
-              className="bg-navy hover:bg-navy/90"
+              disabled={
+                isSubmitting ||
+                (formData.role === 'librarian' && !formData.level) ||
+                (formData.role === 'teacher' && (
+                  formData.assigned_levels.length === 0 ||
+                  (formData.is_homeroom_teacher && !formData.homeroom_class_id)
+                ))
+              }
+              className="bg-primary hover:bg-primary/90"
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -671,7 +800,14 @@ export function UserMaster() {
               <Label>{t('users.role')}</Label>
               <Select
                 value={editFormData.role}
-                onValueChange={(value) => setEditFormData({ ...editFormData, role: value, level: '' })}
+                onValueChange={(value) => setEditFormData({
+                  ...editFormData,
+                  role: value,
+                  level: '',
+                  assigned_levels: [],
+                  is_homeroom_teacher: false,
+                  homeroom_class_id: '',
+                })}
               >
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder={t('users.selectRole')} />
@@ -704,6 +840,23 @@ export function UserMaster() {
             )}
             {editFormData.role === 'teacher' && (
               <>
+                <div className="space-y-2">
+                  <Label>{t('users.level')}</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {SCHOOL_LEVELS.map((level) => (
+                      <label key={level} className="flex items-center gap-3 rounded-xl border bg-background px-3 py-3 text-sm">
+                        <Checkbox
+                          checked={editFormData.assigned_levels.includes(level)}
+                          onCheckedChange={(checked) => setEditFormData({
+                            ...editFormData,
+                            assigned_levels: toggleAssignedLevel(editFormData.assigned_levels, level, checked === true),
+                          })}
+                        />
+                        <span>{level === 'primary' ? t('users.primaryLevel') : t('users.secondaryLevel')}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="edit-homeroom"
@@ -723,7 +876,7 @@ export function UserMaster() {
                         <SelectValue placeholder={t('users.selectClass')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {classes.map((cls) => (
+                        {editTeacherClasses.map((cls) => (
                           <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -758,8 +911,14 @@ export function UserMaster() {
             </Button>
             <Button 
               onClick={handleEditUser} 
-              disabled={isSubmitting}
-              className="bg-navy hover:bg-navy/90"
+              disabled={
+                isSubmitting ||
+                (editFormData.role === 'teacher' && (
+                  editFormData.assigned_levels.length === 0 ||
+                  (editFormData.is_homeroom_teacher && !editFormData.homeroom_class_id)
+                ))
+              }
+              className="bg-primary hover:bg-primary/90"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {t('common.save')}
@@ -769,29 +928,28 @@ export function UserMaster() {
       </Dialog>
 
       {/* Delete User Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{t('users.deleteUser')}</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('users.deleteUser')}</AlertDialogTitle>
+            <AlertDialogDescription>
               {t('users.deleteConfirmMessage', { name: selectedUser?.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button 
-              variant="destructive" 
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleDeleteUser}
               disabled={isSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {t('users.deleteUser')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+

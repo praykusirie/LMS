@@ -1,10 +1,65 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { pool } from '../lib/db.js';
 import { getSessionUser } from '../lib/session.js';
 import { requirePermission } from '../lib/middleware.js';
+import { getTeacherAccessContext, teacherHasAssignedLevel } from '../lib/teacher-access.js';
 
 const router = Router();
+
+async function readClassForActivity(classId: string) {
+    const result = await pool.query<{ id: string; short_code: string | null; level: string | null }>(
+        'SELECT id, short_code, level FROM classes WHERE id = $1',
+        [classId],
+    );
+
+    return result.rows[0] ?? null;
+}
+
+async function ensureTeacherCanAccessClass(user: Awaited<ReturnType<typeof getSessionUser>>, classId: string) {
+    if (!user) {
+        return { ok: false as const, status: 401, error: 'Unauthorized' };
+    }
+
+    const classRow = await readClassForActivity(classId);
+    if (!classRow) {
+        return { ok: false as const, status: 404, error: 'Class not found' };
+    }
+
+    if (user.role !== 'teacher') {
+        return { ok: true as const, classRow };
+    }
+
+    const teacherAccess = await getTeacherAccessContext(pool, user);
+    if (!teacherHasAssignedLevel(teacherAccess.assignedLevels, classRow.level)) {
+        return { ok: false as const, status: 403, error: 'Access denied for selected class' };
+    }
+
+    return { ok: true as const, classRow };
+}
+
+async function ensureTeacherOwnsActivity(user: Awaited<ReturnType<typeof getSessionUser>>, activityId: string) {
+    if (!user) {
+        return { ok: false as const, status: 401, error: 'Unauthorized' };
+    }
+
+    const result = await pool.query<{ id: string; teacher_id: string | null; total_marks: number }>(
+        'SELECT id, teacher_id, total_marks FROM activities WHERE id = $1',
+        [activityId],
+    );
+
+    const activity = result.rows[0];
+    if (!activity) {
+        return { ok: false as const, status: 404, error: 'Activity not found' };
+    }
+
+    if (user.role === 'teacher' && activity.teacher_id !== user.id) {
+        return { ok: false as const, status: 403, error: 'Access denied for selected activity' };
+    }
+
+    return { ok: true as const, activity };
+}
 
 // Get all activities with filters
 router.get('/', async (req: Request, res: Response) => {
@@ -17,11 +72,22 @@ router.get('/', async (req: Request, res: Response) => {
                    c.name AS class_name,
                    c.short_code AS class_short_code,
                    u.name AS teacher_name,
-                   (SELECT COUNT(*) FROM activity_marks am WHERE am.activity_id = a.id) AS marks_count,
-                   (SELECT COUNT(*) FROM students s WHERE s.class_id = a.class_id AND s.is_active = true) AS total_students
+                   COALESCE(marks_counts.marks_count, 0) AS marks_count,
+                   COALESCE(student_counts.total_students, 0) AS total_students
             FROM activities a
             JOIN classes c ON c.id = a.class_id
             LEFT JOIN "user" u ON u.id = a.teacher_id
+            LEFT JOIN (
+                SELECT activity_id, COUNT(*) AS marks_count
+                FROM activity_marks
+                GROUP BY activity_id
+            ) marks_counts ON marks_counts.activity_id = a.id
+            LEFT JOIN (
+                SELECT class_id, COUNT(*) AS total_students
+                FROM students 
+                WHERE is_active = true
+                GROUP BY class_id
+            ) student_counts ON student_counts.class_id = a.class_id
             WHERE a.is_active = true
         `;
         const params: any[] = [];
@@ -61,20 +127,16 @@ router.get('/', async (req: Request, res: Response) => {
 // Get next activity ID for a class
 router.get('/next-id/:classId', async (req: Request, res: Response) => {
     try {
-        const { classId } = req.params;
-        
-        // Get class short code
-        const classResult = await pool.query(
-            'SELECT short_code FROM classes WHERE id = $1',
-            [classId]
-        );
-        
-        if (classResult.rows.length === 0) {
-            res.status(404).json({ error: 'Class not found' });
+        const classId = String(req.params.classId || '');
+
+        const user = await getSessionUser(req);
+        const classAccess = await ensureTeacherCanAccessClass(user, classId);
+        if (!classAccess.ok) {
+            res.status(classAccess.status).json({ error: classAccess.error });
             return;
         }
-        
-        const shortCode = classResult.rows[0].short_code;
+
+        const shortCode = classAccess.classRow.short_code;
         const result = await pool.query(
             'SELECT get_next_activity_id($1) AS next_id',
             [shortCode]
@@ -90,7 +152,8 @@ router.get('/next-id/:classId', async (req: Request, res: Response) => {
 // Get single activity with student marks
 router.get('/:id', async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = String(req.params.id || '');
+        const user = await getSessionUser(req);
         
         // Get activity details
         const activityResult = await pool.query(
@@ -111,6 +174,10 @@ router.get('/:id', async (req: Request, res: Response) => {
         }
         
         const activity = activityResult.rows[0];
+        if (user?.role === 'teacher' && activity.teacher_id !== user.id) {
+            res.status(403).json({ error: 'Access denied for selected activity' });
+            return;
+        }
         
         // Get students in class with their marks and attendance status
         const studentsResult = await pool.query(
@@ -141,14 +208,28 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 });
 
+const createActivitySchema = z.object({
+    name: z.string().min(1, 'Name is required'),
+    class_id: z.string().uuid('Invalid class ID'),
+    date: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid date'),
+    total_marks: z.number().positive('Total marks must be positive').nullable().optional(),
+    activity_type: z.string().optional(),
+});
+
 // Create new activity
 router.post('/', requirePermission('class_activities', 'manage'), async (req: Request, res: Response) => {
     try {
-        const { name, class_id, date, total_marks, level } = req.body;
+        const { name, class_id, date, total_marks, activity_type } = createActivitySchema.parse(req.body);
         const user = await getSessionUser(req);
         
-        if (!name || !class_id || !date || !total_marks) {
+        if (!total_marks) {
             res.status(400).json({ error: 'Missing required fields' });
+            return;
+        }
+
+        const classAccess = await ensureTeacherCanAccessClass(user, class_id);
+        if (!classAccess.ok) {
+            res.status(classAccess.status).json({ error: classAccess.error });
             return;
         }
 
@@ -161,19 +242,8 @@ router.post('/', requirePermission('class_activities', 'manage'), async (req: Re
             res.status(400).json({ error: 'Attendance must be taken for this class before creating an activity for this date' });
             return;
         }
-        
-        // Get class short code for activity ID
-        const classResult = await pool.query(
-            'SELECT short_code FROM classes WHERE id = $1',
-            [class_id]
-        );
-        
-        if (classResult.rows.length === 0) {
-            res.status(404).json({ error: 'Class not found' });
-            return;
-        }
-        
-        const shortCode = classResult.rows[0].short_code;
+
+        const shortCode = classAccess.classRow.short_code;
         const idResult = await pool.query(
             'SELECT get_next_activity_id($1) AS next_id',
             [shortCode]
@@ -181,10 +251,10 @@ router.post('/', requirePermission('class_activities', 'manage'), async (req: Re
         const activityId = idResult.rows[0].next_id;
         
         const result = await pool.query(
-            `INSERT INTO activities (activity_id, name, class_id, teacher_id, date, total_marks, level)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO activities (activity_id, name, class_id, teacher_id, date, total_marks, level, activity_type)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [activityId, name, class_id, user?.id || null, date, total_marks, level || null]
+            [activityId, name, class_id, user?.id || null, date, total_marks, classAccess.classRow.level, activity_type || 'test']
         );
         
         res.status(201).json(result.rows[0]);
@@ -197,8 +267,15 @@ router.post('/', requirePermission('class_activities', 'manage'), async (req: Re
 // Update activity
 router.put('/:id', requirePermission('class_activities', 'manage'), async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
-        const { name, date, total_marks, is_active } = req.body;
+        const id = String(req.params.id || '');
+        const { name, date, total_marks, is_active, activity_type } = req.body;
+        const user = await getSessionUser(req);
+
+        const activityAccess = await ensureTeacherOwnsActivity(user, id);
+        if (!activityAccess.ok) {
+            res.status(activityAccess.status).json({ error: activityAccess.error });
+            return;
+        }
         
         const result = await pool.query(
             `UPDATE activities
@@ -206,10 +283,11 @@ router.put('/:id', requirePermission('class_activities', 'manage'), async (req: 
                  date = COALESCE($2, date),
                  total_marks = COALESCE($3, total_marks),
                  is_active = COALESCE($4, is_active),
+                 activity_type = COALESCE($5, activity_type),
                  updated_at = NOW()
-             WHERE id = $5
+             WHERE id = $6
              RETURNING *`,
-            [name, date, total_marks, is_active, id]
+            [name, date, total_marks, is_active, activity_type, id]
         );
         
         if (result.rows.length === 0) {
@@ -227,7 +305,14 @@ router.put('/:id', requirePermission('class_activities', 'manage'), async (req: 
 // Delete activity
 router.delete('/:id', requirePermission('class_activities', 'manage'), async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = String(req.params.id || '');
+        const user = await getSessionUser(req);
+
+        const activityAccess = await ensureTeacherOwnsActivity(user, id);
+        if (!activityAccess.ok) {
+            res.status(activityAccess.status).json({ error: activityAccess.error });
+            return;
+        }
         
         const result = await pool.query(
             'DELETE FROM activities WHERE id = $1 RETURNING *',
@@ -250,8 +335,15 @@ router.delete('/:id', requirePermission('class_activities', 'manage'), async (re
 router.post('/:id/marks', requirePermission('class_activities', 'manage'), async (req: Request, res: Response) => {
     const client = await pool.connect();
     try {
-        const { id } = req.params;
+        const id = String(req.params.id || '');
         const { marks } = req.body; // Array of { student_id, marks_obtained }
+        const user = await getSessionUser(req);
+
+        const activityAccess = await ensureTeacherOwnsActivity(user, id);
+        if (!activityAccess.ok) {
+            res.status(activityAccess.status).json({ error: activityAccess.error });
+            return;
+        }
         
         if (!Array.isArray(marks) || marks.length === 0) {
             res.status(400).json({ error: 'Marks array is required' });
@@ -259,17 +351,7 @@ router.post('/:id/marks', requirePermission('class_activities', 'manage'), async
         }
         
         // Get activity total marks for validation
-        const activityResult = await client.query(
-            'SELECT total_marks FROM activities WHERE id = $1',
-            [id]
-        );
-        
-        if (activityResult.rows.length === 0) {
-            res.status(404).json({ error: 'Activity not found' });
-            return;
-        }
-        
-        const totalMarks = activityResult.rows[0].total_marks;
+        const totalMarks = activityAccess.activity.total_marks;
         
         // Validate marks don't exceed total
         for (const mark of marks) {

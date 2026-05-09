@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { cn } from '@/lib/utils';
@@ -11,10 +9,9 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
-  const location = useLocation();
 
   const handleToggleCollapse = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
@@ -45,18 +42,9 @@ export function MainLayout({ children }: MainLayoutProps) {
         "pt-[72px] min-h-screen transition-all duration-300",
         isMobile ? "ml-0" : (isSidebarCollapsed ? "ml-[80px]" : "ml-[260px]")
       )}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="p-4 md:p-8"
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        <div className="p-4 md:p-8">
+          {children}
+        </div>
       </main>
     </div>
   );

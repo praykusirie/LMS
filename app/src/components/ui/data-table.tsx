@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
+import { ErrorState } from '@/components/ui-custom/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -44,6 +45,9 @@ export interface DataTableProps<T> {
   emptyIcon?: React.ComponentType<{ className?: string }>;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyAction?: { label: string; icon?: React.ComponentType<{ className?: string }>; onClick: () => void };
+  isError?: boolean;
+  onRetry?: () => void;
   className?: string;
 }
 
@@ -63,6 +67,9 @@ export function DataTable<T>({
   emptyIcon: EmptyIcon,
   emptyTitle = 'No data found',
   emptyDescription = '',
+  emptyAction,
+  isError = false,
+  onRetry,
   className,
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -162,9 +169,17 @@ export function DataTable<T>({
     return pages;
   };
 
+  if (isError) {
+    return (
+      <div className={cn('rounded-lg bg-card shadow-card overflow-hidden', className)}>
+        <ErrorState onRetry={onRetry} />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
-      <div className={cn("rounded-[20px] bg-card shadow-card overflow-hidden", className)}>
+      <div className={cn("rounded-lg bg-card shadow-card overflow-hidden", className)}>
         <div className="p-6 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4">
@@ -185,12 +200,22 @@ export function DataTable<T>({
 
   if (sortedData.length === 0) {
     return (
-      <div className={cn("rounded-[20px] bg-card shadow-card overflow-hidden", className)}>
+      <div className={cn("rounded-lg bg-card shadow-card overflow-hidden", className)}>
         <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
           {EmptyIcon && <EmptyIcon className="h-12 w-12 text-muted-foreground/40 mb-4" />}
           <h3 className="text-lg font-medium text-foreground">{emptyTitle}</h3>
           {emptyDescription && (
             <p className="text-sm text-muted-foreground mt-1 max-w-md">{emptyDescription}</p>
+          )}
+          {emptyAction && (
+            <Button
+              size="sm"
+              onClick={emptyAction.onClick}
+              className="mt-4 bg-primary hover:bg-primary/90 rounded-lg gap-2"
+            >
+              {emptyAction.icon && <emptyAction.icon className="h-3.5 w-3.5" />}
+              {emptyAction.label}
+            </Button>
           )}
         </div>
       </div>
@@ -198,7 +223,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("rounded-[20px] bg-card shadow-card overflow-hidden", className)}>
+    <div className={cn("rounded-lg bg-card shadow-card overflow-hidden", className)}>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -257,7 +282,7 @@ export function DataTable<T>({
                   key={rowId}
                   className={cn(
                     "border-b border-border/40 last:border-0 transition-colors",
-                    isSelected ? "bg-navy/5" : "hover:bg-secondary/50",
+                    isSelected ? "bg-primary/5" : "hover:bg-secondary/50",
                     onRowClick && "cursor-pointer"
                   )}
                   onClick={() => onRowClick?.(row)}
@@ -329,7 +354,7 @@ export function DataTable<T>({
                   size="icon"
                   className={cn(
                     "h-8 w-8 rounded-lg text-sm",
-                    safePage === page && "bg-navy hover:bg-navy/90 text-white"
+                    safePage === page && "bg-primary hover:bg-primary/90 text-white"
                   )}
                   onClick={() => setCurrentPage(page)}
                 >
@@ -376,3 +401,5 @@ export function DataTable<T>({
     </div>
   );
 }
+
+

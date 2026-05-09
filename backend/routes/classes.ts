@@ -3,12 +3,32 @@ import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
 import { requirePermission } from '../lib/middleware.js';
+import { getTeacherAccessContext } from '../lib/teacher-access.js';
 
 const router = Router();
 
 router.get('/', async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
+
+        if (user?.role === 'teacher') {
+            const teacherAccess = await getTeacherAccessContext(pool, user);
+            if (teacherAccess.assignedLevels.length === 0) {
+                res.json([]);
+                return;
+            }
+
+            const result = await pool.query(
+                `SELECT *
+                 FROM classes
+                 WHERE level = ANY($1::text[])
+                 ORDER BY name ASC`,
+                [teacherAccess.assignedLevels],
+            );
+            res.json(result.rows);
+            return;
+        }
+
         const { clause, params } = getLevelFilter(user);
         const result = await pool.query(
             `SELECT * FROM classes WHERE 1=1 ${clause} ORDER BY name ASC`,
@@ -28,8 +48,8 @@ router.post('/', requirePermission('classes', 'create'), async (req: Request, re
         const recordLevel = level ?? user?.level ?? null;
 
         const existing = await pool.query(
-            'SELECT id FROM classes WHERE LOWER(name) = LOWER($1)',
-            [name.trim()]
+            'SELECT id FROM classes WHERE LOWER(name) = LOWER($1) AND level IS NOT DISTINCT FROM $2',
+            [name.trim(), recordLevel]
         );
         if (existing.rows.length > 0) {
             res.status(409).json({ message: `Class "${name.trim()}" already exists` });

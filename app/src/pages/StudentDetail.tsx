@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Calendar,
@@ -21,27 +20,21 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { StatusBadge } from '@/components/ui-custom';
+import { PersonAvatar } from '@/components/shared/PersonAvatar';
 
 interface StudentRecord {
   id: string;
@@ -80,16 +73,6 @@ interface BorrowRecord {
   fine_amount: number;
 }
 
-interface ClassItem {
-  id: string;
-  name: string;
-}
-
-const generateAvatar = (name: string, gender: string) => {
-  const seed = encodeURIComponent(name);
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&gender=${gender}`;
-};
-
 export function StudentDetail() {
   const { t } = useTranslation();
   const { studentId } = useParams();
@@ -97,33 +80,13 @@ export function StudentDetail() {
   const [student, setStudent] = useState<StudentRecord | null>(null);
   const [borrowHistory, setBorrowHistory] = useState<BorrowRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-  
-  // Dialogs
+  // Delete dialog only
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    class_id: '',
-    gender: 'male',
-    email: '',
-    phone: '',
-    dob: '',
-    nationality: '',
-    parent_email: '',
-    parent_phone: '',
-    address: '',
-  });
 
   useEffect(() => {
     if (studentId) {
       fetchStudent();
       fetchBorrowHistory();
-      fetchClasses();
     }
   }, [studentId]);
 
@@ -132,20 +95,6 @@ export function StudentDetail() {
       setIsLoading(true);
       const { data } = await api.get(`/students/${studentId}`);
       setStudent(data);
-      // Set form data for editing
-      setFormData({
-        first_name: data.first_name || '',
-        last_name: data.last_name || '',
-        class_id: data.class_id || '',
-        gender: data.gender || 'male',
-        email: data.email || '',
-        phone: data.phone || '',
-        dob: data.dob ? new Date(data.dob).toISOString().split('T')[0] : '',
-        nationality: data.nationality || '',
-        parent_email: data.parent_email || '',
-        parent_phone: data.parent_phone || '',
-        address: data.address || '',
-      });
     } catch (error) {
       console.error('Error fetching student:', error);
       toast.error(t('students.failedToLoadDetails'));
@@ -164,14 +113,6 @@ export function StudentDetail() {
     }
   };
 
-  const fetchClasses = async () => {
-    try {
-      const { data } = await api.get('/classes');
-      setClasses(data);
-    } catch (error) {
-      console.error('Error fetching classes:', error);
-    }
-  };
 
   const handleDelete = async () => {
     if (!student) return;
@@ -183,34 +124,6 @@ export function StudentDetail() {
       toast.error(error?.response?.data?.message || t('students.failedToDelete'));
     } finally {
       setShowDeleteDialog(false);
-    }
-  };
-
-  const handleEdit = async () => {
-    if (!student) return;
-    setIsSubmitting(true);
-    try {
-      await api.put(`/students/${student.id}`, {
-        first_name: formData.first_name.trim(),
-        last_name: formData.last_name.trim(),
-        name: `${formData.first_name} ${formData.last_name}`.trim(),
-        class_id: formData.class_id || null,
-        gender: formData.gender,
-        email: formData.email.trim() || null,
-        phone: formData.phone.trim() || null,
-        dob: formData.dob || null,
-        nationality: formData.nationality.trim() || null,
-        parent_email: formData.parent_email.trim() || null,
-        parent_phone: formData.parent_phone.trim() || null,
-        address: formData.address.trim() || null,
-      });
-      await fetchStudent();
-      setShowEditDialog(false);
-      toast.success(t('students.updateSuccess'));
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || t('students.failedToUpdate'));
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -238,7 +151,7 @@ export function StudentDetail() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -262,12 +175,7 @@ export function StudentDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex items-center justify-between"
-      >
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 
@@ -288,7 +196,7 @@ export function StudentDetail() {
           <Button 
             variant="outline"
             className="rounded-xl h-11"
-            onClick={() => setShowEditDialog(true)}
+            onClick={() => navigate(`/students/${studentId}/edit`)}
           >
             <Edit2 className="h-4 w-4 mr-2" />
             {t('common.edit')}
@@ -302,28 +210,14 @@ export function StudentDetail() {
             {t('common.delete')}
           </Button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Profile Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="rounded-[20px] bg-card p-6 shadow-card"
-      >
+      <div className="rounded-lg bg-card p-6 shadow-card">
         <div className="flex flex-col md:flex-row gap-6">
           {/* Avatar */}
           <div className="flex-shrink-0">
-            <Avatar className="h-32 w-32 rounded-2xl">
-              <AvatarImage 
-                src={student.avatar || generateAvatar(student.name, student.gender)} 
-                alt={student.name}
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-navy text-white text-3xl rounded-2xl">
-                {student.name.split(' ').map(n => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
+            <PersonAvatar name={student.name} gender={(student.gender as 'male' | 'female') || 'male'} className="h-32 w-32 rounded-2xl" />
           </div>
 
           {/* Info */}
@@ -352,7 +246,7 @@ export function StudentDetail() {
               {/* Stats */}
               <div className="flex gap-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-navy">{currentBorrows.length}</p>
+                  <p className="text-2xl font-bold text-primary">{currentBorrows.length}</p>
                   <p className="text-xs text-muted-foreground">{t('students.currentBorrows')}</p>
                 </div>
                 <div className="text-center">
@@ -372,7 +266,7 @@ export function StudentDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                  <GraduationCap className="h-5 w-5 text-navy" />
+                  <GraduationCap className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t('students.class')}</p>
@@ -383,7 +277,7 @@ export function StudentDetail() {
               {age && (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-navy" />
+                    <Calendar className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t('students.age')}</p>
@@ -395,7 +289,7 @@ export function StudentDetail() {
               {student.dob && (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-navy" />
+                    <Calendar className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t('students.dateOfBirth')}</p>
@@ -407,7 +301,7 @@ export function StudentDetail() {
               {student.nationality && (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <Flag className="h-5 w-5 text-navy" />
+                    <Flag className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t('students.nationality')}</p>
@@ -419,7 +313,7 @@ export function StudentDetail() {
               {student.email && (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <Mail className="h-5 w-5 text-navy" />
+                    <Mail className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t('students.email')}</p>
@@ -431,7 +325,7 @@ export function StudentDetail() {
               {student.phone && (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <Phone className="h-5 w-5 text-navy" />
+                    <Phone className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t('students.phone')}</p>
@@ -443,7 +337,7 @@ export function StudentDetail() {
               {student.address && (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <MapPin className="h-5 w-5 text-navy" />
+                    <MapPin className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t('students.address')}</p>
@@ -455,7 +349,7 @@ export function StudentDetail() {
               {student.parent_email && (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <Users className="h-5 w-5 text-navy" />
+                    <Users className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t('students.parentEmail')}</p>
@@ -467,7 +361,7 @@ export function StudentDetail() {
               {student.parent_phone && (
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <Phone className="h-5 w-5 text-navy" />
+                    <Phone className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t('students.parentPhoneLabel')}</p>
@@ -478,15 +372,10 @@ export function StudentDetail() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="rounded-[20px] bg-card p-6 shadow-card"
-      >
+      <div className="rounded-lg bg-card p-6 shadow-card">
         <Tabs defaultValue="current">
           <TabsList className="rounded-xl">
             <TabsTrigger value="current" className="rounded-lg">
@@ -514,8 +403,8 @@ export function StudentDetail() {
                 {currentBorrows.map((borrow) => (
                   <div key={borrow.id} className="flex items-center justify-between p-4 bg-secondary/50 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-8 rounded-lg bg-navy/10 flex items-center justify-center">
-                        <BookOpen className="h-5 w-5 text-navy" />
+                      <div className="h-10 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <BookOpen className="h-5 w-5 text-primary" />
                       </div>
                       <div>
                         <p className="font-medium text-sm">{borrow.book_title}</p>
@@ -571,8 +460,8 @@ export function StudentDetail() {
                 {borrowHistory.map((borrow) => (
                   <div key={borrow.id} className="flex items-center justify-between p-4 bg-secondary/50 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-8 rounded-lg bg-navy/10 flex items-center justify-center">
-                        <BookOpen className="h-5 w-5 text-navy" />
+                      <div className="h-10 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <BookOpen className="h-5 w-5 text-primary" />
                       </div>
                       <div>
                         <p className="font-medium text-sm">{borrow.book_title}</p>
@@ -591,171 +480,25 @@ export function StudentDetail() {
             )}
           </TabsContent>
         </Tabs>
-      </motion.div>
-
-      {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="rounded-[20px] max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('students.editStudent')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('students.firstName')}</Label>
-                <Input
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('students.lastName')}</Label>
-                <Input
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('students.class')}</Label>
-                <Select
-                  value={formData.class_id}
-                  onValueChange={(value) => setFormData({ ...formData, class_id: value })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder={t('students.selectClass')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes.map((cls) => (
-                      <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>{t('students.gender')}</Label>
-                <Select
-                  value={formData.gender}
-                  onValueChange={(value) => setFormData({ ...formData, gender: value })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">{t('common.male')}</SelectItem>
-                    <SelectItem value="female">{t('common.female')}</SelectItem>
-                    <SelectItem value="other">{t('common.other')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('students.dateOfBirth')}</Label>
-                <Input
-                  type="date"
-                  value={formData.dob}
-                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('students.nationality')}</Label>
-                <Input
-                  value={formData.nationality}
-                  onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                  placeholder="e.g., Tanzanian"
-                  className="rounded-xl"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('students.email')}</Label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('students.phone')}</Label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('students.parentEmail')}</Label>
-                <Input
-                  type="email"
-                  value={formData.parent_email}
-                  onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('students.parentPhoneLabel')}</Label>
-                <Input
-                  value={formData.parent_phone}
-                  onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('students.address')}</Label>
-              <Input
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="rounded-xl"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
-              {t('common.cancel')}
-            </Button>
-            <Button 
-              onClick={handleEdit} 
-              className="bg-navy hover:bg-navy/90 rounded-xl"
-              disabled={isSubmitting}
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {t('common.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </div>
 
       {/* Delete Confirmation */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('students.deleteStudent')}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('students.deleteStudent')}</AlertDialogTitle>
+            <AlertDialogDescription>
               {t('students.deleteConfirmMessage', { name: student.name })}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -69,9 +69,9 @@ export function ResetPassword() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="rounded-[20px] bg-card p-8 shadow-card">
+        <div className="rounded-lg bg-card p-8 shadow-card">
           <div className="text-center mb-8">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-navy mx-auto mb-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary mx-auto mb-4">
               <Library className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">{t('auth.setNewPassword')}</h1>
@@ -88,7 +88,7 @@ export function ResetPassword() {
               <p className="text-sm font-medium text-foreground">{t('auth.passwordResetSuccess')}</p>
               <Button
                 onClick={() => navigate('/login')}
-                className="w-full h-12 bg-navy hover:bg-navy/90 rounded-xl"
+                className="w-full h-12 bg-primary hover:bg-primary/90 rounded-xl"
               >
                 {t('auth.backToLogin')}
               </Button>
@@ -145,14 +145,14 @@ export function ResetPassword() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-navy hover:bg-navy/90 rounded-xl"
+                className="w-full h-12 bg-primary hover:bg-primary/90 rounded-xl"
                 disabled={isLoading || !token}
               >
                 {isLoading ? t('auth.resetting') : t('auth.resetPasswordBtn')}
               </Button>
 
               <div className="text-center">
-                <Link to="/login" className="text-sm text-navy hover:underline">
+                <Link to="/login" className="text-sm text-primary hover:underline">
                   {t('auth.backToLogin')}
                 </Link>
               </div>
@@ -163,3 +163,4 @@ export function ResetPassword() {
     </div>
   );
 }
+

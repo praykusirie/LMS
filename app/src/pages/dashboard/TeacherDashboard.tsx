@@ -106,7 +106,7 @@ export function TeacherDashboard() {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className="lg:col-span-2 rounded-[20px] bg-card p-5 shadow-card"
+              className="lg:col-span-2 rounded-lg bg-card p-5 shadow-card"
             >
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-foreground">{t('dashboard.recentResults', 'Recent Results')}</h3>
@@ -136,12 +136,12 @@ export function TeacherDashboard() {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.5 }}
-              className="rounded-[20px] bg-card p-5 shadow-card"
+              className="rounded-lg bg-card p-5 shadow-card"
             >
               <h3 className="text-lg font-semibold text-foreground mb-4">{t('dashboard.performanceOverview', 'Performance')}</h3>
               <div className="space-y-6">
                 <div className="text-center py-4">
-                  <div className="text-4xl font-bold text-navy">{stats.pass_rate}%</div>
+                  <div className="text-4xl font-bold text-primary">{stats.pass_rate}%</div>
                   <p className="text-sm text-muted-foreground mt-1">{t('dashboard.passRate', 'Pass Rate')}</p>
                 </div>
                 <div className="h-px bg-border" />
@@ -170,7 +170,7 @@ export function TeacherDashboard() {
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
-            className="rounded-[20px] bg-card p-5 shadow-card"
+            className="rounded-lg bg-card p-5 shadow-card"
           >
             <h3 className="text-lg font-semibold text-foreground mb-4">{t('dashboard.recentActivities', 'Recent Activities')}</h3>
             <div className="overflow-x-auto">
@@ -214,3 +214,4 @@ export function TeacherDashboard() {
     </div>
   );
 }
+

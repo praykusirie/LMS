@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import * as XLSX from 'xlsx';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { getTeacherInstructionClasses } from '../lib/teacher-access.js';
 
 const router = Router();
 
@@ -569,95 +570,78 @@ router.get('/teacher-overview', async (req: Request, res: Response) => {
         const user = await getSessionUser(req);
         if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
-        // Find teacher by user name
-        const teacherRes = await pool.query(`SELECT id FROM teachers WHERE name = $1 LIMIT 1`, [user.id]);
-        // Fallback: search by name via user table
-        let teacherId = teacherRes.rows[0]?.id;
-        if (!teacherId) {
-            const userRes = await pool.query(`SELECT name FROM "user" WHERE id = $1`, [user.id]);
-            const userName = userRes.rows[0]?.name;
-            if (userName) {
-                const t2 = await pool.query(`SELECT id FROM teachers WHERE name = $1 LIMIT 1`, [userName]);
-                teacherId = t2.rows[0]?.id;
-            }
-        }
-
-        if (!teacherId) {
-            return res.json({
-                classPerformance: [],
-                activityCompletion: [],
-                summary: { totalClasses: 0, totalStudents: 0, avgScore: 0, passRate: 0 }
-            });
-        }
+        const accessibleClasses = await getTeacherInstructionClasses(pool, user);
+        const accessibleClassIds = accessibleClasses.map((classItem) => classItem.id);
 
         // Summary stats
         const summaryRes = await pool.query(`
             SELECT
-                (SELECT COUNT(DISTINCT ct.class_id) FROM class_teachers ct WHERE ct.teacher_id = $1)::int AS total_classes,
-                (SELECT COUNT(*) FROM students s
-                 JOIN class_teachers ct ON ct.class_id = s.class_id
-                 WHERE ct.teacher_id = $1 AND s.is_active = true)::int AS total_students
-        `, [teacherId]);
+                (
+                    SELECT COUNT(*)::int
+                    FROM students s
+                    WHERE s.class_id = ANY($1::uuid[])
+                      AND s.is_active = true
+                ) AS total_students
+        `, [accessibleClassIds]);
 
         // Performance across classes
         const perfRes = await pool.query(`
             SELECT
                 c.name AS class_name,
-                COUNT(DISTINCT ca.id)::int AS activities_count,
-                COALESCE(AVG(cam.marks), 0)::numeric(5,1) AS avg_score,
-                ca.total_marks,
+                COUNT(DISTINCT a.id)::int AS activities_count,
+                COALESCE(ROUND(AVG(am.marks_obtained)::numeric, 1), 0) AS avg_score,
                 COALESCE(
-                    ROUND(COUNT(*) FILTER (WHERE cam.marks >= ca.total_marks * 0.4)::numeric /
+                    ROUND(COUNT(*) FILTER (WHERE am.marks_obtained >= a.total_marks * 0.4)::numeric /
                     NULLIF(COUNT(*), 0) * 100, 1), 0
                 )::numeric AS pass_rate,
-                COUNT(DISTINCT cam.student_id)::int AS students_assessed
-            FROM class_teachers ct
-            JOIN classes c ON c.id = ct.class_id
-            LEFT JOIN class_activities ca ON ca.class_id = c.id
-            LEFT JOIN class_activity_marks cam ON cam.activity_id = ca.id
-            WHERE ct.teacher_id = $1
-            GROUP BY c.id, c.name, ca.total_marks
+                COUNT(DISTINCT am.student_id)::int AS students_assessed
+            FROM classes c
+            LEFT JOIN activities a ON a.class_id = c.id AND a.teacher_id = $2 AND a.is_active = true
+            LEFT JOIN activity_marks am ON am.activity_id = a.id
+            WHERE c.id = ANY($1::uuid[])
+            GROUP BY c.id, c.name
             ORDER BY c.name
-        `, [teacherId]);
+        `, [accessibleClassIds, user.id]);
 
         // Activity completion
         const actRes = await pool.query(`
             SELECT
-                ca.name AS activity_name,
+                a.name AS activity_name,
                 c.name AS class_name,
-                ca.date,
-                ca.total_marks,
-                COUNT(cam.id)::int AS marks_entered,
+                a.date,
+                a.total_marks,
+                COUNT(am.id)::int AS marks_entered,
                 (SELECT COUNT(*) FROM students s2 WHERE s2.class_id = c.id AND s2.is_active = true)::int AS total_students,
-                COALESCE(AVG(cam.marks), 0)::numeric(5,1) AS avg_marks
-            FROM class_activities ca
-            JOIN classes c ON c.id = ca.class_id
-            JOIN class_teachers ct ON ct.class_id = ca.class_id
-            LEFT JOIN class_activity_marks cam ON cam.activity_id = ca.id
-            WHERE ct.teacher_id = $1
-            GROUP BY ca.id, ca.name, c.id, c.name, ca.date, ca.total_marks
-            ORDER BY ca.date DESC
+                COALESCE(ROUND(AVG(am.marks_obtained)::numeric, 1), 0) AS avg_marks
+            FROM activities a
+            JOIN classes c ON c.id = a.class_id
+            LEFT JOIN activity_marks am ON am.activity_id = a.id
+            WHERE a.teacher_id = $1
+              AND a.is_active = true
+            GROUP BY a.id, a.name, c.id, c.name, a.date, a.total_marks, a.created_at
+            ORDER BY a.date DESC, a.created_at DESC
             LIMIT 20
-        `, [teacherId]);
+        `, [user.id]);
 
         // Overall avg + pass rate
         const overallRes = await pool.query(`
             SELECT
-                COALESCE(AVG(cam.marks), 0)::numeric(5,1) AS avg_score,
+                COALESCE(ROUND(AVG(am.marks_obtained)::numeric, 1), 0) AS avg_score,
                 COALESCE(
-                    ROUND(COUNT(*) FILTER (WHERE cam.marks >= ca.total_marks * 0.4)::numeric /
+                    ROUND(COUNT(*) FILTER (WHERE am.marks_obtained >= a.total_marks * 0.4)::numeric /
                     NULLIF(COUNT(*), 0) * 100, 1), 0
                 )::numeric AS pass_rate
-            FROM class_activity_marks cam
-            JOIN class_activities ca ON ca.id = cam.activity_id
-            JOIN class_teachers ct ON ct.class_id = ca.class_id
-            WHERE ct.teacher_id = $1
-        `, [teacherId]);
+            FROM activity_marks am
+            JOIN activities a ON a.id = am.activity_id
+            WHERE a.teacher_id = $1
+              AND a.is_active = true
+        `, [user.id]);
 
         res.json({
             classPerformance: perfRes.rows,
             activityCompletion: actRes.rows,
             summary: {
+                totalClasses: accessibleClasses.length,
                 ...summaryRes.rows[0],
                 avgScore: overallRes.rows[0]?.avg_score || 0,
                 passRate: overallRes.rows[0]?.pass_rate || 0,

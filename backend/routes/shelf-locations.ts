@@ -53,8 +53,8 @@ router.post('/', requirePermission('shelf_locations', 'manage'), async (req: Req
         const recordLevel = level ?? user?.level ?? null;
 
         const existing = await pool.query(
-            'SELECT id FROM shelf_locations WHERE LOWER(code) = LOWER($1)',
-            [code.trim()]
+            'SELECT id FROM shelf_locations WHERE LOWER(code) = LOWER($1) AND level IS NOT DISTINCT FROM $2',
+            [code.trim(), recordLevel]
         );
         if (existing.rows.length > 0) {
             res.status(409).json({ message: `Shelf location with code "${code.trim()}" already exists` });

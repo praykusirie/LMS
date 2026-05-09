@@ -2,8 +2,97 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
+import { getTeacherInstructionClasses } from '../lib/teacher-access.js';
 
 const router = Router();
+
+type TrendPeriod = 'week' | 'month' | '6months';
+type LibraryPeriod = 'week' | 'month' | 'all';
+
+function readTrendPeriod(value: unknown): TrendPeriod {
+    if (value === 'month' || value === '6months') {
+        return value;
+    }
+
+    return 'week';
+}
+
+function readLibraryPeriod(value: unknown, fallback: LibraryPeriod = 'month'): LibraryPeriod {
+    if (value === 'week' || value === 'month' || value === 'all') {
+        return value;
+    }
+
+    return fallback;
+}
+
+function getTimeWindowClause(period: TrendPeriod | LibraryPeriod, column: string): string {
+    switch (period) {
+        case 'week':
+            return `AND ${column} >= date_trunc('day', NOW()) - interval '6 days'`;
+        case 'month':
+            return `AND ${column} >= date_trunc('day', NOW()) - interval '29 days'`;
+        case '6months':
+            return `AND ${column} >= date_trunc('month', NOW()) - interval '5 months'`;
+        case 'all':
+        default:
+            return '';
+    }
+}
+
+function buildBorrowingTrendsQuery(period: TrendPeriod, levelClause: string): string {
+    const config = {
+        week: {
+            rangeStart: "date_trunc('day', NOW()) - interval '6 days'",
+            rangeEnd: "date_trunc('day', NOW())",
+            step: "interval '1 day'",
+            truncUnit: 'day',
+            labelFormat: 'Dy',
+        },
+        month: {
+            rangeStart: "date_trunc('week', NOW()) - interval '4 weeks'",
+            rangeEnd: "date_trunc('week', NOW())",
+            step: "interval '1 week'",
+            truncUnit: 'week',
+            labelFormat: 'DD Mon',
+        },
+        '6months': {
+            rangeStart: "date_trunc('month', NOW()) - interval '5 months'",
+            rangeEnd: "date_trunc('month', NOW())",
+            step: "interval '1 month'",
+            truncUnit: 'month',
+            labelFormat: 'Mon',
+        },
+    }[period];
+
+    return `
+        WITH series AS (
+            SELECT generate_series(
+                ${config.rangeStart},
+                ${config.rangeEnd},
+                ${config.step}
+            ) AS bucket
+        )
+        SELECT
+            to_char(series.bucket, '${config.labelFormat}') AS month,
+            COALESCE(borrows.count, 0)::int AS borrows,
+            COALESCE(returns.count, 0)::int AS returns
+        FROM series
+        LEFT JOIN (
+            SELECT date_trunc('${config.truncUnit}', borrow_date) AS bucket, COUNT(*) AS count
+            FROM borrow_records
+            WHERE borrow_date >= ${config.rangeStart} ${levelClause}
+            GROUP BY date_trunc('${config.truncUnit}', borrow_date)
+        ) borrows ON borrows.bucket = series.bucket
+        LEFT JOIN (
+            SELECT date_trunc('${config.truncUnit}', return_date) AS bucket, COUNT(*) AS count
+            FROM borrow_records
+            WHERE return_date IS NOT NULL
+                AND return_date >= ${config.rangeStart} ${levelClause}
+            GROUP BY date_trunc('${config.truncUnit}', return_date)
+        ) returns ON returns.bucket = series.bucket
+        ORDER BY series.bucket ASC
+    `;
+}
 
 // Get dashboard statistics
 router.get('/stats', async (req: Request, res: Response) => {
@@ -34,37 +123,11 @@ router.get('/stats', async (req: Request, res: Response) => {
 // Get borrowing trends (last 6 months)
 router.get('/borrowing-trends', async (req: Request, res: Response) => {
     try {
+        const period = readTrendPeriod(req.query.period);
         const user = await getSessionUser(req);
         const { clause: levelClause, params: levelParams } = getLevelFilter(user, undefined, 1);
 
-        const result = await pool.query(`
-            WITH months AS (
-                SELECT generate_series(
-                    date_trunc('month', NOW()) - interval '5 months',
-                    date_trunc('month', NOW()),
-                    interval '1 month'
-                ) AS month
-            )
-            SELECT
-                to_char(m.month, 'Mon') AS month,
-                COALESCE(borrows.count, 0)::int AS borrows,
-                COALESCE(returns.count, 0)::int AS returns
-            FROM months m
-            LEFT JOIN (
-                SELECT date_trunc('month', borrow_date) AS month, COUNT(*) AS count
-                FROM borrow_records
-                WHERE borrow_date >= date_trunc('month', NOW()) - interval '5 months' ${levelClause}
-                GROUP BY date_trunc('month', borrow_date)
-            ) borrows ON borrows.month = m.month
-            LEFT JOIN (
-                SELECT date_trunc('month', return_date) AS month, COUNT(*) AS count
-                FROM borrow_records
-                WHERE return_date IS NOT NULL
-                    AND return_date >= date_trunc('month', NOW()) - interval '5 months' ${levelClause}
-                GROUP BY date_trunc('month', return_date)
-            ) returns ON returns.month = m.month
-            ORDER BY m.month ASC
-        `, levelParams);
+        const result = await pool.query(buildBorrowingTrendsQuery(period, levelClause), levelParams);
         res.json(result.rows);
     } catch (error) {
         console.error('Error fetching borrowing trends:', error);
@@ -126,69 +189,71 @@ router.get('/teacher-stats', async (req: Request, res: Response) => {
         const user = await getSessionUser(req);
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-        const teacherRes = await pool.query(`SELECT id FROM teachers WHERE name = $1 LIMIT 1`, [user.name]);
-        const teacherId = teacherRes.rows[0]?.id;
-
-        if (!teacherId) {
-            return res.json({
-                my_classes: 0, my_students: 0, activities_count: 0,
-                avg_score: 0, pass_rate: 0, recent_activities: [], recent_results: []
-            });
-        }
+        const accessibleClasses = await getTeacherInstructionClasses(pool, user);
+        const accessibleClassIds = accessibleClasses.map((classItem) => classItem.id);
 
         const statsRes = await pool.query(`
             SELECT
-                (SELECT COUNT(DISTINCT ct.class_id) FROM class_teachers ct WHERE ct.teacher_id = $1) AS my_classes,
-                (SELECT COUNT(*) FROM students s
-                 JOIN class_teachers ct ON ct.class_id = s.class_id
-                 WHERE ct.teacher_id = $1 AND s.is_active = true) AS my_students,
-                (SELECT COUNT(*) FROM class_activities ca
-                 JOIN class_teachers ct ON ct.class_id = ca.class_id
-                 WHERE ct.teacher_id = $1) AS activities_count
-        `, [teacherId]);
+                (
+                    SELECT COUNT(*)::int
+                    FROM students s
+                    WHERE s.class_id = ANY($1::uuid[])
+                      AND s.is_active = true
+                ) AS my_students,
+                (
+                    SELECT COUNT(*)::int
+                    FROM activities a
+                    WHERE a.teacher_id = $2
+                      AND a.is_active = true
+                ) AS activities_count
+        `, [accessibleClassIds, user.id]);
 
         const perfRes = await pool.query(`
             SELECT
-                COALESCE(AVG(cam.marks), 0)::numeric(5,1) AS avg_score,
                 COALESCE(
-                    ROUND(COUNT(*) FILTER (WHERE cam.marks >= ca.total_marks * 0.4)::numeric /
+                    ROUND(AVG((am.marks_obtained::numeric / NULLIF(a.total_marks, 0)) * 100), 1),
+                    0
+                ) AS avg_score,
+                COALESCE(
+                    ROUND(COUNT(*) FILTER (WHERE am.marks_obtained >= a.total_marks * 0.4)::numeric /
                     NULLIF(COUNT(*), 0) * 100, 1), 0
                 ) AS pass_rate
-            FROM class_activity_marks cam
-            JOIN class_activities ca ON ca.id = cam.activity_id
-            JOIN class_teachers ct ON ct.class_id = ca.class_id
-            WHERE ct.teacher_id = $1
-        `, [teacherId]);
+            FROM activity_marks am
+            JOIN activities a ON a.id = am.activity_id
+            WHERE a.teacher_id = $1
+              AND a.is_active = true
+        `, [user.id]);
 
         const activitiesRes = await pool.query(`
-            SELECT ca.id, ca.name, ca.date, ca.total_marks, c.name AS class_name,
-                   COUNT(cam.id) AS marks_entered
-            FROM class_activities ca
-            JOIN classes c ON c.id = ca.class_id
-            JOIN class_teachers ct ON ct.class_id = ca.class_id
-            LEFT JOIN class_activity_marks cam ON cam.activity_id = ca.id
-            WHERE ct.teacher_id = $1
-            GROUP BY ca.id, ca.name, ca.date, ca.total_marks, c.name
-            ORDER BY ca.date DESC
+            SELECT a.id, a.name, a.date, a.total_marks, c.name AS class_name,
+                   COUNT(am.id)::int AS marks_entered
+            FROM activities a
+            JOIN classes c ON c.id = a.class_id
+            LEFT JOIN activity_marks am ON am.activity_id = a.id
+            WHERE a.teacher_id = $1
+              AND a.is_active = true
+            GROUP BY a.id, a.name, a.date, a.total_marks, c.name, a.created_at
+            ORDER BY a.date DESC, a.created_at DESC
             LIMIT 10
-        `, [teacherId]);
+        `, [user.id]);
 
         const resultsRes = await pool.query(`
-            SELECT ca.name AS activity_name, c.name AS class_name, ca.date,
-                   ca.total_marks,
-                   COALESCE(AVG(cam.marks), 0)::numeric(5,1) AS avg_marks,
-                   COUNT(cam.id) AS student_count
-            FROM class_activities ca
-            JOIN classes c ON c.id = ca.class_id
-            JOIN class_teachers ct ON ct.class_id = ca.class_id
-            LEFT JOIN class_activity_marks cam ON cam.activity_id = ca.id
-            WHERE ct.teacher_id = $1
-            GROUP BY ca.id, ca.name, c.name, ca.date, ca.total_marks
-            ORDER BY ca.date DESC
+            SELECT a.name AS activity_name, c.name AS class_name, a.date,
+                   a.total_marks,
+                   COALESCE(ROUND(AVG(am.marks_obtained)::numeric, 1), 0) AS avg_marks,
+                   COUNT(am.id)::int AS student_count
+            FROM activities a
+            JOIN classes c ON c.id = a.class_id
+            LEFT JOIN activity_marks am ON am.activity_id = a.id
+            WHERE a.teacher_id = $1
+              AND a.is_active = true
+            GROUP BY a.id, a.name, c.name, a.date, a.total_marks, a.created_at
+            ORDER BY a.date DESC, a.created_at DESC
             LIMIT 10
-        `, [teacherId]);
+        `, [user.id]);
 
         res.json({
+            my_classes: accessibleClasses.length,
             ...statsRes.rows[0],
             ...perfRes.rows[0],
             recent_activities: activitiesRes.rows,
@@ -268,4 +333,81 @@ router.get('/finance-stats', async (req: Request, res: Response) => {
     }
 });
 
+
+router.get('/library-category-distribution', async (req: Request, res: Response) => {
+    try {
+        const period = readLibraryPeriod(req.query.period, 'month');
+        const user = await getSessionUser(req);
+        const { clause: levelClause, params: levelParams } = getLevelFilter(user, 'br', 1);
+        const timeClause = getTimeWindowClause(period, 'br.borrow_date');
+
+        const result = await pool.query(`
+            SELECT c.name, COUNT(br.id)::int AS circulation_count
+            FROM borrow_records br
+            JOIN books b ON b.id = br.book_id
+            JOIN categories c ON c.id = b.category_id
+            WHERE 1=1 ${levelClause} ${timeClause}
+            GROUP BY c.id, c.name
+            ORDER BY circulation_count DESC, c.name ASC
+        `, levelParams);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching category distribution:', error);
+        res.status(500).json({ error: 'Failed to fetch category distribution' });
+    }
+});
+
+
+// Get Top Books
+router.get('/library-top-books', async (req: Request, res: Response) => {
+    try {
+        const period = readLibraryPeriod(req.query.period, 'month');
+        const user = await getSessionUser(req);
+        const { clause: levelClause, params: levelParams } = getLevelFilter(user, 'br', 1);
+        const timeClause = getTimeWindowClause(period, 'br.borrow_date');
+
+        const result = await pool.query(`
+            SELECT b.title, b.author, b.cover_image, COUNT(br.id)::int AS borrow_count
+            FROM borrow_records br
+            JOIN books b ON b.id = br.book_id
+            WHERE 1=1 ${levelClause} ${timeClause}
+            GROUP BY b.id, b.title, b.author, b.cover_image
+            ORDER BY borrow_count DESC
+            LIMIT 5
+        `, levelParams);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching top books:', error);
+        res.status(500).json({ error: 'Failed to fetch top books' });
+    }
+});
+
+// Get Top Authors
+router.get('/library-top-authors', async (req: Request, res: Response) => {
+    try {
+        const period = readLibraryPeriod(req.query.period, 'week');
+        const user = await getSessionUser(req);
+        const { clause: levelClause, params: levelParams } = getLevelFilter(user, 'br', 1);
+        const timeClause = getTimeWindowClause(period, 'br.borrow_date');
+
+        const result = await pool.query(`
+            SELECT b.author, COUNT(br.id)::int AS borrow_count, COUNT(DISTINCT b.id)::int AS book_count
+            FROM borrow_records br
+            JOIN books b ON b.id = br.book_id
+            WHERE b.author IS NOT NULL AND b.author != '' ${levelClause} ${timeClause}
+            GROUP BY b.author
+            ORDER BY borrow_count DESC
+            LIMIT 5
+        `, levelParams);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching top authors:', error);
+        res.status(500).json({ error: 'Failed to fetch top authors' });
+    }
+});
+
 export default router;
+
+
+

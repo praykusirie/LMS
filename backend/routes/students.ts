@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { pool } from '../lib/db.js';
 import { getSessionUser, getLevelFilter } from '../lib/session.js';
 import { requirePermission } from '../lib/middleware.js';
+import { getTeacherAccessContext, teacherHasAssignedLevel } from '../lib/teacher-access.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -12,16 +13,61 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 router.get('/', async (req: Request, res: Response) => {
     try {
         const user = await getSessionUser(req);
-        const { clause, params } = getLevelFilter(user, 's');
-        const result = await pool.query(
-            `SELECT s.*, 
+        const { class_id } = req.query;
+        let sql = `SELECT s.*, 
                     c.name AS class_name,
                     (SELECT COUNT(*) FROM borrow_records br WHERE br.student_id = s.id AND br.status = 'borrowed')::INTEGER AS active_borrows
              FROM students s
              LEFT JOIN classes c ON c.id = s.class_id
-             WHERE 1=1 ${clause}
-             ORDER BY s.created_at DESC`,
-            params
+             WHERE 1=1`;
+        const params: unknown[] = [];
+        let paramIndex = 1;
+
+        if (class_id) {
+            sql += ` AND s.class_id = $${paramIndex++}`;
+            params.push(class_id);
+        }
+
+        if (user?.role === 'teacher') {
+            const teacherAccess = await getTeacherAccessContext(pool, user);
+            if (class_id) {
+                const classResult = await pool.query<{ level: string | null }>(
+                    'SELECT level FROM classes WHERE id = $1',
+                    [class_id],
+                );
+                if (classResult.rows.length === 0) {
+                    res.status(404).json({ error: 'Class not found' });
+                    return;
+                }
+
+                const classLevel = classResult.rows[0]?.level;
+                if (!teacherHasAssignedLevel(teacherAccess.assignedLevels, classLevel)) {
+                    res.status(403).json({ error: 'Access denied for selected class' });
+                    return;
+                }
+            } else {
+                if (teacherAccess.assignedLevels.length === 0) {
+                    res.json([]);
+                    return;
+                }
+
+                sql += ` AND s.level = ANY($${paramIndex++}::text[])`;
+                params.push(teacherAccess.assignedLevels);
+            }
+        } else {
+            const { clause, params: levelParams, paramOffset } = getLevelFilter(user, 's', paramIndex);
+            if (clause) {
+                sql += ` ${clause}`;
+                params.push(...levelParams);
+                paramIndex = paramOffset;
+            }
+        }
+
+        sql += ' ORDER BY s.created_at DESC';
+
+        const result = await pool.query(
+            sql,
+            params,
         );
         res.json(result.rows);
     } catch (error) {

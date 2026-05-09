@@ -7,7 +7,8 @@ import {
   AddBook,
   BookDetail, 
   Students, 
-  AddStudent, 
+  AddStudent,
+  EditStudent, 
   StudentDetail,
   Classes,
   Categories,
@@ -17,6 +18,7 @@ import {
   ReturnBook,
   ItemsDistribution,
   ItemsDistributionCreate,
+  BorrowRecords,
   Overdue, 
   Reports, 
   Settings,
@@ -29,6 +31,7 @@ import {
   StockView,
   Teachers,
   AddTeacher,
+  TeacherDetail,
   ClassActivities,
   Results,
   CreateInvoice,
@@ -54,7 +57,7 @@ function ProtectedRoute() {
   if (isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -76,7 +79,7 @@ function PublicRoute() {
   if (isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -92,6 +95,7 @@ function App() {
   return (
     <ErrorBoundary>
     <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
       {/* Public routes */}
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
@@ -108,6 +112,7 @@ function App() {
         <Route path="/students" element={<G p="students:view"><Students /></G>} />
         <Route path="/add-student" element={<G p="students:create"><AddStudent /></G>} />
         <Route path="/students/:studentId" element={<G p="students:view"><StudentDetail /></G>} />
+        <Route path="/students/:studentId/edit" element={<G p="students:edit"><EditStudent /></G>} />
         <Route path="/books" element={<G p="books:view"><Books /></G>} />
         <Route path="/add-book" element={<G p="books:create"><AddBook /></G>} />
         <Route path="/books/:bookId" element={<G p="books:view"><BookDetail /></G>} />
@@ -118,6 +123,7 @@ function App() {
         <Route path="/items" element={<G p="items:view"><ItemsMaster /></G>} />
         <Route path="/teachers" element={<G p="teachers:view"><Teachers /></G>} />
         <Route path="/add-teacher" element={<G p="teachers:create"><AddTeacher /></G>} />
+        <Route path="/teachers/:teacherId/view" element={<G p="teachers:view"><TeacherDetail /></G>} />
         <Route path="/teachers/:teacherId" element={<G p="teachers:edit"><AddTeacher /></G>} />
 
         {/* User Management */}
@@ -139,9 +145,10 @@ function App() {
         {/* Other */}
         <Route path="/books-items-management/issue-book" element={<G p="borrow:view"><IssueBook /></G>} />
         <Route path="/books-items-management/return-book" element={<G p="borrow:view"><ReturnBook /></G>} />
-        <Route path="/books-items-management/items-distribution" element={<G p="items:view"><ItemsDistribution /></G>} />
-        <Route path="/books-items-management/items-distribution/new" element={<G p="items:view"><ItemsDistributionCreate /></G>} />
+        <Route path="/books-items-management/items-distribution" element={<G p="distribution:view"><ItemsDistribution /></G>} />
+        <Route path="/books-items-management/items-distribution/new" element={<G p="distribution:create"><ItemsDistributionCreate /></G>} />
         <Route path="/overdue" element={<G p="overdue:view"><Overdue /></G>} />
+        <Route path="/borrow-records" element={<G p="library:view"><BorrowRecords /></G>} />
         <Route path="/reports" element={<G p="reports:view"><Reports /></G>} />
 
         {/* Finance */}
@@ -161,3 +168,4 @@ function App() {
 }
 
 export default App;
+

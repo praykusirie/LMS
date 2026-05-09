@@ -1,358 +1,318 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { 
-  AlertCircle, 
-  Mail, 
-  MessageSquare, 
-  Clock, 
-  User,
-  Search,
-  CheckCircle2
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { EmptyState } from '@/components/ui-custom';
-import { borrowRecords as mockBorrowRecords, students } from '@/data/mockData';
-import type { BorrowRecord } from '@/types';
+import { Mail, MessageSquare, CheckCircle, AlertTriangle, Search, BookKey } from 'lucide-react';
+import { toast } from 'sonner';
+import { format, differenceInDays } from 'date-fns';
+
+import api from '@/lib/api';
 import { usePermissions } from '@/lib/permissions';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { DataTable } from '@/components/ui/data-table';
+import { PageHeader } from '@/components/ui-custom';
+import type { DataTableColumn } from '@/components/ui/data-table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+interface OverdueRecord {
+  id: number;
+  bookTitle: string;
+  studentName: string;
+  studentEmail?: string;
+  studentPhone?: string;
+  borrowDate: string;
+  dueDate: string;
+}
 
 export function Overdue() {
   const { t } = useTranslation();
   const { hasPermission } = usePermissions();
-  const [borrowRecords, setBorrowRecords] = useState<BorrowRecord[]>(mockBorrowRecords);
+  const [records, setRecords] = useState<OverdueRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showReminderDialog, setShowReminderDialog] = useState(false);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-  const [selectedOverdue, setSelectedOverdue] = useState<BorrowRecord | null>(null);
-  const [reminderType, setReminderType] = useState<'email' | 'sms'>('email');
+  const [returnTarget, setReturnTarget] = useState<OverdueRecord | null>(null);
 
-  const overdueRecords = useMemo(() => {
-    return borrowRecords.filter(r => r.status === 'overdue');
-  }, [borrowRecords]);
+  const fetchOverdueRecords = async () => {
+    try {
+      setLoading(true);
+      setIsError(false);
+      const response = await api.get('/borrow-records?status=overdue');
+      setRecords(response.data);
+    } catch (error) {
+      console.error('Failed to fetch overdue records:', error);
+      setIsError(true);
+      toast.error(t('overdue.fetchError', 'Failed to load overdue records'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredOverdue = useMemo(() => {
-    return overdueRecords.filter(record => 
-      record.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.bookTitle.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    fetchOverdueRecords();
+  }, []);
+
+  const handleReturn = async (id: number) => {
+    try {
+      await api.patch(`/borrow-records/${id}/return`);
+      toast.success(t('overdue.returnSuccess', 'Book returned successfully'));
+      setReturnTarget(null);
+      fetchOverdueRecords();
+    } catch (error) {
+      console.error('Failed to return book:', error);
+      toast.error(t('overdue.returnError', 'Failed to process return'));
+    }
+  };
+
+  const handleSendReminder = async (id: number, type: 'email' | 'sms') => {
+    if (type === 'sms') {
+      toast.info(t('overdue.smsNotConfigured', 'SMS gateway not configured yet.'));
+      return;
+    }
+
+    try {
+      await api.post(`/borrow-records/${id}/remind`);
+      toast.success(t('overdue.reminderSent', 'Email reminder sent to student.'));
+    } catch (error) {
+      console.error('Failed to send reminder:', error);
+      toast.error(t('overdue.reminderError', 'Failed to send reminder.'));
+    }
+  };
+
+  const filteredRecords = useMemo(() => {
+    return records.filter(
+      (record) =>
+        record.bookTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.studentName?.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [overdueRecords, searchQuery]);
+  }, [records, searchQuery]);
 
-  const getDaysOverdue = (dueDate: string) => {
-    const due = new Date(dueDate);
-    const now = new Date();
-    const diffTime = now.getTime() - due.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
+  const columns: DataTableColumn<OverdueRecord>[] = useMemo(() => [
+    {
+      key: 'bookTitle',
+      header: t('overdue.book', 'Book Title'),
+      sortable: true,
+      getValue: (row) => row.bookTitle,
+      render: (record) => (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-red-50 flex items-center justify-center">
+            <BookKey className="h-5 w-5 text-destructive" />
+          </div>
+          <span className="font-medium text-foreground">{record.bookTitle}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'studentName',
+      header: t('overdue.student', 'Student'),
+      sortable: true,
+      getValue: (row) => row.studentName,
+    },
+    {
+      key: 'dueDate',
+      header: t('overdue.dueDate', 'Due Date'),
+      sortable: true,
+      getValue: (row) => row.dueDate,
+      render: (record) => (
+        <span className="text-muted-foreground">
+          {format(new Date(record.dueDate), 'MMM dd, yyyy')}
+        </span>
+      ),
+    },
+    {
+      key: 'daysLate',
+      header: t('overdue.daysLate', 'Days Late'),
+      sortable: true,
+      getValue: (row) => differenceInDays(new Date(), new Date(row.dueDate)),
+      render: (record) => {
+        const daysLate = differenceInDays(new Date(), new Date(record.dueDate));
+        return (
+          <Badge variant="destructive" className="flex w-fit items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            {daysLate} {t('overdue.days', 'days')}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: t('overdue.actions', 'Actions'),
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (record) => (
+        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+          {hasPermission('library:remind') && (
+            <TooltipProvider>
+              <div className="inline-flex gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSendReminder(record.id, 'email')}
+                      disabled={!record.studentEmail}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {t('overdue.email', 'Email')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {record.studentEmail 
+                      ? t('overdue.sendEmail', 'Send Email Reminder')
+                      : t('overdue.noEmail', 'No Email Address')}
+                  </TooltipContent>
+                </Tooltip>
 
-  const getTotalPenalty = (dueDate: string) => {
-    const days = getDaysOverdue(dueDate);
-    return days * 1000; // TZS 1,000 per day
-  };
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border rounded-lg px-2.5 py-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  SMS
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Soon</Badge>
+                </span>
+              </div>
+            </TooltipProvider>
+          )}
 
-  const handleSendReminder = (record: BorrowRecord) => {
-    setSelectedOverdue(record);
-    setShowReminderDialog(true);
-  };
-
-  const confirmSendReminder = () => {
-    // Simulate sending reminder
-    setShowReminderDialog(false);
-    setShowSuccessDialog(true);
-    setSelectedOverdue(null);
-  };
-
-  const handleClearOverdue = (recordId: string) => {
-    setBorrowRecords(records => 
-      records.map(r => r.id === recordId ? { ...r, status: 'returned' } : r)
-    );
-  };
+          {hasPermission('library:manage') && (
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={() => setReturnTarget(record)}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {t('overdue.markReturned', 'Return')}
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ], [hasPermission, t]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex items-center justify-between"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('overdue.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('overdue.manageSubtitle')}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-2xl font-bold text-red">{overdueRecords.length}</p>
-            <p className="text-xs text-muted-foreground">{t('overdue.totalOverdue')}</p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Stats Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="grid grid-cols-1 sm:grid-cols-3 gap-5"
-      >
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-xl bg-red-light flex items-center justify-center">
-              <AlertCircle className="h-5 w-5 text-red" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{overdueRecords.length}</p>
-              <p className="text-sm text-muted-foreground">{t('overdue.overdueBooks')}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-xl bg-amber-light flex items-center justify-center">
-              <User className="h-5 w-5 text-amber" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">
-                {new Set(overdueRecords.map(r => r.studentId)).size}
-              </p>
-              <p className="text-sm text-muted-foreground">{t('overdue.studentsAffected')}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-xl bg-navy-light flex items-center justify-center">
-              <Clock className="h-5 w-5 text-navy" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">
-                TZS {overdueRecords.reduce((sum, r) => sum + getTotalPenalty(r.dueDate), 0).toLocaleString()}
-              </p>
-              <p className="text-sm text-muted-foreground">{t('overdue.totalPenalties')}</p>
-            </div>
-          </div>
-        </div>
-      </motion.div>
+      <PageHeader
+        title={t('overdue.title', 'Overdue Books')}
+        description={t('overdue.subtitle', 'Manage and remind students about overdue library resources.')}
+      />
 
       {/* Search */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="relative"
-      >
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder={t('overdue.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-11 pl-10 rounded-xl"
-        />
-      </motion.div>
-
-      {/* Overdue List */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="rounded-[20px] bg-card shadow-card overflow-hidden"
-      >
-        {filteredOverdue.length === 0 ? (
-          <EmptyState
-            icon={CheckCircle2}
-            title={t('overdue.noOverdue')}
-            description={t('overdue.noOverdueDesc')}
+      <div className="flex gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={t('overdue.search', 'Search by book or student name...')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 rounded-xl h-11"
           />
+        </div>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="space-y-3 lg:hidden">
+        {loading ? (
+          <p className="text-sm text-muted-foreground text-center py-8">{t('common.loading', 'Loading...')}</p>
+        ) : filteredRecords.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">{t('overdue.emptyTitle', 'No Overdue Books')}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border/60">
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {t('overdue.student')}
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {t('overdue.book')}
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {t('overdue.dueDate')}
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {t('overdue.daysOverdue')}
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {t('overdue.penalty')}
-                  </th>
-                  <th className="text-right px-6 py-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {t('overdue.actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOverdue.map((record) => {
-                  const daysOverdue = getDaysOverdue(record.dueDate);
-                  const penalty = getTotalPenalty(record.dueDate);
-                  const student = students.find(s => s.id === record.studentId);
-                  
-                  return (
-                    <tr 
-                      key={record.id} 
-                      className="border-b border-border/40 last:border-0 hover:bg-secondary/50 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={student?.avatar} alt={record.studentName} />
-                            <AvatarFallback className="bg-red text-white text-xs">
-                              {record.studentName.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium text-foreground">{record.studentName}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-sm text-foreground">{record.bookTitle}</div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
-                        {new Date(record.dueDate).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-light text-red">
-                          {daysOverdue} {t('overdue.days')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-red">TZS {penalty.toLocaleString()}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {hasPermission('overdue:manage') && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleSendReminder(record)}
-                            className="rounded-lg"
-                          >
-                            <Mail className="h-4 w-4 mr-1" />
-                            {t('overdue.remind')}
-                          </Button>
-                          )}
-                          {hasPermission('overdue:manage') && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleClearOverdue(record.id)}
-                            className="rounded-lg bg-green hover:bg-green/90"
-                          >
-                            {t('overdue.clear')}
-                          </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Reminder Dialog */}
-      <Dialog open={showReminderDialog} onOpenChange={setShowReminderDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('overdue.sendReminder')}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            {selectedOverdue && (
-              <div className="space-y-4">
-                <div className="p-4 bg-secondary/50 rounded-xl">
-                  <p className="font-medium text-sm">{selectedOverdue.studentName}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{selectedOverdue.bookTitle}</p>
-                  <p className="text-xs text-red mt-1">
-                    {getDaysOverdue(selectedOverdue.dueDate)} {t('overdue.daysOverdueText')}
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">{t('overdue.reminderMethod')}</p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setReminderType('email')}
-                      className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
-                        reminderType === 'email' 
-                          ? 'border-navy bg-navy-light text-navy' 
-                          : 'border-border hover:bg-secondary'
-                      }`}
-                    >
-                      <Mail className="h-4 w-4" />
-                      {t('overdue.email')}
-                    </button>
-                    <button
-                      onClick={() => setReminderType('sms')}
-                      className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
-                        reminderType === 'sms' 
-                          ? 'border-navy bg-navy-light text-navy' 
-                          : 'border-border hover:bg-secondary'
-                      }`}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      {t('overdue.sms')}
-                    </button>
+          filteredRecords.map((record) => {
+            const daysLate = differenceInDays(new Date(), new Date(record.dueDate));
+            return (
+              <div key={record.id} className="p-4 bg-card border rounded-xl space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BookKey className="h-4 w-4 text-destructive shrink-0" />
+                    <p className="font-medium text-sm truncate">{record.bookTitle}</p>
                   </div>
+                  <Badge variant="destructive" className="text-xs shrink-0">
+                    {daysLate}d late
+                  </Badge>
                 </div>
-
-                <div className="p-3 bg-amber-light rounded-xl">
-                  <p className="text-xs text-amber">
-                    {t('overdue.reminderNote')}
-                  </p>
+                <p className="text-sm text-muted-foreground">{record.studentName}</p>
+                <p className="text-xs text-muted-foreground">{t('overdue.dueDate', 'Due')}: {format(new Date(record.dueDate), 'MMM dd, yyyy')}</p>
+                <div className="flex items-center gap-2 pt-1">
+                  {hasPermission('library:remind') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg"
+                      onClick={() => handleSendReminder(record.id, 'email')}
+                      disabled={!record.studentEmail}
+                    >
+                      <Mail className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border rounded-lg px-2.5 py-1.5">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    SMS
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Soon</Badge>
+                  </span>
+                  {hasPermission('library:manage') && (
+                    <Button
+                      size="sm"
+                      className="h-8 rounded-lg ml-auto"
+                      onClick={() => setReturnTarget(record)}
+                    >
+                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                      {t('overdue.markReturned', 'Return')}
+                    </Button>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReminderDialog(false)} className="rounded-xl">
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={confirmSendReminder} className="bg-navy hover:bg-navy/90 rounded-xl">
-              {t('overdue.sendReminder')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            );
+          })
+        )}
+      </div>
 
-      {/* Success Dialog */}
-      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
-          <div className="py-6 text-center">
-            <div className="h-16 w-16 rounded-full bg-green-light flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="h-8 w-8 text-green" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground">{t('overdue.reminderSent')}</h3>
-            <p className="text-sm text-muted-foreground mt-2">
-              {t('overdue.reminderSentDesc')}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowSuccessDialog(false)} className="w-full bg-navy hover:bg-navy/90 rounded-xl">
-              {t('overdue.done')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Desktop table */}
+      <div className="hidden lg:block">
+        <DataTable
+          data={filteredRecords}
+          columns={columns}
+          isLoading={loading}
+          getRowId={(row) => row.id.toString()}
+          emptyIcon={AlertTriangle}
+          emptyTitle={t('overdue.emptyTitle', 'No Overdue Books')}
+          emptyDescription={t('overdue.emptyDesc', 'There are no overdue library books at the moment.')}
+          isError={isError}
+          onRetry={() => { setIsError(false); fetchOverdueRecords(); }}
+        />
+      </div>
+
+      {/* Return confirmation dialog */}
+      <AlertDialog open={!!returnTarget} onOpenChange={(open) => { if (!open) setReturnTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('overdue.confirmReturn', 'Mark as Returned?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {returnTarget && (
+                <>"{returnTarget.bookTitle}" — {returnTarget.studentName}</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => returnTarget && handleReturn(returnTarget.id)}>
+              {t('overdue.markReturned', 'Return')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

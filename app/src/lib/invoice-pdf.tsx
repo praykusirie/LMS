@@ -7,7 +7,8 @@ import {
   StyleSheet,
   pdf,
 } from '@react-pdf/renderer';
-import schoolLogo from '@/public/logo.jpg';
+
+const schoolLogo = '/logo.jpg';
 
 export interface InvoiceData {
   invoice_number: string;
@@ -25,6 +26,9 @@ export interface InvoiceData {
   term1_amount: number;
   term2_amount: number;
   term3_amount: number;
+  term1_percent?: number;
+  term2_percent?: number;
+  term3_percent?: number;
   line_items: Array<{ fee_name: string; amount: number }>;
 }
 
@@ -110,10 +114,9 @@ const W_FEES = '25%';
 // â”€â”€ The document component â”€â”€
 const InvoiceDocument = ({ invoice }: { invoice: InvoiceData }) => {
   const hasTerm3 = invoice.term3_amount > 0;
-  const total = invoice.total_amount || 1;
-  const t1Pct = Math.round((invoice.term1_amount / total) * 100);
-  const t3Pct = hasTerm3 ? Math.round((invoice.term3_amount / total) * 100) : 0;
-  const t2Pct = 100 - t1Pct - t3Pct;
+  const t1Pct = Number(invoice.term1_percent) || 0;
+  const t3Pct = hasTerm3 ? (Number(invoice.term3_percent) || 0) : 0;
+  const t2Pct = Number(invoice.term2_percent) || 0;
 
   // Term column width depends on how many terms we show
   const termW = hasTerm3 ? '16.67%' : '25%';

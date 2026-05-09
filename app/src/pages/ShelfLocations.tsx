@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -22,6 +21,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,6 +43,7 @@ import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui-custom';
 
 interface ShelfLocation {
   id: string;
@@ -56,6 +66,7 @@ export function ShelfLocations() {
 
   const [locations, setLocations] = useState<ShelfLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -77,10 +88,12 @@ export function ShelfLocations() {
   const fetchLocations = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const { data } = await api.get('/shelf-locations');
       setLocations(data);
     } catch (error) {
       console.error('Error fetching locations:', error);
+      setIsError(true);
       toast.error(t('shelfLocations.failedToFetch'));
     } finally {
       setIsLoading(false);
@@ -177,9 +190,9 @@ export function ShelfLocations() {
 
   const getCapacityColor = (book_count: number, capacity: number) => {
     const percentage = ((book_count || 0) / (capacity || 1)) * 100;
-    if (percentage >= 90) return 'bg-red-50 dark:bg-red-950/300';
-    if (percentage >= 70) return 'bg-amber-50 dark:bg-amber-950/300';
-    return 'bg-green-50 dark:bg-green-950/300';
+    if (percentage >= 90) return 'bg-red-500';
+    if (percentage >= 70) return 'bg-amber-400';
+    return 'bg-green-500';
   };
 
   const columns: DataTableColumn<ShelfLocation>[] = useMemo(() => [
@@ -190,8 +203,8 @@ export function ShelfLocations() {
       getValue: (row) => row.name,
       render: (location) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-            <MapPin className="h-5 w-5 text-navy" />
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <MapPin className="h-5 w-5 text-primary" />
           </div>
           <span className="font-medium text-foreground">{location.name}</span>
         </div>
@@ -284,39 +297,21 @@ export function ShelfLocations() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('shelfLocations.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('shelfLocations.subtitle')}
-          </p>
-        </div>
-        {hasPermission('shelf_locations:manage') && (
-        <Button 
-          onClick={() => {
+      <PageHeader
+        title={t('shelfLocations.title')}
+        description={t('shelfLocations.subtitle')}
+        action={hasPermission('shelf_locations:manage') ? {
+          label: t('shelfLocations.addLocation'),
+          icon: Plus,
+          onClick: () => {
             setFormData({ code: '', name: '', section: '', capacity: 100, level: !isAdmin && userLevel ? userLevel : '' });
             setShowAddDialog(true);
-          }}
-          className="bg-navy hover:bg-navy/90 rounded-xl h-11"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t('shelfLocations.addLocation')}
-        </Button>
-        )}
-      </motion.div>
+          },
+        } : undefined}
+      />
 
       {/* Search */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="flex gap-3"
-      >
+      <div className="flex gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -326,19 +321,14 @@ export function ShelfLocations() {
             className="pl-10 rounded-xl h-11"
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Stats */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-      >
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-              <MapPin className="h-5 w-5 text-navy" />
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <MapPin className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold">{locations.length}</p>
@@ -346,7 +336,7 @@ export function ShelfLocations() {
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-green-light flex items-center justify-center">
               <CheckCircle2 className="h-5 w-5 text-green" />
@@ -357,7 +347,7 @@ export function ShelfLocations() {
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-amber-light flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-amber" />
@@ -368,7 +358,7 @@ export function ShelfLocations() {
             </div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-card p-5 shadow-card">
+        <div className="rounded-lg bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
               <MapPin className="h-5 w-5 text-muted-foreground" />
@@ -379,28 +369,100 @@ export function ShelfLocations() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      {/* Mobile cards */}
+      <div className="space-y-3 lg:hidden">
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border bg-card p-4 animate-pulse h-24" />
+            ))
+          : filteredLocations.length === 0
+          ? (
+              <div className="rounded-xl border border-dashed bg-card/70 px-6 py-12 text-center">
+                <MapPin className="mx-auto h-10 w-10 text-muted-foreground/30" />
+                <p className="mt-3 text-sm font-medium text-muted-foreground">{t('shelfLocations.noLocations')}</p>
+              </div>
+            )
+          : filteredLocations.map((location) => {
+              const pct = Math.min(((location.book_count || 0) / (location.capacity || 1)) * 100, 100);
+              return (
+                <div key={location.id} className="rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <MapPin className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{location.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-foreground">{location.code}</span>
+                          {location.section && <span className="text-xs text-muted-foreground">{location.section}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {hasPermission('shelf_locations:manage') && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(location)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {hasPermission('shelf_locations:manage') && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600" onClick={() => openDeleteDialog(location)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{t('shelfLocations.capacity')}</span>
+                      <span className="font-medium">{location.book_count || 0}/{location.capacity}</span>
+                    </div>
+                    <div className="h-1.5 bg-secondary rounded-full">
+                      <div
+                        className={`h-1.5 rounded-full ${getCapacityColor(location.book_count, location.capacity)}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      location.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-700'
+                    }`}>
+                      {location.is_active ? t('shelfLocations.active') : t('shelfLocations.inactive')}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+        }
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden lg:block">
         <DataTable
           data={filteredLocations}
           columns={columns}
           isLoading={isLoading}
+          isError={isError}
+          onRetry={() => { setIsError(false); fetchLocations(); }}
           getRowId={(row) => row.id}
           emptyIcon={MapPin}
           emptyTitle={t('shelfLocations.noLocations')}
           emptyDescription={t('shelfLocations.noLocationsDesc')}
+          emptyAction={hasPermission('shelf_locations:manage') ? {
+            label: t('shelfLocations.addLocation'),
+            icon: Plus,
+            onClick: () => {
+              setFormData({ code: '', name: '', section: '', capacity: 100, level: !isAdmin && userLevel ? userLevel : '' });
+              setShowAddDialog(true);
+            },
+          } : undefined}
         />
-      </motion.div>
+      </div>
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
+        <DialogContent className="rounded-lg max-w-md">
           <DialogHeader>
             <DialogTitle>{t('shelfLocations.addNewLocation')}</DialogTitle>
           </DialogHeader>
@@ -465,7 +527,7 @@ export function ShelfLocations() {
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="rounded-xl">
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleAdd} className="bg-navy hover:bg-navy/90 rounded-xl">
+            <Button onClick={handleAdd} className="bg-primary hover:bg-primary/90 rounded-xl">
               {t('shelfLocations.addLocation')}
             </Button>
           </DialogFooter>
@@ -474,7 +536,7 @@ export function ShelfLocations() {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
+        <DialogContent className="rounded-lg max-w-md">
           <DialogHeader>
             <DialogTitle>{t('shelfLocations.editLocationTitle')}</DialogTitle>
           </DialogHeader>
@@ -539,7 +601,7 @@ export function ShelfLocations() {
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="rounded-xl">
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleEdit} className="bg-navy hover:bg-navy/90 rounded-xl">
+            <Button onClick={handleEdit} className="bg-primary hover:bg-primary/90 rounded-xl">
               {t('common.save')}
             </Button>
           </DialogFooter>
@@ -547,34 +609,32 @@ export function ShelfLocations() {
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="rounded-[20px] max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('shelfLocations.deleteLocationTitle')}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('shelfLocations.deleteLocationTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
               {t('shelfLocations.deleteConfirmMessage', { name: selectedLocation?.name })}
-            </p>
-            {selectedLocation && (selectedLocation.book_count || 0) > 0 && (
-              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
-                <p className="text-sm text-amber-700">
-                  <AlertCircle className="h-4 w-4 inline mr-1" />
-                  {t('shelfLocations.hasBooks', { count: selectedLocation.book_count })}
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-xl">
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleDelete} variant="destructive" className="rounded-xl">
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {selectedLocation && (selectedLocation.book_count || 0) > 0 && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
+              <p className="text-sm text-amber-700">
+                <AlertCircle className="h-4 w-4 inline mr-1" />
+                {t('shelfLocations.hasBooks', { count: selectedLocation.book_count })}
+              </p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
+

@@ -22,8 +22,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
+import { PageHeader } from '@/components/ui-custom';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import api from '@/lib/api';
 import { usePermissions } from '@/lib/permissions';
@@ -42,6 +53,7 @@ export function RoleMaster() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -59,10 +71,12 @@ export function RoleMaster() {
   const fetchRoles = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const { data } = await api.get('/roles');
       setRoles(data);
     } catch (error) {
       console.error('Error fetching roles:', error);
+      setIsError(true);
       toast.error(t('roles.failedToFetch'));
     } finally {
       setIsLoading(false);
@@ -165,8 +179,8 @@ export function RoleMaster() {
       getValue: (row) => row.name,
       render: (role) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-navy-light flex items-center justify-center">
-            <Shield className="h-5 w-5 text-navy" />
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-primary" />
           </div>
           <span className="font-medium text-foreground capitalize">{role.name}</span>
         </div>
@@ -238,28 +252,15 @@ export function RoleMaster() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('roles.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('roles.subtitle')}
-          </p>
-        </div>
-        {hasPermission('roles:manage') && (
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-navy hover:bg-navy/90 rounded-xl h-11"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t('roles.addRole')}
-        </Button>
-        )}
-      </motion.div>
+      <PageHeader
+        title={t('roles.title')}
+        description={t('roles.subtitle')}
+        action={hasPermission('roles:manage') ? {
+          label: t('roles.addRole'),
+          icon: Plus,
+          onClick: () => setIsCreateDialogOpen(true),
+        } : undefined}
+      />
 
       {/* Search */}
       <motion.div
@@ -293,6 +294,13 @@ export function RoleMaster() {
           emptyIcon={Shield}
           emptyTitle={t('roles.noRoles')}
           emptyDescription={t('roles.noRolesDesc')}
+          isError={isError}
+          onRetry={() => { setIsError(false); fetchRoles(); }}
+          emptyAction={hasPermission('roles:manage') ? {
+            label: t('roles.addRole'),
+            icon: Plus,
+            onClick: () => setIsCreateDialogOpen(true),
+          } : undefined}
         />
       </motion.div>
 
@@ -335,7 +343,7 @@ export function RoleMaster() {
             <Button 
               onClick={handleCreateRole} 
               disabled={isSubmitting || !formData.name}
-              className="bg-navy hover:bg-navy/90"
+              className="bg-primary hover:bg-primary/90"
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -388,7 +396,7 @@ export function RoleMaster() {
             <Button 
               onClick={handleEditRole} 
               disabled={isSubmitting || !formData.name}
-              className="bg-navy hover:bg-navy/90"
+              className="bg-primary hover:bg-primary/90"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {t('common.save')}
@@ -398,29 +406,28 @@ export function RoleMaster() {
       </Dialog>
 
       {/* Delete Role Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{t('roles.deleteRole')}</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('roles.deleteRole')}</AlertDialogTitle>
+            <AlertDialogDescription>
               {t('roles.deleteConfirmMessage', { name: selectedRole?.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button 
-              variant="destructive" 
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleDeleteRole}
               disabled={isSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {t('roles.deleteRole')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+

@@ -26,7 +26,6 @@ export function EmptyState({
       {actionLabel && onAction && (
         <Button 
           onClick={onAction}
-          className="mt-4 bg-navy hover:bg-navy/90"
         >
           {actionLabel}
         </Button>

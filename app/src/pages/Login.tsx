@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Library, Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -80,7 +80,7 @@ export function Login() {
           transition={{ duration: 0.5 }}
           className="w-full max-w-md"
         >
-          <div className="rounded-[20px] bg-card p-8 shadow-card">
+          <div className="rounded-lg bg-card p-8 shadow-card">
             <button
               onClick={() => { setShowForgotPassword(false); setResetSent(false); setResetError(''); }}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
@@ -90,8 +90,8 @@ export function Login() {
             </button>
 
             <div className="text-center mb-8">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-navy mx-auto mb-4">
-                <Library className="h-8 w-8 text-white" />
+              <div className="flex h-48 w-auto items-center justify-center mx-auto mb-6">
+                <img src="/login_logo.png" alt="ShulePro Logo" className="h-full object-contain" />
               </div>
               <h1 className="text-2xl font-bold text-foreground">{t('auth.resetPassword')}</h1>
               <p className="text-sm text-muted-foreground mt-2">
@@ -133,7 +133,7 @@ export function Login() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-navy hover:bg-navy/90 rounded-xl"
+                className="w-full h-12 bg-primary hover:bg-primary/90 rounded-xl"
                 disabled={isLoading}
               >
                 {isLoading ? t('auth.sending') : t('auth.sendResetLink')}
@@ -154,12 +154,12 @@ export function Login() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="rounded-[20px] bg-card p-8 shadow-card">
+        <div className="rounded-lg bg-card p-8 shadow-card">
           <div className="text-center mb-8">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-navy mx-auto mb-4">
-              <Library className="h-8 w-8 text-white" />
+            <div className="flex h-32 w-auto items-center justify-center mx-auto mb-6">
+              <img src="/login_logo.png" alt="SHULEPRO Logo" className="h-full object-contain" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">{t('auth.title')}</h1>
+            <h1 className="text-2xl font-lazydog text-foreground">SHULEPRO</h1>
             <p className="text-sm text-muted-foreground mt-2">
               {t('auth.subtitle')}
             </p>
@@ -225,7 +225,7 @@ export function Login() {
               <button
                 type="button"
                 onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-navy hover:underline"
+                className="text-sm text-primary hover:underline"
               >
                 {t('auth.forgotPassword')}
               </button>
@@ -233,7 +233,7 @@ export function Login() {
 
             <Button
               type="submit"
-              className="w-full h-12 bg-navy hover:bg-navy/90 rounded-xl"
+              className="w-full h-12 bg-primary hover:bg-primary/90 rounded-xl"
               disabled={isLoading}
             >
               {isLoading ? t('auth.signingIn') : t('auth.signIn')}

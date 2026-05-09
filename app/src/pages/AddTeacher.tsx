@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, Save, Edit2 } from 'lucide-react';
@@ -16,10 +16,19 @@ import {
 import api from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { toast } from 'sonner';
+import {
+  SCHOOL_LEVELS,
+  type SchoolLevel,
+  filterClassesByLevels,
+  normalizeAssignedLevels,
+  primaryAssignedLevel,
+  toggleAssignedLevel,
+} from '@/lib/teacher-levels';
 
 interface ClassItem {
   id: string;
   name: string;
+  level?: SchoolLevel | null;
 }
 
 interface Teacher {
@@ -29,6 +38,8 @@ interface Teacher {
   gender: 'male' | 'female';
   is_homeroom_teacher: boolean;
   homeroom_class_id: string | null;
+  level?: SchoolLevel | null;
+  assigned_levels?: SchoolLevel[];
 }
 
 export function AddTeacher() {
@@ -50,14 +61,33 @@ export function AddTeacher() {
     gender: 'male' as 'male' | 'female',
     is_homeroom_teacher: false,
     homeroom_class_id: '',
-    level: '',
+    assigned_levels: [] as SchoolLevel[],
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  const effectiveAssignedLevels = useMemo(
+    () => normalizeAssignedLevels(formData.assigned_levels, isAdmin ? null : userLevel),
+    [formData.assigned_levels, isAdmin, userLevel],
+  );
+  const availableHomeroomClasses = useMemo(
+    () => filterClassesByLevels(classes, effectiveAssignedLevels),
+    [classes, effectiveAssignedLevels],
+  );
+
   useEffect(() => {
     Promise.all([fetchClasses(), isEdit ? fetchTeacher() : fetchNextTeacherId()]).finally(() => setIsLoading(false));
   }, [teacherId]);
+
+  useEffect(() => {
+    if (
+      formData.is_homeroom_teacher &&
+      formData.homeroom_class_id &&
+      !availableHomeroomClasses.some((classItem) => classItem.id === formData.homeroom_class_id)
+    ) {
+      setFormData((prev) => ({ ...prev, homeroom_class_id: '' }));
+    }
+  }, [availableHomeroomClasses, formData.homeroom_class_id, formData.is_homeroom_teacher]);
 
   const fetchClasses = async () => {
     const { data } = await api.get('/classes');
@@ -77,12 +107,21 @@ export function AddTeacher() {
       gender: data.gender || 'male',
       is_homeroom_teacher: data.is_homeroom_teacher,
       homeroom_class_id: data.homeroom_class_id || '',
-      level: (data as any).level || '',
+      assigned_levels: normalizeAssignedLevels(data.assigned_levels, data.level || null),
     });
   };
 
   const handleSave = async () => {
+    const assignedLevels = effectiveAssignedLevels;
     if (!formData.name.trim()) return;
+    if (assignedLevels.length === 0) {
+      toast.error(t('teachers.selectLevel'));
+      return;
+    }
+    if (formData.is_homeroom_teacher && !formData.homeroom_class_id) {
+      toast.error(t('teachers.selectClass'));
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -91,7 +130,8 @@ export function AddTeacher() {
         gender: formData.gender,
         is_homeroom_teacher: formData.is_homeroom_teacher,
         homeroom_class_id: formData.is_homeroom_teacher ? formData.homeroom_class_id : null,
-        level: isAdmin ? (formData.level || null) : userLevel,
+        level: primaryAssignedLevel(assignedLevels),
+        assigned_levels: assignedLevels,
       };
 
       if (isEdit) {
@@ -129,7 +169,7 @@ export function AddTeacher() {
         </div>
       </div>
 
-      <div className="max-w-2xl rounded-[20px] bg-card p-6 shadow-card-sm space-y-5">
+      <div className="max-w-2xl rounded-lg bg-card p-6 shadow-card-sm space-y-5">
         <div className="space-y-2">
           <Label>{t('teachers.teacherId')}</Label>
           <Input value={nextTeacherId} disabled className="rounded-xl bg-muted font-mono" />
@@ -192,7 +232,7 @@ export function AddTeacher() {
                 <SelectValue placeholder={t('teachers.selectClass')} />
               </SelectTrigger>
               <SelectContent>
-                {classes.map((classItem) => (
+                {availableHomeroomClasses.map((classItem) => (
                   <SelectItem key={classItem.id} value={classItem.id}>
                     {classItem.name}
                   </SelectItem>
@@ -204,19 +244,27 @@ export function AddTeacher() {
 
         <div className="space-y-2">
           <Label>{t('teachers.level')}</Label>
-          <Select
-            value={isAdmin ? formData.level : (userLevel || '')}
-            onValueChange={(value) => setFormData((prev) => ({ ...prev, level: value }))}
-            disabled={isViewMode || !isAdmin}
-          >
-            <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder={isAdmin ? t('teachers.selectLevel') : (userLevel ? `${userLevel.charAt(0).toUpperCase() + userLevel.slice(1)} Level` : 'No level')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="primary">{t('teachers.primaryLevel')}</SelectItem>
-              <SelectItem value="secondary">{t('teachers.secondaryLevel')}</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {SCHOOL_LEVELS.map((level) => (
+              <label
+                key={level}
+                className="flex items-center gap-3 rounded-xl border bg-background px-3 py-3 text-sm"
+              >
+                <Checkbox
+                  checked={effectiveAssignedLevels.includes(level)}
+                  onCheckedChange={(checked) => {
+                    if (!isAdmin) return;
+                    setFormData((prev) => ({
+                      ...prev,
+                      assigned_levels: toggleAssignedLevel(prev.assigned_levels, level, checked === true),
+                    }));
+                  }}
+                  disabled={isViewMode || !isAdmin}
+                />
+                <span>{level === 'primary' ? t('teachers.primaryLevel') : t('teachers.secondaryLevel')}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-4">
@@ -224,12 +272,16 @@ export function AddTeacher() {
             {isViewMode ? t('common.back') : t('common.cancel')}
           </Button>
           {isViewMode ? (
-            <Button onClick={() => navigate(`/teachers/${teacherId}`)} className="bg-navy hover:bg-navy/90 rounded-xl">
+            <Button onClick={() => navigate(`/teachers/${teacherId}`)} className="bg-primary hover:bg-primary/90 rounded-xl">
               <Edit2 className="h-4 w-4 mr-2" />
               {t('teachers.editTeacher')}
             </Button>
           ) : (
-            <Button onClick={handleSave} disabled={isSaving} className="bg-navy hover:bg-navy/90 rounded-xl">
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || effectiveAssignedLevels.length === 0 || (formData.is_homeroom_teacher && !formData.homeroom_class_id)}
+              className="bg-primary hover:bg-primary/90 rounded-xl"
+            >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               {isEdit ? t('common.save') : t('teachers.createTeacher')}
             </Button>

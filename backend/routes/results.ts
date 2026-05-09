@@ -20,21 +20,28 @@ const calculateGrade = (percentage: number): string => {
 // Get results for a class
 router.get('/', async (req: Request, res: Response) => {
     try {
-        const { class_id } = req.query;
+        const { class_id, date_from, date_to } = req.query;
         
         if (!class_id) {
             res.status(400).json({ error: 'Class ID is required' });
             return;
         }
         
-        // Get all activities for this class
-        const activitiesResult = await pool.query(
-            `SELECT id, name, activity_id, total_marks, date
+        // Get all activities for this class (with optional date filter)
+        const activityParams: any[] = [class_id];
+        let activitySql = `SELECT id, name, activity_id, total_marks, date
              FROM activities
-             WHERE class_id = $1 AND is_active = true
-             ORDER BY date, created_at`,
-            [class_id]
-        );
+             WHERE class_id = $1 AND is_active = true`;
+        if (date_from) {
+            activityParams.push(date_from);
+            activitySql += ` AND date >= $${activityParams.length}`;
+        }
+        if (date_to) {
+            activityParams.push(date_to);
+            activitySql += ` AND date <= $${activityParams.length}`;
+        }
+        activitySql += ` ORDER BY date, created_at`;
+        const activitiesResult = await pool.query(activitySql, activityParams);
         
         const activities = activitiesResult.rows;
         

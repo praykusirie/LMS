@@ -38,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
-          <div className="max-w-lg w-full rounded-[24px] bg-card dark:bg-card p-8 text-center shadow-card">
+          <div className="max-w-lg w-full rounded-lg bg-card dark:bg-card p-8 text-center shadow-card">
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-950/30">
               <AlertOctagon className="h-8 w-8 text-red-600" />
             </div>
@@ -56,8 +56,8 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="mt-6 flex items-center justify-center gap-3">
               <button
                 onClick={this.handleRetry}
-                className="inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-sm font-medium text-white hover:bg-navy/90 transition-colors"
-                style={{ backgroundColor: 'hsl(224, 76%, 33%)' }}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                style={{ backgroundColor: 'hsl(var(--primary))' }}
               >
                 <RefreshCw className="h-4 w-4" />
                 Try Again

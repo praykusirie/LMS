@@ -104,7 +104,7 @@ export function AccountantDashboard() {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className="lg:col-span-2 rounded-[20px] bg-card p-5 shadow-card"
+              className="lg:col-span-2 rounded-lg bg-card p-5 shadow-card"
             >
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-foreground">{t('dashboard.monthlyRevenue', 'Monthly Revenue')}</h3>
@@ -143,7 +143,7 @@ export function AccountantDashboard() {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.5 }}
-              className="rounded-[20px] bg-card p-5 shadow-card"
+              className="rounded-lg bg-card p-5 shadow-card"
             >
               <h3 className="text-lg font-semibold text-foreground mb-4">{t('dashboard.recentPayments', 'Recent Payments')}</h3>
               <div className="space-y-3">
@@ -169,7 +169,7 @@ export function AccountantDashboard() {
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
-            className="rounded-[20px] bg-card p-5 shadow-card"
+            className="rounded-lg bg-card p-5 shadow-card"
           >
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -206,3 +206,4 @@ export function AccountantDashboard() {
     </div>
   );
 }
+
